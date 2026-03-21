@@ -37,6 +37,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .pill{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:6px 14px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;border-radius:100px;transition:all 0.15s;user-select:none;}
 .pill:hover{border-color:var(--accent);color:var(--text);}
 .pill.on{border-color:var(--accent);background:rgba(245,200,66,0.1);color:var(--accent);}
+.pill.exclude{border-color:var(--red);background:rgba(224,82,82,0.08);color:var(--red);}
 .pill.ton{border-color:var(--green);background:rgba(77,186,135,0.08);color:var(--green);}
 .slider-row{display:flex;align-items:center;gap:16px;}
 .slider-wrap{flex:1;}
@@ -410,6 +411,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <div class="slabel">Listas</div>
       <div class="pills" id="listPills"><div class="pill on" data-v="all" onclick="pickList(this)">Todas</div></div>
     </div>
+    <div class="fgroup" id="watchedFilterGroup">
+      <div class="slabel">Estado</div>
+      <div class="pills" id="watchedPills">
+        <div class="pill on" data-v="all" onclick="pickWatched(this)">Ambas</div>
+        <div class="pill" data-v="pending" onclick="pickWatched(this)">Por ver</div>
+        <div class="pill" data-v="watched" onclick="pickWatched(this)">Ya vistas</div>
+      </div>
+    </div>
     <div class="fgroup"><div class="slabel">Duraci&#243;n m&#225;xima</div>
       <div class="slider-row">
         <div class="slider-wrap"><input type="range" id="durSlider" min="0" max="480" step="15" value="480" oninput="updateDur(this.value)"></div>
@@ -541,6 +550,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
           <div class="bd-item" data-val="duration_asc" onclick="setBDFilter('browseSort','duration_asc',this,'bdSort')">Duraci&#243;n (corta)</div>
           <div class="bd-item" data-val="duration_desc" onclick="setBDFilter('browseSort','duration_desc',this,'bdSort')">Duraci&#243;n (larga)</div>
           <div class="bd-item active" data-val="random" onclick="setBDFilter('browseSort','random',this,'bdSort')">&#127922; Aleatorio</div>
+        </div>
+      </div>
+      <div class="bd-wrap" id="bdList" style="display:none;">
+        <button class="bd-btn" onclick="toggleBD('bdList')">Lista <span class="bd-arrow">&#9660;</span></button>
+        <div class="bd-menu" id="bdListMenu">
+          <div class="bd-item active" data-val="all" onclick="setBDFilter('browseList','all',this,'bdList')">Todas</div>
         </div>
       </div>
       <div class="bd-wrap" id="bdStatus">
@@ -689,7 +704,7 @@ var titles = RAW.map(function(t,i){
           poster:null,backdrop:null,director:"",country:"",status:"active",isNew:false,lists:[],pinned:false};
 });
 
-var activeType="all",activeGenres=[],activeDecades=["all"],activeMood="any",activeCountry="all",activeList="all";
+var activeType="all",activeGenres=[],activeDecades=["all"],activeMood="any",activeCountry="all",activeList="all",excludeList=null,activeWatchedFilter="all";
 var maxDur=9999,lastPick=null,mFilter="all",wStep=0,wAnswers={},editIdx=-1;
 var diaryDates=[];
 var streamCache={};
@@ -1154,8 +1169,17 @@ function pickDecade(el){
   updateCandidates();
 }
 function pickCountry(el){document.querySelectorAll("#countryPills .pill").forEach(function(p){p.classList.remove("on");});el.classList.add("on");activeCountry=el.dataset.v;updateCandidates();}
+function pickWatched(el){
+  document.querySelectorAll("#watchedPills .pill").forEach(function(p){p.classList.remove("on");});
+  el.classList.add("on");
+  activeWatchedFilter=el.dataset.v;
+  updateCandidates();
+}
+
 function pickList(el){
   var v=el.dataset.v;
+  document.querySelectorAll("#listPills .pill.exclude").forEach(function(p){p.classList.remove("exclude");});
+  excludeList=null;
   if(v==="all"){
     document.querySelectorAll("#listPills .pill").forEach(function(p){p.classList.remove("on");});
     el.classList.add("on");
@@ -1197,13 +1221,29 @@ function buildLists(){
     c.appendChild(anyEl);
   }
   listNames.sort().forEach(function(name){
-    var el=document.createElement("div");el.className="pill";el.dataset.v=name;
-    el.setAttribute("onclick","pickList(this)");
-    // Truncar nombres largos
+    var el=document.createElement("div");
+    el.className="pill";el.dataset.v=name;
     el.textContent=name.length>30?name.substring(0,28)+"...":name;
-    el.title=name+" ("+lc[name]+" titulos)";
+    el.title=name+" ("+lc[name]+" t\u00edtulos) \u2014 Clic der: excluir";
+    el.addEventListener("click",function(){pickList(el);});
+    el.addEventListener("contextmenu",function(e){
+      e.preventDefault();
+      var same=excludeList===name;
+      // Limpiar exclusiones previas
+      c.querySelectorAll(".pill.exclude").forEach(function(p){p.classList.remove("exclude");});
+      excludeList=same?null:name;
+      if(excludeList){
+        el.classList.add("exclude");
+        el.classList.remove("on");
+        var allPill=c.querySelector('[data-v="all"]');
+        if(allPill){document.querySelectorAll("#listPills .pill").forEach(function(p){p.classList.remove("on");});allPill.classList.add("on");}
+        activeList="all";
+      }
+      updateCandidates();
+    });
     c.appendChild(el);
   });
+  buildBDListMenu();
 }
 function pickFilterService(el){
   activeService=el.dataset.v;
@@ -1220,7 +1260,9 @@ function updateDur(v){
 }
 function getCandidates(){
   return titles.filter(function(t){
-    if(t.status!=="active")return false;
+    if(activeWatchedFilter==="pending"&&t.status!=="active")return false;
+    if(activeWatchedFilter==="watched"&&t.status!=="watched")return false;
+    if(activeWatchedFilter==="all"&&t.status==="removed")return false;
     if(!t.genres||!t.genres.length)return false;
     if(t.m>0&&t.m>maxDur)return false;
     if(activeType!=="all"){
@@ -1240,6 +1282,7 @@ function getCandidates(){
       }
       else if(t.lists.indexOf(activeList)===-1)return false;
     }
+    if(excludeList&&(t.lists||[]).indexOf(excludeList)!==-1)return false;
     if(activeMood!=="any"&&MOOD[activeMood]&&(t.genres||[]).length>0){var mg=MOOD[activeMood];if(!mg.some(function(g){return(t.genres||[]).indexOf(g)!==-1;}))return false;}
     return true;
   });
@@ -2155,7 +2198,7 @@ function handleImportCSV(e){
 // ── BROWSE MODE v2 ────────────────────────────────────────────────────────────
 var lastWizardIdxs=[];
 var browseType="all", browseDecade="all", browseGenre="all";
-var browseCountry="all", browseService="all", browseSort="random", browseStatus="pending";
+var browseCountry="all", browseService="all", browseSort="random", browseStatus="pending", browseList="all";
 var browsePage=0, BROWSE_PER_PAGE=60;
 var browseServiceCache={}; // URI -> [provider_ids] para filtro de servicio
 
@@ -2184,6 +2227,7 @@ function setBDFilter(varName,val,el,wrapId){
   else if(varName==='browseService')browseService=val;
   else if(varName==='browseSort'){browseSort=val;if(val==='random'){titles.forEach(function(t){t._randKey=Math.random();})}}
   else if(varName==='browseStatus'){browseStatus=val;}
+  else if(varName==='browseList'){browseList=val;}
   // Marcar item activo
   var menu=el.closest('.bd-menu');
   if(menu)menu.querySelectorAll('.bd-item').forEach(function(i){i.classList.remove('active');});
@@ -2200,14 +2244,14 @@ function setBDFilter(varName,val,el,wrapId){
 }
 
 function updateResetBtn(){
-  var hasFilter=browseType!=='all'||browseDecade!=='all'||browseGenre!=='all'||browseCountry!=='all'||browseService!=='all'||(browseSort!=='random'&&browseSort!=='alpha_asc')||browseStatus!=='pending';
+  var hasFilter=browseType!=='all'||browseDecade!=='all'||browseGenre!=='all'||browseCountry!=='all'||browseService!=='all'||(browseSort!=='random'&&browseSort!=='alpha_asc')||browseStatus!=='pending'||browseList!=='all';
   var btn=document.getElementById('bdResetBtn');
   if(btn)btn.style.display=hasFilter?'inline-block':'none';
 }
 
 function resetBDFilters(){
   browseType='all';browseDecade='all';browseGenre='all';
-  browseCountry='all';browseService='all';browseSort='alpha_asc';browseStatus='pending';
+  browseCountry='all';browseService='all';browseSort='alpha_asc';browseStatus='pending';browseList='all';
   // Resetear items activos en todos los menús
   document.querySelectorAll('.bd-item').forEach(function(i){i.classList.remove('active');});
   document.querySelectorAll('.bd-item[data-val="all"]').forEach(function(i){i.classList.add('active');});
@@ -2218,6 +2262,25 @@ function resetBDFilters(){
 }
 
 // Construir menús dinámicos
+function buildBDListMenu(){
+  var lc={};
+  titles.filter(function(t){return t.status!=="removed";}).forEach(function(t){
+    (t.lists||[]).forEach(function(l){lc[l]=(lc[l]||0)+1;});
+  });
+  var names=Object.keys(lc).sort();
+  var wrap=document.getElementById("bdList");
+  if(wrap)wrap.style.display=names.length?"":"none";
+  var menu=document.getElementById("bdListMenu");
+  if(!menu)return;
+  menu.innerHTML='<div class="bd-item active" data-val="all" onclick="setBDFilter(\'browseList\',\'all\',this,\'bdList\')">Todas</div>';
+  names.forEach(function(name){
+    var el=document.createElement("div");el.className="bd-item";
+    el.textContent=name+" ("+lc[name]+")";
+    (function(n){el.onclick=function(){setBDFilter("browseList",n,el,"bdList");};})(name);
+    menu.appendChild(el);
+  });
+}
+
 function buildBDMenus(){
   // Décadas
   var dec=new Set();
@@ -2257,6 +2320,7 @@ function buildBDMenus(){
       el.textContent=name;cm.appendChild(el);
     });
   }
+  buildBDListMenu();
   // Servicios — todos los providers, activos primero
   var sm=document.getElementById('bdServiceMenu');
   if(sm){
@@ -2310,6 +2374,7 @@ function getBrowseTitles(){
       if((t.genres||[]).indexOf(parseInt(browseGenre))===-1)return false;
     }
     if(browseCountry!=='all'&&t.country!==browseCountry)return false;
+    if(browseList!=='all'&&!(t.lists||[]).some(function(l){return l===browseList;}))return false;
     // Filtro de servicio — usa cache de providers
     if(browseService!=='all'){
       var pids=browseServiceCache[t.u||t.idx]||[];
