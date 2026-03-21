@@ -730,12 +730,21 @@ function normName(s){
 }
 
 async function fetchLBData(url){
-  if(!url||!url.includes("letterboxd.com"))return null;
+  if(!url)return null;
+  // Resolver short URLs de Letterboxd (boxd.it → letterboxd.com/film/...)
+  if(url.includes("boxd.it")){
+    try{
+      var rr=await fetch(url,{method:"HEAD",signal:AbortSignal.timeout(4000),redirect:"follow"});
+      if(rr.url&&rr.url.includes("letterboxd.com"))url=rr.url;
+      else return null;
+    }catch(e){return null;}
+  }
+  if(!url.includes("letterboxd.com"))return null;
   try{
     var r=await fetch(url,{signal:AbortSignal.timeout(5000)});
     if(!r.ok)return null;
     var html=await r.text();
-    var result={director:null,mins:null,originalTitle:null};
+    var result={director:null,mins:null,originalTitle:null,_resolvedUrl:url};
     // Director desde el <title>
     var tm=html.match(/<title[^>]*>([^<]+)<\/title>/);
     if(tm){var dm=tm[1].match(/directed by (.+?)(?:\s*[\u2022\u00b7]|$)/);
@@ -1084,8 +1093,10 @@ async function startEnrich(){
         }
         if(!best)best=res[0];
         // Verificación con Letterboxd: director + título original como factores clave
-        if(t.u&&t.u.includes("letterboxd.com")){
+        if(t.u&&(t.u.includes("letterboxd.com")||t.u.includes("boxd.it"))){
           var lbData=await fetchLBData(t.u);
+          // Si fetchLBData resolvió una short URL, guardar la URL larga
+          if(lbData&&lbData._resolvedUrl&&!t.u.includes("letterboxd.com"))t.u=lbData._resolvedUrl;
           var lbNorm=lbData&&lbData.director?normName(lbData.director):null;
           var lbOrigTitle=lbData&&lbData.originalTitle?lbData.originalTitle:null;
 
