@@ -235,32 +235,34 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   <div class="setup-card" id="importCard" style="max-width:480px;width:90%;">
     <h2 style="margin-bottom:6px;">&#127902; &iquest;Qu&eacute; veo hoy?</h2>
     <p style="margin-bottom:20px;color:var(--muted);font-size:11px;">Tu watchlist personal con tiempos, filtros y m&aacute;s.</p>
-    <div style="margin-bottom:12px;">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Importar desde Letterboxd</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Pega la liga de cualquier lista o watchlist p&uacute;blica de Letterboxd.</div>
-      <div style="display:flex;gap:8px;margin-bottom:6px;">
-        <input id="lbUrlInput" type="url" placeholder="https://letterboxd.com/usuario/list/..." class="manage-input" style="flex:1;font-size:11px;" onkeydown="if(event.key==='Enter')importFromLBUrl()">
+    <!-- Opción principal: ZIP / CSV -->
+    <div style="margin-bottom:6px;">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Importar watchlist desde Letterboxd</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Ve a Letterboxd &rarr; Configuraci&oacute;n &rarr; Importar &amp; Exportar &rarr; Exportar tus datos. Luego arrastra el archivo aqu&iacute;.</div>
+      <div class="sync-drop" onclick="document.getElementById('welcomeFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleWelcomeDrop(event)">
+        <div class="sync-drop-label"><strong>Arrastra watchlist.csv o export.zip</strong><br>o haz clic para seleccionar</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:stretch;">
-        <input id="lbApiKey" type="password" placeholder="RapidAPI key (opcional)" class="manage-input" style="flex:1;font-size:11px;" onkeydown="if(event.key==='Enter')importFromLBUrl()">
-        <button class="roll-btn" style="margin:0;padding:0 16px;font-size:11px;white-space:nowrap;" onclick="importFromLBUrl()">Importar</button>
-      </div>
+      <input type="file" id="welcomeFile" accept=".csv,.zip" style="display:none" onchange="handleWelcomeFile(event)">
     </div>
-    <div id="lbUrlMsg" style="font-size:11px;min-height:18px;margin-bottom:12px;"></div>
+    <div id="welcomeMsg" style="font-size:11px;min-height:18px;margin-bottom:14px;"></div>
+    <!-- Separador -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="flex:1;height:1px;background:var(--border);"></div>
       <span style="font-size:9px;letter-spacing:2px;color:var(--muted);">O</span>
       <div style="flex:1;height:1px;background:var(--border);"></div>
     </div>
+    <!-- Opción secundaria: URL de lista -->
     <div style="margin-bottom:14px;">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Exportar desde Letterboxd (watchlist completa)</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Letterboxd &rarr; Configuraci&oacute;n &rarr; Importar &amp; Exportar. Arrastra el ZIP o watchlist.csv.</div>
-      <div class="sync-drop" onclick="document.getElementById('welcomeFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleWelcomeDrop(event)" style="padding:14px;">
-        <div class="sync-drop-label"><strong>Arrastra watchlist.csv o export.zip</strong></div>
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Importar una lista de Letterboxd</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Pega la liga de cualquier lista p&uacute;blica de Letterboxd.</div>
+      <div style="display:flex;gap:8px;">
+        <input id="lbUrlInput" type="url" placeholder="https://letterboxd.com/usuario/list/..." class="manage-input" style="flex:1;font-size:11px;" onkeydown="if(event.key==='Enter')importFromLBUrl()">
+        <button class="mbtn mbtn-d" style="white-space:nowrap;font-size:10px;" onclick="importFromLBUrl()">Importar</button>
       </div>
-      <input type="file" id="welcomeFile" accept=".csv,.zip" style="display:none" onchange="handleWelcomeFile(event)">
+      <!-- campo oculto que la función sigue necesitando -->
+      <input id="lbApiKey" type="hidden" value="">
     </div>
-    <div id="welcomeMsg" style="font-size:11px;min-height:18px;margin-bottom:10px;"></div>
+    <div id="lbUrlMsg" style="font-size:11px;min-height:18px;margin-bottom:10px;"></div>
     <button class="skip-btn" onclick="startEmpty()" style="font-size:10px;">Empezar con lista vac&iacute;a &rarr;</button>
   </div>
   <div class="setup-card" id="enrichCard" style="display:none;">
