@@ -735,12 +735,22 @@ async function fetchLBData(url){
     var r=await fetch(url,{signal:AbortSignal.timeout(5000)});
     if(!r.ok)return null;
     var html=await r.text();
-    var result={director:null,mins:null};
+    var result={director:null,mins:null,originalTitle:null};
+    // Director desde el <title>
     var tm=html.match(/<title[^>]*>([^<]+)<\/title>/);
     if(tm){var dm=tm[1].match(/directed by (.+?)(?:\s*[\u2022\u00b7]|$)/);
       if(dm)result.director=dm[1].replace(/et al\.?/,"").split(",")[0].trim();}
+    // Duración
     var mm=html.match(/(\d+)\s*[Mm]in(?!i)/);
     if(mm&&parseInt(mm[1])>1&&parseInt(mm[1])<10000)result.mins=parseInt(mm[1]);
+    // Título original — clase "originalname" en el HTML de Letterboxd
+    var om=html.match(/class="originalname"[^>]*>[^<]*<[^>]*>([^<]+)<\/[^>]+>/);
+    if(om)result.originalTitle=om[1].trim();
+    // Fallback: buscar en cualquier elemento con originalname
+    if(!result.originalTitle){
+      var om2=html.match(/class="originalname"[^>]*>\s*([^<]+)\s*</);
+      if(om2)result.originalTitle=om2[1].trim();
+    }
     return result;
   }catch(e){return null;}
 }
@@ -999,11 +1009,13 @@ function skipEnrich(){
 
 // TMDB ID overrides para títulos que TMDB confunde con otros
 var TMDB_OVERRIDES={
-  "Ran_1985":        {id:10528, type:"movie"},
-  "Audition_1999":   {id:10003, type:"movie"},
-  "Crash_2004":      {id:1580,  type:"movie"},
-  "Crash_1996":      {id:11849, type:"movie"},
-  "Dreams_1990":     {id:11377, type:"movie"}
+  "Ran_1985":        {id:10528,  type:"movie"},
+  "Audition_1999":   {id:10003,  type:"movie"},
+  "Crash_2004":      {id:1580,   type:"movie"},
+  "Crash_1996":      {id:11849,  type:"movie"},
+  "Dreams_1990":     {id:11377,  type:"movie"},
+  "The Trial_1962":  {id:30619,  type:"movie"}, // Le Procès, Orson Welles
+  "Le Procès_1962":  {id:30619,  type:"movie"}
 };
 
 async function startEnrich(){
@@ -1028,24 +1040,97 @@ async function startEnrich(){
           res=(await r.json()).results.filter(function(x){return x.media_type==="movie"||x.media_type==="tv";});
         }
         if(!res.length)return;
-        var best=res[0];
-        if(t.y){var ym=res.find(function(x){return(x.release_date||x.first_air_date||"").startsWith(String(t.y));});if(ym)best=ym;}
-        // Doble chequeo con Letterboxd
-        if(t.u&&t.u.includes("letterboxd.com")&&res.length>1){
-          var lbData=await fetchLBData(t.u);
-          if(lbData&&lbData.director){
-            var lbNorm=normName(lbData.director);
-            for(var ri=0;ri<Math.min(res.length,4);ri++){
-              var cand=res[ri];var candEp=cand.media_type==="tv"?"tv":"movie";
-              try{
-                var rc=await fetch("https://api.themoviedb.org/3/"+candEp+"/"+cand.id+"?api_key="+KEY+"&append_to_response=credits",{signal:AbortSignal.timeout(4000)});
-                if(!rc.ok)continue;
-                var dc=await rc.json();
-                var crew=(dc.credits&&dc.credits.crew)||[];
-                var dirC=crew.find(function(c){return c.job==="Director";});
-                if(dirC&&normName(dirC.name)===lbNorm){best=cand;break;}
-              }catch(e){continue;}
+        // Selección robusta: priorizar coincidencia exacta de año
+        var best=null;
+        if(t.y){
+          // 1. Coincidencia exacta de año
+          best=res.find(function(x){return(x.release_date||x.first_air_date||"").startsWith(String(t.y));});
+          // 2. Si no hay exacta, buscar ±1 año (remasters, re-releases)
+          if(!best)best=res.find(function(x){
+            var yr=parseInt((x.release_date||x.first_air_date||"").substring(0,4));
+            return yr&&Math.abs(yr-t.y)<=1;
+          });
+          // 3. Si ninguno coincide con el año, desconfiar del primer resultado
+          //    y preferir el que tenga el año más cercano
+          if(!best){
+            var withYear=res.filter(function(x){return(x.release_date||x.first_air_date||"").length>=4;});
+            if(withYear.length){
+              withYear.sort(function(a,b){
+                var ya=parseInt((a.release_date||a.first_air_date||"").substring(0,4))||9999;
+                var yb=parseInt((b.release_date||b.first_air_date||"").substring(0,4))||9999;
+                return Math.abs(ya-t.y)-Math.abs(yb-t.y);
+              });
+              // Solo usar si está a menos de 3 años de diferencia
+              var closest=withYear[0];
+              var closestYr=parseInt((closest.release_date||closest.first_air_date||"").substring(0,4))||9999;
+              if(Math.abs(closestYr-t.y)<=3)best=closest;
             }
+          }
+        }
+        if(!best)best=res[0];
+        // Verificación con Letterboxd: director + título original como factores clave
+        if(t.u&&t.u.includes("letterboxd.com")){
+          var lbData=await fetchLBData(t.u);
+          var lbNorm=lbData&&lbData.director?normName(lbData.director):null;
+          var lbOrigTitle=lbData&&lbData.originalTitle?lbData.originalTitle:null;
+
+          // Función auxiliar: obtener director de un candidato de TMDB
+          async function getTMDBDir(cand){
+            try{
+              var ep2=cand.media_type==="tv"?"tv":"movie";
+              var rc2=await fetch("https://api.themoviedb.org/3/"+ep2+"/"+cand.id+"?api_key="+KEY+"&append_to_response=credits",{signal:AbortSignal.timeout(4000)});
+              if(!rc2.ok)return null;
+              var dc2=await rc2.json();
+              var crew2=(dc2.credits&&dc2.credits.crew)||[];
+              var dirC2=crew2.find(function(c){return c.job==="Director";});
+              return dirC2?normName(dirC2.name):null;
+            }catch(e2){return null;}
+          }
+
+          // Paso 1: buscar en los primeros 6 resultados el que coincida con director
+          var bestByDir=null;
+          if(lbNorm){
+            for(var ri=0;ri<Math.min(res.length,6);ri++){
+              var cdir=await getTMDBDir(res[ri]);
+              if(cdir===lbNorm){bestByDir=res[ri];break;}
+            }
+          }
+
+          if(bestByDir){
+            var dirYr=parseInt((bestByDir.release_date||bestByDir.first_air_date||"").substring(0,4))||0;
+            if(!t.y||Math.abs(dirYr-t.y)<=5)best=bestByDir;
+          }
+
+          // Paso 2: si el director no coincide con ninguno de los resultados actuales,
+          // buscar en TMDB usando el título original de Letterboxd
+          var directorConfirmed=bestByDir&&best===bestByDir;
+          if(!directorConfirmed&&lbOrigTitle&&lbOrigTitle!==t.n){
+            try{
+              var qOrig=encodeURIComponent(lbOrigTitle),yrOrig=t.y?"&year="+t.y:"";
+              var rOrig=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY+"&query="+qOrig+yrOrig+"&language=en-US&page=1",{signal:AbortSignal.timeout(6000)});
+              if(rOrig.ok){
+                var resOrig=(await rOrig.json()).results.filter(function(x){return x.media_type==="movie"||x.media_type==="tv";});
+                if(resOrig.length){
+                  // Buscar en estos resultados el que coincida con director
+                  var bestOrig=null;
+                  if(lbNorm){
+                    for(var ro=0;ro<Math.min(resOrig.length,4);ro++){
+                      var cdirO=await getTMDBDir(resOrig[ro]);
+                      if(cdirO===lbNorm){bestOrig=resOrig[ro];break;}
+                    }
+                  }
+                  // Si encontró por director en título original, usar ese
+                  if(bestOrig){
+                    var origYr=parseInt((bestOrig.release_date||bestOrig.first_air_date||"").substring(0,4))||0;
+                    if(!t.y||Math.abs(origYr-t.y)<=5)best=bestOrig;
+                  }else{
+                    // Si no hay coincidencia de director, usar el primer resultado por año
+                    var bestOrigByYr=t.y?resOrig.find(function(x){return(x.release_date||x.first_air_date||"").startsWith(String(t.y));}):null;
+                    if(bestOrigByYr)best=bestOrigByYr;
+                  }
+                }
+              }
+            }catch(e3){}
           }
         }
         var ep=best.media_type==="tv"?"tv":"movie",tid=best.id;
@@ -1298,13 +1383,18 @@ function getCandidates(){
     if(activeDecades[0]!=="all"){if(!t.y)return false;if(activeDecades.indexOf(String(Math.floor(t.y/10)*10))===-1)return false;}
     if(activeCountry!=="all"&&t.country!==activeCountry)return false;
     if(activeList!=="all"){
-      if(!t.lists||!t.lists.length)return false;
-      if(activeList==="any"){if(!t.lists.length)return false;}
-      else if(activeList==="none"){if(t.lists&&t.lists.length)return false;}
-      else if(Array.isArray(activeList)){
-        if(!activeList.some(function(l){return t.lists.indexOf(l)!==-1;}))return false;
+      if(activeList==="none"){
+        // Sin lista: pasar solo las que NO tienen listas
+        if(t.lists&&t.lists.length)return false;
+      }else{
+        // Con lista, cualquier lista específica, o array
+        if(!t.lists||!t.lists.length)return false;
+        if(activeList==="any"){/* ya tiene lista, OK */}
+        else if(Array.isArray(activeList)){
+          if(!activeList.some(function(l){return t.lists.indexOf(l)!==-1;}))return false;
+        }
+        else if(t.lists.indexOf(activeList)===-1)return false;
       }
-      else if(t.lists.indexOf(activeList)===-1)return false;
     }
     if(excludeList&&(t.lists||[]).indexOf(excludeList)!==-1)return false;
     if(activeMood!=="any"&&MOOD[activeMood]&&(t.genres||[]).length>0){var mg=MOOD[activeMood];if(!mg.some(function(g){return(t.genres||[]).indexOf(g)!==-1;}))return false;}
@@ -1576,7 +1666,16 @@ function setMode(mode,btn){
     rc.classList.remove('show');
   }
 }
-function startWizard(){wStep=0;wAnswers={};document.getElementById("wResult").innerHTML="";renderWStep();}
+function startWizard(){
+  wStep=0;wAnswers={};
+  document.getElementById("wResult").innerHTML="";
+  document.getElementById("wSteps").innerHTML="";
+  // Limpiar la tarjeta de resultado
+  var rc=document.getElementById("resultCard");
+  if(rc)rc.classList.remove("show");
+  lastPick=null;
+  renderWStep();
+}
 function renderWStep(){
   var c=document.getElementById("wSteps"),step=WZ[wStep];
   if(!step){runWizard();return;}
@@ -2848,7 +2947,9 @@ async function applyTMDBResult(item){
     }
     streamCache={};
     renderBrowse();renderManage();
-    showToast("Datos actualizados desde TMDB — revisa y guarda si todo está bien");
+    // Actualizar tarjeta si está visible
+    if(lastPick&&lastPick.idx===t.idx)showResult(t);
+    showToast("Datos actualizados desde TMDB");
   }catch(e){showToast("Error al obtener datos de TMDB");}
 }
 
@@ -2889,6 +2990,8 @@ function saveManualFix(){
   }catch(e2){}
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();
   closeFixModal();renderBrowse();renderManage();
+  // Actualizar tarjeta si está visible
+  if(lastPick&&lastPick.idx===t.idx)showResult(t);
   showToast("Corregido: "+t.n);
 }
 
