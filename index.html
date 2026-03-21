@@ -233,6 +233,52 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .delete-list-card p{color:var(--muted);font-size:11px;line-height:1.8;margin-bottom:20px;}
 .delete-list-actions{display:flex;flex-direction:column;gap:8px;}
 .delete-list-actions .mbtn{width:100%;text-align:left;padding:12px 16px;font-size:11px;letter-spacing:1px;}
+/* ── ENCUESTA ─────────────────────────────────────────────── */
+#surveyOverlay{display:none;position:fixed;inset:0;z-index:500;background:rgba(12,12,14,0.97);
+  align-items:center;justify-content:center;overflow-y:auto;padding:20px;}
+#surveyOverlay.show{display:flex;}
+.survey-card{background:var(--surface);border:1px solid var(--border);padding:36px 40px;
+  max-width:560px;width:100%;margin:auto;}
+.survey-progress{display:flex;gap:4px;margin-bottom:28px;}
+.survey-dot{height:3px;flex:1;background:var(--border);transition:background .3s;}
+.survey-dot.done{background:var(--accent);}
+.survey-dot.active{background:var(--accent);opacity:0.5;}
+.survey-q{font-family:'Playfair Display',serif;font-size:20px;color:var(--text);
+  margin-bottom:6px;line-height:1.4;}
+.survey-hint{font-size:11px;color:var(--muted);margin-bottom:20px;letter-spacing:.5px;}
+.survey-opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
+.survey-opt{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+  padding:8px 14px;border:1px solid var(--border);color:var(--muted);
+  cursor:pointer;transition:all .15s;background:transparent;user-select:none;}
+.survey-opt:hover{border-color:var(--text);color:var(--text);}
+.survey-opt.sel{border-color:var(--accent);color:var(--accent);background:rgba(245,200,66,.07);}
+.survey-opt.excl{border-color:var(--red);color:var(--red);background:rgba(224,82,82,.07);}
+.survey-nav{display:flex;gap:10px;align-items:center;margin-top:8px;}
+.survey-back{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+  padding:9px 18px;border:1px solid var(--border);color:var(--muted);
+  background:transparent;cursor:pointer;}
+.survey-next{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+  padding:9px 22px;border:1px solid var(--accent);color:var(--accent);
+  background:transparent;cursor:pointer;}
+.survey-next:disabled{opacity:.3;cursor:default;}
+.survey-skip{font-size:10px;color:var(--muted);text-decoration:underline;
+  cursor:pointer;margin-left:auto;letter-spacing:.5px;}
+.survey-age-warn{font-size:11px;color:var(--red);padding:8px 12px;
+  border:1px solid var(--red);margin-bottom:12px;display:none;}
+.survey-ref-search{display:flex;gap:8px;margin-bottom:10px;}
+.survey-ref-results{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;}
+.survey-ref-item{display:flex;align-items:center;gap:10px;padding:8px 10px;
+  border:1px solid var(--border);cursor:pointer;font-size:11px;}
+.survey-ref-item:hover{border-color:var(--accent);}
+.survey-ref-item img{width:32px;height:48px;object-fit:cover;}
+.survey-ref-added{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.survey-ref-tag{font-size:10px;padding:4px 10px;border:1px solid var(--green);
+  color:var(--green);display:flex;align-items:center;gap:6px;}
+.profile-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;
+  padding:4px 10px;border:1px solid var(--blue);color:var(--blue);cursor:pointer;}
+.suggestion-badge{font-size:9px;letter-spacing:1px;padding:2px 8px;
+  background:rgba(100,149,237,.15);border:1px solid var(--blue);color:var(--blue);}
+
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#000;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:10px 18px;z-index:999;animation:slideIn 0.3s ease;}
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
@@ -263,6 +309,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <input type="file" id="welcomeFile" accept=".csv,.zip" style="display:none" onchange="handleWelcomeFile(event)">
     </div>
     <div id="welcomeMsg" style="font-size:11px;min-height:18px;margin-bottom:14px;"></div>
+    <!-- Separador -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:9px;letter-spacing:2px;color:var(--muted);">O</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+    <!-- Encuesta -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Crear perfil con encuesta</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Si no tienes Letterboxd o quieres afinar tus recomendaciones, responde unas preguntas r&aacute;pidas.</div>
+      <button class="mbtn" style="width:100%;border-color:var(--blue);color:var(--blue);" onclick="openSurvey(false)">&#9654; Responder encuesta</button>
+    </div>
     <!-- Separador -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="flex:1;height:1px;background:var(--border);"></div>
@@ -399,6 +457,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <button class="mode-tab" onclick="setMode('stats',this)">Estad&#237;sticas</button>
     <button class="mode-tab" onclick="setMode('browse',this)">Mi lista</button>
     <button class="mode-tab" onclick="setMode('manage',this)">Gestionar lista</button>
+    <button class="profile-badge" onclick="openSurvey(true)" title="Editar tu perfil" style="margin-left:auto;">&#9881; Perfil</button>
   </div>
 
   <div id="filterMode">
@@ -445,7 +504,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       </div>
     </div>
     <div id="cInfo"></div>
-    <button class="roll-btn" onclick="roll()">Sorpr&#233;ndeme</button>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;margin-top:6px;">
+      <button id="srcToggleBtn" class="mbtn mbtn-d" style="font-size:9px;" onclick="toggleSuggestionSource(this)">&#127922; Desde mi lista</button>
+      <span id="poolStatus" style="font-size:10px;color:var(--muted);"></span>
+    </div>
+    <button class="roll-btn" onclick="rollWithSource()">Sorpr&#233;ndeme</button>
 
 
   <div id="resultCard">
@@ -627,6 +690,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mbtn mbtn-g" onclick="reEnrich()" id="reEnrichBtn">&#9733; Re-enriquecer</button>
       <button class="mbtn" style="border-color:var(--blue);color:var(--blue);" onclick="toggleListsPanel()" id="listsPanelBtn">&#9776; Listas</button>
       <button class="mbtn" style="border-color:var(--red);color:var(--red);" onclick="clearAllTitles()">&#215; Borrar todo</button>
+      <button class="mbtn" style="border-color:#ff6b35;color:#ff6b35;font-size:9px;" onclick="resetFullUser()" title="Borrar todo incluyendo perfil, encuesta y caché — para pruebas">&#9762; Reset total</button>
       <span id="reEnrichProgress" style="display:none;font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
     </div>
     <div class="add-box" style="margin-bottom:16px;">
@@ -675,21 +739,56 @@ var TMDB_IMG = "https://image.tmdb.org/t/p/w200";
 var TMDB_LOGO = "https://image.tmdb.org/t/p/original";
 
 var ALL_PROVIDERS = {
-  8:   {name:"Netflix",            region:"MX"},
-  384: {name:"HBO Max",            region:"MX"},
-  337: {name:"Disney+",            region:"MX"},
-  119: {name:"Prime Video",        region:"MX"},
-  531: {name:"Paramount+",         region:"MX"},
-  350: {name:"Apple TV+",          region:"MX"},
-  619: {name:"Star+",              region:"MX"},
-  2113:{name:"Paramount+ (Prime)", region:"MX"},
-  1870:{name:"VIX Premium",        region:"MX"},
-  186: {name:"HBO Max (Prime)",     region:"MX"},
-  258: {name:"Criterion Channel",  region:"US"},
-  11:  {name:"MUBI",               region:"MX"},
-  99:  {name:"Shudder",            region:"US"},
-  167: {name:"Claro Video",        region:"MX"},
-  330: {name:"Blim TV",            region:"MX"}
+  // México
+  8:   {name:"Netflix",             region:"MX"},
+  384: {name:"HBO Max",             region:"MX"},
+  337: {name:"Disney+",             region:"MX"},
+  119: {name:"Prime Video",         region:"MX"},
+  531: {name:"Paramount+",          region:"MX"},
+  350: {name:"Apple TV+",           region:"MX"},
+  619: {name:"Star+",               region:"MX"},
+  2113:{name:"Paramount+ (Prime)",  region:"MX"},
+  1870:{name:"VIX Premium",         region:"MX"},
+  186: {name:"HBO Max (Prime)",      region:"MX"},
+  11:  {name:"MUBI",                region:"MX"},
+  167: {name:"Claro Video",         region:"MX"},
+  330: {name:"Blim TV",             region:"MX"},
+  // Estados Unidos
+  "8_US":   {name:"Netflix (US)",        region:"US", tmdbId:8},
+  "384_US": {name:"HBO Max (US)",        region:"US", tmdbId:384},
+  "337_US": {name:"Disney+ (US)",        region:"US", tmdbId:337},
+  "119_US": {name:"Prime Video (US)",    region:"US", tmdbId:119},
+  "531_US": {name:"Paramount+ (US)",     region:"US", tmdbId:531},
+  "350_US": {name:"Apple TV+ (US)",      region:"US", tmdbId:350},
+  258:      {name:"Criterion Channel",   region:"US", tmdbId:258},
+  99:       {name:"Shudder",             region:"US", tmdbId:99},
+  "11_US":  {name:"MUBI (US)",           region:"US", tmdbId:11},
+  386:      {name:"Peacock",             region:"US", tmdbId:386},
+  // España
+  "8_ES":   {name:"Netflix (ES)",        region:"ES", tmdbId:8},
+  "337_ES": {name:"Disney+ (ES)",        region:"ES", tmdbId:337},
+  "119_ES": {name:"Prime Video (ES)",    region:"ES", tmdbId:119},
+  "11_ES":  {name:"MUBI (ES)",           region:"ES", tmdbId:11},
+  // Argentina
+  "8_AR":   {name:"Netflix (AR)",        region:"AR", tmdbId:8},
+  "337_AR": {name:"Disney+ (AR)",        region:"AR", tmdbId:337},
+  "119_AR": {name:"Prime Video (AR)",    region:"AR", tmdbId:119},
+};
+
+// Mapa de países disponibles en la app
+var STREAMING_COUNTRIES = {
+  "MX": "México",
+  "US": "Estados Unidos",
+  "ES": "España",
+  "AR": "Argentina"
+};
+
+// Providers por país (para la encuesta)
+var PROVIDERS_BY_COUNTRY = {
+  "MX": [8, 384, 337, 119, 531, 350, 619, 2113, 1870, 186, 11, 167, 330],
+  "US": ["8_US","384_US","337_US","119_US","531_US","350_US",258,99,"11_US",386],
+  "ES": ["8_ES","337_ES","119_ES","11_ES"],
+  "AR": ["8_AR","337_AR","119_AR"]
 };
 
 var DEFAULT_SERVICES = [8, 384, 337, 119, 531, 2113, 1870, 258];
@@ -715,6 +814,13 @@ var activeType="all",activeGenres=[],activeDecades=["all"],activeMood="any",acti
 var maxDur=9999,lastPick=null,mFilter="all",wStep=0,wAnswers={},editIdx=-1;
 var diaryDates=[];
 var streamCache={};
+var userProfile=null;      // Perfil del usuario (encuesta)
+var suggestionPool=[];     // Pool de sugerencias generadas
+var surveyStep=0;          // Paso actual de la encuesta
+var surveyAnswers={};      // Respuestas en progreso
+var signalsPositive=[];    // tmdbIds que le gustaron
+var signalsNegative=[];    // tmdbIds descartados
+var signalsCounts={};      // Conteo por director/género para detectar patrones
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 
@@ -813,6 +919,7 @@ function saveServices(){
 // ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener("load",function(){
   loadState();
+  loadProfile();
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem("wq_cC"));}catch(e){}
   if(cached&&cached.length){
@@ -866,6 +973,10 @@ window.addEventListener("load",function(){
   }
   // Restaurar key guardada
   try{var sk=localStorage.getItem("wq_lbKey");if(sk){var ke=document.getElementById("lbApiKey");if(ke)ke.value=sk;}}catch(e){}
+  // Si no hay perfil y no hay títulos, mostrar encuesta automáticamente
+  if(!userProfile&&!titles.length){
+    setTimeout(function(){openSurvey(false);},600);
+  }
 });
 
 
@@ -1428,6 +1539,19 @@ function getCandidates(){
     return true;
   });
 }
+function updatePoolStatus(){
+  var ps=document.getElementById("poolStatus");
+  if(!ps)return;
+  if(suggestionPool.length){
+    ps.textContent=suggestionPool.length+" sugerencias disponibles";
+  }else if(userProfile){
+    ps.innerHTML='<a href="#" onclick="buildSuggestionPool();return false;" '+
+      'style="color:var(--blue);">Generar sugerencias</a>';
+  }else{
+    ps.textContent="";
+  }
+}
+
 function updateCandidates(){
   var ready=getCandidates().length;
   var total=titles.filter(function(t){return t.status==="active";}).length;
@@ -1435,6 +1559,7 @@ function updateCandidates(){
   var txt=ready.toLocaleString()+" títulos con estos filtros";
   if(pending>0)txt+=" ("+pending+" cargando...)";
   document.getElementById("cInfo").textContent=txt;
+  updatePoolStatus();
 }
 
 // ── ROLL & RESULT ─────────────────────────────────────────────────────────────
@@ -1464,6 +1589,786 @@ function buildFilterServicePills(){
   var grp=document.getElementById('filterServiceGroup');
   if(grp)grp.style.display=pids.length?"block":"none";
 }
+
+// ══════════════════════════════════════════════════════════════════
+// PERFIL DE USUARIO
+// ══════════════════════════════════════════════════════════════════
+function saveProfile(){
+  try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
+}
+function loadProfile(){
+  try{
+    var p=JSON.parse(localStorage.getItem("wq_profile"));
+    if(p)userProfile=p;
+  }catch(e){}
+  try{
+    var sg=JSON.parse(localStorage.getItem("wq_signals"));
+    if(sg){
+      signalsPositive=sg.positive||[];
+      signalsNegative=sg.negative||[];
+      signalsCounts=sg.counts||{};
+    }
+  }catch(e){}
+  try{
+    var sp=JSON.parse(localStorage.getItem("wq_pool"));
+    if(sp)suggestionPool=sp;
+  }catch(e){}
+}
+function saveSignals(){
+  try{localStorage.setItem("wq_signals",JSON.stringify({
+    positive:signalsPositive,negative:signalsNegative,counts:signalsCounts
+  }));}catch(e){}
+}
+function saveSuggestionPool(){
+  try{localStorage.setItem("wq_pool",JSON.stringify(suggestionPool));}catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DEFINICIÓN DE LA ENCUESTA — 7 pantallas, 14 preguntas + refs
+// ══════════════════════════════════════════════════════════════════
+var SURVEY_STEPS = [
+  // 0 — Quién eres
+  {
+    id:"identity", title:"Cuéntanos un poco de ti",
+    hint:"Esta información ayuda a personalizar las recomendaciones.",
+    fields:[
+      {id:"birthYear", label:"¿En qué año naciste?", type:"number",
+       placeholder:"ej. 1990", min:1920, max:2015, required:true},
+      {id:"gender", label:"¿Con qué género te identificas?", type:"single",
+       opts:["Hombre","Mujer","No binario","Prefiero no decir"], required:true}
+    ]
+  },
+  // 1 — Relación con el cine
+  {
+    id:"habits", title:"Tu relación con el cine",
+    hint:"",
+    fields:[
+      {id:"frequency", label:"¿Con qué frecuencia ves películas?", type:"single",
+       opts:["Varias veces por semana","Una vez a la semana","Algunas veces al mes","Ocasionalmente"],
+       required:true},
+      {id:"attitude", label:"¿Cómo describes tu actitud?", type:"single",
+       opts:["Veo lo que sea, no soy selectivo","Tengo preferencias pero soy abierto","Soy muy selectivo con lo que veo"],
+       required:true},
+      {id:"ratings", label:"¿Te importan las calificaciones y críticas?", type:"single",
+       opts:["Sí, prefiero películas bien valoradas","Me da igual si me llama la atención","Prefiero descubrir películas poco conocidas"],
+       required:true}
+    ]
+  },
+  // 2 — Épocas
+  {
+    id:"eras", title:"Épocas que disfrutas",
+    hint:"Selecciona todas las que apliquen. Sin selección = sin preferencia.",
+    fields:[
+      {id:"eras", label:"¿Qué épocas de cine te interesan?", type:"multi",
+       opts:["Cine clásico (antes de 1970)","70s – 80s","90s – 2000s","2010 en adelante"],
+       required:false}
+    ]
+  },
+  // 3 — Origen e idioma
+  {
+    id:"origins", title:"Cine por origen e idioma",
+    hint:"Selecciona todo lo que disfrutes ver.",
+    fields:[
+      {id:"origins", label:"¿Qué tipo de cine prefieres según su origen?", type:"multi",
+       opts:["Hollywood / Cine estadounidense","Cine hispanohablante (México, España, Argentina...)","Cine europeo (Francia, Alemania, Italia...)","Cine asiático (Japón, Corea, China...)","Me gusta el cine mundial sin importar el idioma"],
+       required:false}
+    ]
+  },
+  // 4 — Géneros
+  {
+    id:"genres", title:"Géneros favoritos",
+    hint:"",
+    fields:[
+      {id:"genresLike", label:"¿Cuáles géneros disfrutas?", type:"multi",
+       opts:["Drama","Comedia","Terror","Acción","Ciencia ficción","Thriller / Suspenso","Romance","Documental","Animación","Fantasía","Western","Musical","Histórico","Crimen"],
+       required:false},
+      {id:"genresAvoid", label:"¿Hay géneros que prefieras evitar?", type:"multi",
+       opts:["Drama","Comedia","Terror","Acción","Ciencia ficción","Thriller / Suspenso","Romance","Documental","Animación","Fantasía","Western","Musical","Histórico","Crimen"],
+       required:false}
+    ]
+  },
+  // 5 — Contenido sensible
+  {
+    id:"sensitive", title:"Contenido sensible",
+    hint:"Esto nos ayuda a filtrar recomendaciones que podrían incomodarte.",
+    fields:[
+      {id:"violence", label:"¿Cómo te sientes con la violencia en pantalla?", type:"single",
+       opts:["No me molesta nada","Acepto violencia moderada","Prefiero evitar violencia gráfica","Prefiero evitar cualquier violencia"],
+       required:true},
+      {id:"sexual", label:"¿Y con contenido sexual?", type:"single",
+       opts:["No me molesta","Acepto algo sugerido o implícito","Prefiero evitar desnudos o escenas explícitas","Prefiero evitar cualquier contenido sexual"],
+       required:true},
+      {id:"topics", label:"¿Hay temas que prefieras evitar?", type:"multi",
+       opts:["Abuso o violencia infantil","Violencia contra animales","Suicidio o autolesiones","Abuso sexual","Racismo o discriminación explícita","Ninguno en particular"],
+       required:false}
+    ]
+  },
+  // 6 — Streaming
+  {
+    id:"streaming", title:"Servicios de streaming",
+    hint:"Selecciona tu país principal y luego los servicios que tienes.",
+    fields:[
+      {id:"country", label:"¿En qué país estás principalmente?", type:"single",
+       opts:["México","Estados Unidos","España","Argentina"],
+       required:true},
+      {id:"services", label:"¿A cuáles servicios tienes acceso?", type:"services",
+       required:false},
+      {id:"otherCountry", label:"¿También quieres agregar servicios de otro país?", type:"otherServices",
+       required:false}
+    ]
+  },
+  // 7 — Películas de referencia + preferencias finales
+  {
+    id:"final", title:"Para afinar tus recomendaciones",
+    hint:"",
+    fields:[
+      {id:"sortprendemme", label:"Cuando el sistema te sugiere algo, prefieres:", type:"single",
+       opts:["Algo que probablemente disfrute según mi perfil","Algo diferente a lo que normalmente veo","Sorpréndeme completamente, sin filtros"],
+       required:true},
+      {id:"duration", label:"¿Cuánto tiempo tienes disponible normalmente?", type:"single",
+       opts:["Menos de 90 minutos","Entre 90 min y 2 horas","Más de 2 horas","No importa"],
+       required:true},
+      {id:"refs", label:"Menciona 3–5 películas que hayas visto y te hayan encantado", type:"refs",
+       hint:"Busca por título para agregar", required:false}
+    ]
+  }
+];
+
+var SURVEY_TOTAL = SURVEY_STEPS.length;
+var _surveyEditMode = false;
+var _surveyRefResults = [];
+var _surveyRefs = []; // {tmdbId, title, year, poster}
+
+// ── Abrir / cerrar ────────────────────────────────────────────────
+function openSurvey(editMode){
+  _surveyEditMode = editMode || false;
+  surveyStep = 0;
+  surveyAnswers = userProfile ? JSON.parse(JSON.stringify(userProfile)) : {};
+  _surveyRefs = (surveyAnswers.refs || []).slice();
+  var ol = document.getElementById("surveyOverlay");
+  if(ol) ol.classList.add("show");
+  renderSurveyStep();
+}
+function closeSurvey(){
+  var ol = document.getElementById("surveyOverlay");
+  if(ol) ol.classList.remove("show");
+}
+
+// ── Renderizar paso actual ─────────────────────────────────────────
+function renderSurveyStep(){
+  var step = SURVEY_STEPS[surveyStep];
+  if(!step) return;
+  // Progreso
+  var prog = document.getElementById("surveyProgress");
+  if(prog){
+    prog.innerHTML = "";
+    for(var i=0;i<SURVEY_TOTAL;i++){
+      var d=document.createElement("div");
+      d.className="survey-dot"+(i<surveyStep?" done":i===surveyStep?" active":"");
+      prog.appendChild(d);
+    }
+  }
+  var label = document.getElementById("surveyStepLabel");
+  if(label) label.textContent = (surveyStep+1)+" / "+SURVEY_TOTAL;
+  // Back btn
+  var back = document.getElementById("surveyBackBtn");
+  if(back) back.style.display = surveyStep>0?"":"none";
+  // Skip btn
+  var skip = document.getElementById("surveySkipBtn");
+  // Último paso
+  var next = document.getElementById("surveyNextBtn");
+  if(next) next.textContent = surveyStep===SURVEY_TOTAL-1 ? "Guardar ✓" : "Siguiente →";
+  // Cuerpo
+  var body = document.getElementById("surveyBody");
+  if(!body) return;
+  var html = '<div class="survey-q">'+step.title+'</div>';
+  if(step.hint) html += '<div class="survey-hint">'+step.hint+'</div>';
+  step.fields.forEach(function(f){
+    html += renderSurveyField(f);
+  });
+  body.innerHTML = html;
+  // Eventos post-render
+  postRenderSurveyStep(step);
+  // Advertencia de edad
+  checkAgeWarning();
+}
+
+function renderSurveyField(f){
+  var val = surveyAnswers[f.id];
+  var h = '<div style="margin-bottom:18px;">';
+  h += '<div style="font-size:11px;letter-spacing:.5px;color:var(--muted);margin-bottom:10px;">'+f.label+'</div>';
+  if(f.hint) h += '<div style="font-size:10px;color:var(--muted);opacity:.7;margin-bottom:8px;">'+f.hint+'</div>';
+  if(f.type==="number"){
+    h += '<input id="sf_'+f.id+'" type="number" class="manage-input" placeholder="'+
+      (f.placeholder||"")+ '" min="'+(f.min||1900)+'" max="'+(f.max||2015)+
+      '" value="'+(val||"")+'" style="max-width:140px;font-size:14px;" '+
+      'oninput="surveyAnswers[\''+f.id+'\']=this.value;">';
+  } else if(f.type==="single"||f.type==="multi"){
+    h += '<div class="survey-opts">';
+    f.opts.forEach(function(o){
+      var sel = f.type==="single" ? val===o : (Array.isArray(val)&&val.indexOf(o)!==-1);
+      h += '<div class="survey-opt'+(sel?" sel":"")+'" data-field="'+f.id+'" data-val="'+
+        o.replace(/"/g,"&quot;")+'" data-type="'+f.type+'" onclick="pickSurveyOpt(this)">'+
+        o+'</div>';
+    });
+    h += '</div>';
+  } else if(f.type==="services"){
+    h += '<div id="sf_services_wrap"><div style="color:var(--muted);font-size:11px;">'+
+      'Primero selecciona tu país arriba.</div></div>';
+  } else if(f.type==="otherServices"){
+    h += '<div id="sf_otherServices_wrap">'+
+      '<div style="font-size:10px;color:var(--muted);margin-bottom:8px;">'+
+      'Selecciona un país adicional:</div>'+
+      '<div class="survey-opts" style="margin-bottom:10px;">';
+    Object.entries(STREAMING_COUNTRIES).forEach(function(e){
+      h += '<div class="survey-opt" data-field="otherCountry" data-val="'+e[0]+
+        '" data-type="single" onclick="pickSurveyOpt(this);renderOtherServices(\''+e[0]+'\')">'+
+        e[1]+'</div>';
+    });
+    h += '</div><div id="sf_otherServices_pills"></div></div>';
+  } else if(f.type==="refs"){
+    h += '<div class="survey-ref-search">'+
+      '<input id="sf_refs_input" type="text" class="manage-input" placeholder="Buscar película..." '+
+      'style="flex:1;font-size:11px;" oninput="searchSurveyRef(this.value)">'+
+      '</div>'+
+      '<div class="survey-ref-results" id="sf_refs_results"></div>'+
+      '<div class="survey-ref-added" id="sf_refs_added"></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function postRenderSurveyStep(step){
+  // Renderizar refs guardadas
+  renderSurveyRefs();
+  // Si el paso tiene servicios, renderizarlos según el país actual
+  var hasServices = step.fields.some(function(f){return f.type==="services";});
+  if(hasServices){
+    var country = surveyAnswers.country;
+    if(country) renderServicesForCountry(country);
+  }
+}
+
+function pickSurveyOpt(el){
+  var field = el.dataset.field;
+  var val = el.dataset.val;
+  var type = el.dataset.type;
+  if(type==="single"){
+    // Deseleccionar otros del mismo campo
+    document.querySelectorAll('.survey-opt[data-field="'+field+'"]').forEach(function(o){
+      o.classList.remove("sel");
+    });
+    el.classList.add("sel");
+    surveyAnswers[field] = val;
+    // Si cambia el país, actualizar servicios
+    if(field==="country") renderServicesForCountry(val);
+  } else {
+    // Multi: toggle
+    if(!Array.isArray(surveyAnswers[field])) surveyAnswers[field]=[];
+    var idx = surveyAnswers[field].indexOf(val);
+    if(idx===-1){
+      surveyAnswers[field].push(val);
+      el.classList.add("sel");
+    } else {
+      surveyAnswers[field].splice(idx,1);
+      el.classList.remove("sel");
+    }
+  }
+  checkAgeWarning();
+}
+
+function checkAgeWarning(){
+  var warn = document.getElementById("surveyAgeWarn");
+  if(!warn) return;
+  var yr = parseInt(surveyAnswers.birthYear||surveyAnswers.birth_year||0);
+  var age = yr > 1900 ? new Date().getFullYear()-yr : 99;
+  warn.style.display = (age < 18 && age > 0) ? "block" : "none";
+}
+
+function renderServicesForCountry(countryCode){
+  var wrap = document.getElementById("sf_services_wrap");
+  if(!wrap) return;
+  var ids = PROVIDERS_BY_COUNTRY[countryCode]||[];
+  // Servicios ya seleccionados del perfil
+  var selected = surveyAnswers.services || [];
+  var html = '<div class="survey-opts">';
+  ids.forEach(function(id){
+    var p = ALL_PROVIDERS[id];
+    if(!p) return;
+    var isSel = selected.indexOf(String(id))!==-1;
+    html += '<div class="survey-opt'+(isSel?" sel":"")+'" data-field="srv_'+countryCode+
+      '" data-val="'+id+'" data-type="multi" onclick="toggleSurveyService(this,\''+id+'\')">'+
+      p.name+'</div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function toggleSurveyService(el, id){
+  if(!Array.isArray(surveyAnswers.services)) surveyAnswers.services=[];
+  var sid = String(id);
+  var idx = surveyAnswers.services.indexOf(sid);
+  if(idx===-1){surveyAnswers.services.push(sid);el.classList.add("sel");}
+  else{surveyAnswers.services.splice(idx,1);el.classList.remove("sel");}
+}
+
+function renderOtherServices(countryCode){
+  var wrap = document.getElementById("sf_otherServices_pills");
+  if(!wrap) return;
+  var ids = PROVIDERS_BY_COUNTRY[countryCode]||[];
+  var selected = surveyAnswers.services||[];
+  var html = '<div class="survey-opts">';
+  ids.forEach(function(id){
+    var p = ALL_PROVIDERS[id];
+    if(!p) return;
+    var isSel = selected.indexOf(String(id))!==-1;
+    html += '<div class="survey-opt'+(isSel?" sel":"")+'" data-val="'+id+
+      '" onclick="toggleSurveyService(this,\''+id+'\')">'+p.name+' <span style="font-size:9px;opacity:.6;">'+
+      STREAMING_COUNTRIES[p.region]+'</span></div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// ── Búsqueda de películas de referencia ──────────────────────────
+var _surveyRefTimer = null;
+function searchSurveyRef(q){
+  clearTimeout(_surveyRefTimer);
+  if(!q||q.length<2){
+    var rr=document.getElementById("sf_refs_results");
+    if(rr)rr.innerHTML="";return;
+  }
+  _surveyRefTimer=setTimeout(async function(){
+    try{
+      var r=await fetch("https://api.themoviedb.org/3/search/movie?api_key="+KEY+
+        "&query="+encodeURIComponent(q)+"&language=es-MX&page=1",
+        {signal:AbortSignal.timeout(5000)});
+      if(!r.ok)return;
+      var data=await r.json();
+      _surveyRefResults=data.results.slice(0,6);
+      var rr=document.getElementById("sf_refs_results");
+      if(!rr)return;
+      rr.innerHTML="";
+      _surveyRefResults.forEach(function(m,i){
+        var yr=(m.release_date||"").substring(0,4);
+        var poster=m.poster_path?"https://image.tmdb.org/t/p/w92"+m.poster_path:"";
+        var div=document.createElement("div");
+        div.className="survey-ref-item";
+        div.innerHTML=(poster?'<img src="'+poster+'" alt="">':'<div style="width:32px;height:48px;background:var(--surface2);"></div>')+
+          '<div><div style="color:var(--text);font-size:11px;">'+
+          (m.title||m.name).replace(/&/g,"&amp;")+'</div>'+
+          '<div style="color:var(--muted);font-size:10px;">'+(yr||"")+'</div></div>';
+        div.onclick=function(){addSurveyRef(m);};
+        rr.appendChild(div);
+      });
+    }catch(e){}
+  },400);
+}
+
+function addSurveyRef(m){
+  // No duplicar
+  if(_surveyRefs.find(function(r){return r.tmdbId===m.id;}))return;
+  if(_surveyRefs.length>=5){showToast("Máximo 5 películas de referencia");return;}
+  _surveyRefs.push({tmdbId:m.id,title:m.title||m.name,
+    year:(m.release_date||"").substring(0,4),
+    poster:m.poster_path?"https://image.tmdb.org/t/p/w92"+m.poster_path:""});
+  surveyAnswers.refs=_surveyRefs;
+  renderSurveyRefs();
+  // Limpiar búsqueda
+  var inp=document.getElementById("sf_refs_input");if(inp)inp.value="";
+  var rr=document.getElementById("sf_refs_results");if(rr)rr.innerHTML="";
+}
+
+function removeSurveyRef(tmdbId){
+  _surveyRefs=_surveyRefs.filter(function(r){return r.tmdbId!==tmdbId;});
+  surveyAnswers.refs=_surveyRefs;
+  renderSurveyRefs();
+}
+
+function renderSurveyRefs(){
+  var wrap=document.getElementById("sf_refs_added");if(!wrap)return;
+  wrap.innerHTML="";
+  _surveyRefs.forEach(function(r){
+    var tag=document.createElement("div");
+    tag.className="survey-ref-tag";
+    tag.innerHTML='<span>'+r.title+(r.year?' ('+r.year+')':'')+'</span>'+
+      '<span onclick="removeSurveyRef('+r.tmdbId+')" style="cursor:pointer;color:var(--red);">×</span>';
+    wrap.appendChild(tag);
+  });
+}
+
+// ── Navegación ────────────────────────────────────────────────────
+function surveyNext(){
+  var step=SURVEY_STEPS[surveyStep];
+  // Validar campos requeridos
+  var ok=true;
+  step.fields.forEach(function(f){
+    if(!f.required)return;
+    var v=surveyAnswers[f.id];
+    if(f.type==="number"&&(!v||isNaN(parseInt(v))))ok=false;
+    if(f.type==="single"&&!v)ok=false;
+  });
+  if(!ok){showToast("Por favor responde las preguntas marcadas");return;}
+  if(surveyStep<SURVEY_TOTAL-1){
+    surveyStep++;
+    renderSurveyStep();
+  } else {
+    saveSurveyFinish();
+  }
+}
+function surveyBack(){
+  if(surveyStep>0){surveyStep--;renderSurveyStep();}
+}
+function surveySkip(){
+  if(surveyStep<SURVEY_TOTAL-1){surveyStep++;renderSurveyStep();}
+  else saveSurveyFinish();
+}
+
+function saveSurveyFinish(){
+  // Guardar perfil
+  surveyAnswers.refs=_surveyRefs;
+  // Convertir año a número
+  if(surveyAnswers.birthYear)surveyAnswers.birthYear=parseInt(surveyAnswers.birthYear);
+  userProfile=surveyAnswers;
+  saveProfile();
+  // Aplicar servicios al activeServices
+  if(userProfile.services&&userProfile.services.length){
+    activeServices=userProfile.services.map(function(s){
+      var p=ALL_PROVIDERS[s];
+      return p&&p.tmdbId?p.tmdbId:parseInt(s)||s;
+    }).filter(function(s){return !isNaN(s)&&s;});
+    saveServices();
+  }
+  closeSurvey();
+  showToast("Perfil guardado ✓");
+  // Si no hay títulos, generar pool
+  if(!titles.length||!titles.some(function(t){return t.status==="active";})){
+    setTimeout(function(){buildSuggestionPool();},500);
+  }
+  // Actualizar filtros
+  renderServicesPills();buildFilterServicePills();updateCandidates();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// POOL DE SUGERENCIAS
+// ══════════════════════════════════════════════════════════════════
+var OMDB_KEY = "trilogy";  // OMDb API key
+
+// Mapeo de respuestas de encuesta a IDs de género TMDB
+var SURVEY_GENRE_MAP = {
+  "Drama":28,"Drama":18,"Comedia":35,"Terror":27,"Acción":28,
+  "Ciencia ficción":878,"Thriller / Suspenso":53,"Romance":10749,
+  "Documental":99,"Animación":16,"Fantasía":14,"Western":37,
+  "Musical":10402,"Histórico":36,"Crimen":80
+};
+// Corrección
+SURVEY_GENRE_MAP["Drama"]=18;
+SURVEY_GENRE_MAP["Acción"]=28;
+
+// Mapeo de orígenes a códigos de país TMDB
+var ORIGIN_COUNTRY_MAP = {
+  "Hollywood / Cine estadounidense":["US"],
+  "Cine hispanohablante (México, España, Argentina...)":["MX","ES","AR"],
+  "Cine europeo (Francia, Alemania, Italia...)":["FR","DE","IT","GB"],
+  "Cine asiático (Japón, Corea, China...)":["JP","KR","CN"],
+  "Me gusta el cine mundial sin importar el idioma":[]
+};
+
+async function buildSuggestionPool(){
+  if(!userProfile){showToast("Completa tu perfil primero");openSurvey(false);return;}
+  var p=userProfile;
+  showToast("Generando sugerencias...");
+  var bar=document.getElementById("enrichBar");
+  if(bar)bar.style.display="flex";
+  var cnt=document.getElementById("enrichBarCount");
+  if(cnt)cnt.textContent="Buscando películas para tu perfil...";
+
+  // ── Parámetros base desde el perfil ──────────────────────────────
+  var params=[];
+
+  // Géneros que le gustan
+  var genreIds=[];
+  (p.genresLike||[]).forEach(function(g){
+    var id=SURVEY_GENRE_MAP[g];if(id&&genreIds.indexOf(id)===-1)genreIds.push(id);
+  });
+  if(genreIds.length)params.push("with_genres="+genreIds.slice(0,3).join("|"));
+
+  // Géneros a evitar
+  var avoidIds=[];
+  (p.genresAvoid||[]).forEach(function(g){
+    var id=SURVEY_GENRE_MAP[g];if(id&&avoidIds.indexOf(id)===-1)avoidIds.push(id);
+  });
+  if(avoidIds.length)params.push("without_genres="+avoidIds.join(","));
+
+  // Épocas
+  var yearMin=null,yearMax=null;
+  var eras=p.eras||[];
+  if(eras.length&&eras.indexOf("Me gusta el cine mundial sin importar el idioma")===-1){
+    var mins=[],maxs=[];
+    eras.forEach(function(e){
+      if(e.indexOf("clásico")!==-1){mins.push(1920);maxs.push(1969);}
+      else if(e.indexOf("70s")!==-1){mins.push(1970);maxs.push(1989);}
+      else if(e.indexOf("90s")!==-1){mins.push(1990);maxs.push(2009);}
+      else if(e.indexOf("2010")!==-1){mins.push(2010);maxs.push(new Date().getFullYear());}
+    });
+    if(mins.length){yearMin=Math.min.apply(null,mins);yearMax=Math.max.apply(null,maxs);}
+  }
+  if(yearMin)params.push("primary_release_date.gte="+yearMin+"-01-01");
+  if(yearMax)params.push("primary_release_date.lte="+yearMax+"-12-31");
+
+  // Calificación mínima según actitud
+  var minRating=5.0;
+  if(p.attitude==="Soy muy selectivo con lo que veo")minRating=7.0;
+  else if(p.attitude==="Tengo preferencias pero soy abierto")minRating=6.0;
+  else if(p.attitude==="Veo lo que sea, no soy selectivo")minRating=4.0;
+  params.push("vote_average.gte="+minRating);
+  params.push("vote_count.gte=300");
+
+  // Duración
+  if(p.duration==="Menos de 90 minutos")params.push("with_runtime.lte=85");
+  else if(p.duration==="Entre 90 min y 2 horas")params.push("with_runtime.gte=80&with_runtime.lte=130");
+  else if(p.duration==="Más de 2 horas")params.push("with_runtime.gte=120");
+
+  // País de origen
+  var originCountries=[];
+  (p.origins||[]).forEach(function(o){
+    var cs=ORIGIN_COUNTRY_MAP[o]||[];
+    cs.forEach(function(c){if(originCountries.indexOf(c)===-1)originCountries.push(c);});
+  });
+  // No filtrar por país si eligió "cine mundial" o si no eligió nada
+  if(originCountries.length&&(p.origins||[]).indexOf("Me gusta el cine mundial sin importar el idioma")===-1){
+    params.push("with_origin_country="+originCountries.join("|"));
+  }
+
+  // Servicios de streaming
+  var svcIds=activeServices.filter(function(s){return typeof s==="number";});
+  var userCountry=p.country==="México"?"MX":p.country==="Estados Unidos"?"US":
+    p.country==="España"?"ES":p.country==="Argentina"?"AR":"MX";
+  if(svcIds.length){
+    params.push("with_watch_providers="+svcIds.join("|"));
+    params.push("watch_region="+userCountry);
+  }
+
+  // ── Recolectar candidatas ─────────────────────────────────────────
+  var candidates=[];
+  var existingIds=new Set(titles.filter(function(t){return t._tmdbId;}).map(function(t){return t._tmdbId;}));
+
+  try{
+    for(var page=1;page<=8&&candidates.length<200;page++){
+      var url="https://api.themoviedb.org/3/discover/movie?api_key="+KEY+
+        "&language=es-MX&sort_by=vote_average.desc&"+params.join("&")+"&page="+page;
+      var r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+      if(!r.ok)break;
+      var data=await r.json();
+      if(!data.results||!data.results.length)break;
+      data.results.forEach(function(m){
+        if(existingIds.has(m.id))return; // ya está en la lista
+        if(signalsNegative.indexOf(m.id)!==-1)return; // descartado
+        candidates.push(m);
+      });
+      if(cnt)cnt.textContent=candidates.length+" candidatas encontradas...";
+      await sleep(80);
+    }
+  }catch(e){console.error("buildSuggestionPool fetch:",e);}
+
+  if(!candidates.length){
+    if(bar)bar.style.display="none";
+    showToast("No se encontraron sugerencias. Intenta ampliar tu perfil.");
+    return;
+  }
+
+  // ── Enriquecer con OMDb y scoring ────────────────────────────────
+  if(cnt)cnt.textContent="Enriqueciendo "+candidates.length+" candidatas...";
+  var pool=[];
+  var needSensitive=checkNeedsSensitiveFilter(p);
+
+  for(var ci=0;ci<candidates.length;ci++){
+    var m=candidates[ci];
+    var score=scoreSuggestion(m,p);
+    var entry={
+      _tmdbId:m.id,_mediaType:"movie",
+      n:m.title||m.name,
+      y:parseInt((m.release_date||"").substring(0,4))||null,
+      poster:m.poster_path?"https://image.tmdb.org/t/p/w200"+m.poster_path:null,
+      overview:m.overview||"",
+      genres:m.genre_ids||[],
+      _score:score,
+      _isSuggestion:true
+    };
+    // Filtro de contenido sensible (solo si el perfil lo requiere)
+    if(needSensitive&&m.imdb_id){
+      var passes=await checkSensitiveContent(m.imdb_id,p);
+      if(!passes)continue;
+    }
+    pool.push(entry);
+    if(ci%20===0&&cnt)cnt.textContent=(ci+1)+"/"+candidates.length+" procesadas...";
+    if(ci%20===0)await sleep(50);
+  }
+
+  // Ordenar por score descendente
+  pool.sort(function(a,b){return b._score-a._score;});
+
+  // Aplicar deprioritización por patrones de señales negativas
+  pool=applySignalPatterns(pool);
+
+  suggestionPool=pool.slice(0,200);
+  saveSuggestionPool();
+
+  if(bar)bar.style.display="none";
+  showToast(suggestionPool.length+" sugerencias listas ✓");
+  updateCandidates();
+}
+
+function scoreSuggestion(m,p){
+  var score=0;
+  // Calificación (0–20 puntos)
+  score += (m.vote_average||0)*2;
+  // Géneros favoritos
+  var genreIds=[];
+  (p.genresLike||[]).forEach(function(g){var id=SURVEY_GENRE_MAP[g];if(id)genreIds.push(id);});
+  var avoidIds=[];
+  (p.genresAvoid||[]).forEach(function(g){var id=SURVEY_GENRE_MAP[g];if(id)avoidIds.push(id);});
+  (m.genre_ids||[]).forEach(function(g){
+    if(genreIds.indexOf(g)!==-1)score+=10;
+    if(avoidIds.indexOf(g)!==-1)score-=15;
+  });
+  // Señales positivas
+  if(signalsPositive.indexOf(m.id)!==-1)score+=20;
+  // Popularidad inversa si prefiere descubrir
+  if(p.ratings==="Prefiero descubrir películas poco conocidas"){
+    score -= (m.popularity||0)*0.02;
+  }
+  return score;
+}
+
+function checkNeedsSensitiveFilter(p){
+  if(!p)return false;
+  return p.violence==="Prefiero evitar violencia gráfica"||
+    p.violence==="Prefiero evitar cualquier violencia"||
+    p.sexual==="Prefiero evitar desnudos o escenas explícitas"||
+    p.sexual==="Prefiero evitar cualquier contenido sexual"||
+    (p.topics&&p.topics.length&&p.topics.indexOf("Ninguno en particular")===-1);
+}
+
+async function checkSensitiveContent(imdbId,p){
+  // Solo consultar doesthedogdie si hay temas específicos
+  var topics=p.topics||[];
+  if(!topics.length||topics.indexOf("Ninguno en particular")!==-1)return true;
+  try{
+    var r=await fetch("https://www.doesthedogdie.com/media/"+imdbId,
+      {signal:AbortSignal.timeout(4000),headers:{Accept:"application/json"}});
+    if(!r.ok)return true; // si falla, no descartamos
+    var data=await r.json();
+    // Verificar temas sensibles según el perfil
+    if(topics.indexOf("Violencia contra animales")!==-1&&data.dog===true)return false;
+    if(topics.indexOf("Suicidio o autolesiones")!==-1&&data.suicide===true)return false;
+    if(topics.indexOf("Abuso o violencia infantil")!==-1&&data.abuse===true)return false;
+    return true;
+  }catch(e){return true;}
+}
+
+function applySignalPatterns(pool){
+  // Deprioritizar directores/géneros con 3+ descartes
+  var dirCounts=signalsCounts.directors||{};
+  var genCounts=signalsCounts.genres||{};
+  return pool.map(function(m){
+    var penalty=0;
+    // Géneros deprioritizados
+    (m.genres||[]).forEach(function(g){
+      if((genCounts[g]||0)>=3)penalty+=10;
+    });
+    return Object.assign({},m,{_score:m._score-penalty});
+  }).sort(function(a,b){return b._score-a._score;});
+}
+
+// ── Señales del usuario ───────────────────────────────────────────
+function dismissSuggestion(tmdbId, directorName, genres){
+  signalsNegative.push(tmdbId);
+  // Contar para detectar patrones
+  if(!signalsCounts.directors)signalsCounts.directors={};
+  if(!signalsCounts.genres)signalsCounts.genres={};
+  if(directorName){
+    signalsCounts.directors[directorName]=(signalsCounts.directors[directorName]||0)+1;
+  }
+  (genres||[]).forEach(function(g){
+    signalsCounts.genres[g]=(signalsCounts.genres[g]||0)+1;
+  });
+  // Quitar del pool
+  suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==tmdbId;});
+  saveSuggestionPool();saveSignals();
+  // Mostrar siguiente
+  roll();
+}
+
+function acceptSuggestion(t){
+  signalsPositive.push(t._tmdbId);
+  saveSignals();
+  // Agregar a titles como active
+  var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
+  var newT=Object.assign({},t,{
+    idx:ni,status:"active",isNew:true,lists:[],pinned:false,
+    customPoster:null,u:t.u||"",m:t.m||0,
+    is_series:false,type:"movie",
+    director:t.director||"",country:t.country||""
+  });
+  delete newT._isSuggestion;
+  titles.push(newT);
+  suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==t._tmdbId;});
+  saveSuggestionPool();saveSignals();saveState();
+  updateStats();updateCandidates();buildGenres();buildDecades();buildLists();renderManage();
+  showToast("Agregada a tu lista: "+t.n);
+}
+
+// ── Toggle de fuente en Filtros ────────────────────────────────────
+var _useSuggestions=false;
+function toggleSuggestionSource(btn){
+  _useSuggestions=!_useSuggestions;
+  btn.textContent=_useSuggestions?"🎲 Desde sugerencias":"🎲 Desde mi lista";
+  btn.style.borderColor=_useSuggestions?"var(--blue)":"var(--border)";
+  btn.style.color=_useSuggestions?"var(--blue)":"var(--muted)";
+  updateCandidates();
+}
+
+// Sobrescribir roll() para soportar el pool de sugerencias
+var _originalRoll=null;
+function rollWithSource(){
+  if(_useSuggestions&&suggestionPool.length){
+    var available=suggestionPool.filter(function(m){return m!==lastPick;});
+    if(!available.length)available=suggestionPool;
+    if(!available.length){showToast("Pool vacío. Regenera sugerencias desde tu perfil.");return;}
+    lastPick=available[Math.floor(Math.random()*available.length)];
+    showResult(lastPick);
+    // Mostrar badges de sugerencia y botones extra en la tarjeta
+    showSuggestionActions(lastPick);
+  }else{
+    roll();
+  }
+}
+
+function showSuggestionActions(t){
+  // Inyectar botones si la tarjeta está mostrando una sugerencia
+  var ractions=document.querySelector(".r-actions");
+  if(!ractions||!t._isSuggestion)return;
+  // Verificar que no estén ya
+  if(document.getElementById("rSuggAccept"))return;
+  var acceptBtn=document.createElement("button");
+  acceptBtn.id="rSuggAccept";acceptBtn.className="r-btn";
+  acceptBtn.style.cssText="border-color:var(--green);color:var(--green);";
+  acceptBtn.textContent="+ Agregar a mi lista";
+  acceptBtn.onclick=function(){acceptSuggestion(lastPick);};
+  var dismissBtn=document.createElement("button");
+  dismissBtn.id="rSuggDismiss";dismissBtn.className="r-btn";
+  dismissBtn.style.cssText="border-color:var(--muted);color:var(--muted);";
+  dismissBtn.textContent="No me interesa";
+  dismissBtn.onclick=function(){
+    if(!lastPick)return;
+    dismissSuggestion(lastPick._tmdbId,lastPick.director,lastPick.genres);
+    document.getElementById("resultCard").classList.remove("show");
+  };
+  ractions.appendChild(acceptBtn);
+  ractions.appendChild(dismissBtn);
+}
+
 
 function roll(){
   var pool=getCandidates();if(!pool.length){alert("Sin titulos. Amplia los filtros.");return;}
@@ -2011,6 +2916,39 @@ async function importListFromPanel(){
     clearInterval(interval);
     if(lbEl)lbEl.value=prevUrl;
   }
+}
+
+function resetFullUser(){
+  if(!confirm("¿Borrar TODO?\n\nEsto eliminará:\n• Todas las películas\n• Tu perfil y encuesta\n• Caché de metadatos\n• Señales de aprendizaje\n• Pool de sugerencias\n\nÚtil para pruebas. No se puede deshacer."))return;
+  // Borrar todo el localStorage de la app
+  var keysToDelete=["wq_s7","wq_cC","wq_sc","wq_diary","wq_services","wq_lbKey",
+                    "wq_profile","wq_survey","wq_pool","wq_signals"];
+  keysToDelete.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+  // Resetear variables en memoria
+  titles=[];
+  diaryDates=[];
+  streamCache={};
+  activeServices=DEFAULT_SERVICES.slice();
+  userProfile=null;
+  suggestionPool=[];
+  signalsPositive=[];
+  signalsNegative=[];
+  signalsCounts={};
+  // Resetear filtros
+  activeType="all";activeGenres=[];activeDecades=["all"];activeMood="any";
+  activeCountry="all";activeList="all";excludeList=null;activeWatchedFilter="all";
+  maxDur=9999;lastPick=null;
+  // Volver a la pantalla de inicio limpia
+  document.getElementById("setupOverlay").style.display="flex";
+  document.getElementById("importCard").style.display="";
+  document.getElementById("enrichCard").style.display="none";
+  var msg=document.getElementById("welcomeMsg");if(msg)msg.innerHTML="";
+  var lbMsg=document.getElementById("lbUrlMsg");if(lbMsg)lbMsg.innerHTML="";
+  var lbUrl=document.getElementById("lbUrlInput");if(lbUrl)lbUrl.value="";
+  // Resetear UI
+  buildDecades();buildGenres();buildCountries();buildLists();
+  updateStats();updateCandidates();renderManage();
+  showToast("Reset completo — bienvenido de nuevo");
 }
 
 function clearAllTitles(){
@@ -3424,6 +4362,29 @@ function addTitle(){var n=(document.getElementById("addN")||{}).value;if(n){var 
     </div>
   </div>
 </div>
+<!-- ══ ENCUESTA ══════════════════════════════════════════════════ -->
+<div id="surveyOverlay">
+  <div class="survey-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">
+        &#127902; Tu perfil de cine</div>
+      <div id="surveyStepLabel" style="font-size:9px;color:var(--muted);letter-spacing:1px;"></div>
+    </div>
+    <div class="survey-progress" id="surveyProgress"></div>
+    <div id="surveyBody"></div>
+    <div class="survey-nav">
+      <button class="survey-back" id="surveyBackBtn" onclick="surveyBack()" style="display:none;">&#8592; Anterior</button>
+      <button class="survey-next" id="surveyNextBtn" onclick="surveyNext()">Siguiente &#8594;</button>
+      <span class="survey-skip" id="surveySkipBtn" onclick="surveySkip()">Omitir</span>
+    </div>
+    <div id="surveyAgeWarn" class="survey-age-warn">
+      &#9888; Eres menor de edad. Te recomendaremos contenido apropiado.
+      Las películas clasificación R o equivalente se mostrarán con advertencia.
+    </div>
+  </div>
+</div>
+<!-- ══ FIN ENCUESTA ══════════════════════════════════════════════ -->
+
 <div id="enrichBar" class="enrich-bar">
   <span style="white-space:nowrap;">&#9654; Cargando metadatos</span>
   <div class="enrich-bar-track"><div class="enrich-bar-fill" id="enrichBarFill" style="width:0%"></div></div>
