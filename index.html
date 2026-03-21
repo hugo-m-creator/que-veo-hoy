@@ -237,15 +237,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <p style="margin-bottom:20px;color:var(--muted);font-size:11px;">Tu watchlist personal con tiempos, filtros y m&aacute;s.</p>
     <div style="margin-bottom:12px;">
       <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Importar desde Letterboxd</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Pega la liga de cualquier lista, watchlist o perfil p&uacute;blico de Letterboxd.</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Pega la liga de cualquier lista o watchlist p&uacute;blica de Letterboxd.</div>
       <div style="display:flex;gap:8px;margin-bottom:6px;">
         <input id="lbUrlInput" type="url" placeholder="https://letterboxd.com/usuario/list/..." class="manage-input" style="flex:1;font-size:11px;" onkeydown="if(event.key==='Enter')importFromLBUrl()">
       </div>
       <div style="display:flex;gap:8px;align-items:stretch;">
-        <input id="lbApiKey" type="password" placeholder="RapidAPI key (requerida)" class="manage-input" style="flex:1;font-size:11px;" onkeydown="if(event.key==='Enter')importFromLBUrl()">
+        <input id="lbApiKey" type="password" placeholder="RapidAPI key (opcional)" class="manage-input" style="flex:1;font-size:11px;" onkeydown="if(event.key==='Enter')importFromLBUrl()">
         <button class="roll-btn" style="margin:0;padding:0 16px;font-size:11px;white-space:nowrap;" onclick="importFromLBUrl()">Importar</button>
       </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:5px;">Ej: /usuario/watchlist/ &nbsp;&#183;&nbsp; /usuario/list/nombre/ &nbsp;Obt&eacute;n tu key gratis en <a href="https://rapidapi.com/sleeyax/api/letterboxd9" target="_blank" style="color:var(--accent)">rapidapi.com</a></div>
     </div>
     <div id="lbUrlMsg" style="font-size:11px;min-height:18px;margin-bottom:12px;"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
@@ -558,6 +557,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mbtn mbtn-d" onclick="exportCSV()">&#8595; CSV</button>
       <button class="mbtn mbtn-d" onclick="restoreAll()" style="font-size:9px;">&#8635; Restaurar</button>
       <button class="mbtn mbtn-g" onclick="reEnrich()" id="reEnrichBtn">&#9733; Re-enriquecer</button>
+      <button class="mbtn" style="border-color:var(--red);color:var(--red);" onclick="clearAllTitles()">&#215; Borrar todo</button>
       <span id="reEnrichProgress" style="display:none;font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
     </div>
     <div class="add-box" style="margin-bottom:16px;">
@@ -576,7 +576,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     </div>
       <div style="margin-top:10px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input class="manage-input" type="text" id="addSearchQ" placeholder="Buscar pel&#237;cula o serie..." style="flex:1;min-width:180px;" onkeydown="if(event.key==='Enter')searchToAdd()">
+          <input class="manage-input" type="text" id="addSearchQ" placeholder="Buscar pel&#237;cula o serie..." style="flex:1;min-width:180px;width:100%;" oninput="tmdbAutocomplete(this.value)" onkeydown="if(event.key==='Enter')searchToAdd();" onblur="setTimeout(function(){var s=document.getElementById('tmdbSug');if(s)s.style.display='none';},200)" autocomplete="off"><div id="tmdbSug" style="display:none;position:absolute;top:38px;left:0;min-width:360px;background:var(--surface2);border:1px solid var(--border);border-top:none;z-index:500;max-height:300px;overflow-y:auto;"></div>
           <input class="manage-input" type="number" id="addSearchY" placeholder="A&#241;o" style="width:90px;" onkeydown="if(event.key==='Enter')searchToAdd()">
           <button class="mbtn mbtn-g" onclick="searchToAdd()">Buscar</button>
         </div>
@@ -648,29 +648,18 @@ var diaryDates=[];
 var streamCache={};
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
 function getPoster(t){
-  if(t.poster)return getPoster(t)||"";
+  if(t.poster)return "https://image.tmdb.org/t/p/w500"+t.poster;
   if(t._lbPoster)return t._lbPoster;
   return null;
 }
 
-
-// Buscar URL real de Letterboxd a partir del nombre y año
-async function fetchLBUrl(name,year){
-  try{
-    var q=encodeURIComponent(name+(year?" "+year:""));
-    var r=await fetch("https://letterboxd.com/search/"+q+"/",{signal:AbortSignal.timeout(5000)});
-    if(!r.ok)return null;
-    var html=await r.text();
-    // El primer /film/ en los resultados es el más relevante
-    var m=html.match(/href="(\/film\/[a-z0-9-]+\/)"/);
-    if(!m)return null;
-    return "https://letterboxd.com"+m[1];
-  }catch(e){return null;}
+function normName(s){
+  if(!s)return "";
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
 }
 
-
-// Extraer datos de Letterboxd: director, duración, tipo
 async function fetchLBData(url){
   if(!url||!url.includes("letterboxd.com"))return null;
   try{
@@ -678,28 +667,25 @@ async function fetchLBData(url){
     if(!r.ok)return null;
     var html=await r.text();
     var result={director:null,mins:null};
-    // Director desde el <title>
     var tm=html.match(/<title[^>]*>([^<]+)<\/title>/);
-    if(tm){
-      var dm=tm[1].match(/directed by (.+?)(?:\s*[•·]|$)/);
-      if(dm)result.director=dm[1].replace(/et al\.?/,"").split(",")[0].trim();
-    }
-    // Duración desde el HTML (ej: "180 mins", "250 Min")
-    // "250 Min" puede ser "250 Miniseries" — excluir esa trampa
-    // También: la duración en LB puede estar como "180 mins" pero en fetch() no se renderiza JS
-    // Buscar patrón de duración que no sea seguido de "iseries" o "ute"
-    var mm=html.match(/(\d+)\s*[Mm]in(?!i|u)/);
+    if(tm){var dm=tm[1].match(/directed by (.+?)(?:\s*[\u2022\u00b7]|$)/);
+      if(dm)result.director=dm[1].replace(/et al\.?/,"").split(",")[0].trim();}
+    var mm=html.match(/(\d+)\s*[Mm]in(?!i)/);
     if(mm&&parseInt(mm[1])>1&&parseInt(mm[1])<10000)result.mins=parseInt(mm[1]);
     return result;
   }catch(e){return null;}
 }
 
-// Normalizar nombre para comparación: quitar acentos, minúsculas, espacios extra
-function normName(s){
-  if(!s)return "";
-  return s.toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
+async function fetchLBUrl(name,year){
+  try{
+    var q=encodeURIComponent(name+(year?" "+year:""));
+    var r=await fetch("https://letterboxd.com/search/"+q+"/",{signal:AbortSignal.timeout(5000)});
+    if(!r.ok)return null;
+    var html=await r.text();
+    var m=html.match(/href="(\/film\/[a-z0-9-]+\/)"/);
+    if(!m)return null;
+    return "https://letterboxd.com"+m[1];
+  }catch(e){return null;}
 }
 
 
@@ -739,13 +725,6 @@ function saveServices(){
 // ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener("load",function(){
   loadState();
-  // Restaurar RapidAPI key guardada
-  try{
-    var savedKey=localStorage.getItem("wq_lbKey");
-    if(savedKey){var kEl=document.getElementById("lbApiKey");if(kEl)kEl.value=savedKey;}
-  }catch(e){}
-
-  // Restaurar caché por URI (v11) o índice (v10 compat)
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem("wq_cC"));}catch(e){}
   if(cached&&cached.length){
@@ -775,11 +754,13 @@ window.addEventListener("load",function(){
   document.getElementById("enrichCard").style.display="none";
   if(titles.length){
     var msg=document.getElementById("welcomeMsg");
-    var needsE=titles.filter(function(t){return t.status==="active"&&(!t.genres||!t.genres.length);}).length;
     if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; '+titles.length+' t&iacute;tulos cargados.</span> '+
       '<a href="#" onclick="continueWithExisting();return false;" style="color:var(--accent);text-decoration:underline;">Continuar sin importar</a>';
   }
+  // Restaurar key guardada
+  try{var sk=localStorage.getItem("wq_lbKey");if(sk){var ke=document.getElementById("lbApiKey");if(ke)ke.value=sk;}}catch(e){}
 });
+
 
 function finishEnrich(fc){
   document.getElementById("setupOverlay").classList.add("hidden");
@@ -798,10 +779,10 @@ function startEmpty(){
 function continueWithExisting(){
   document.getElementById("setupOverlay").style.display="none";
   switchMode("filter");
-  var needsE=titles.filter(function(t){return t.status==="active"&&(!t.genres||!t.genres.length);});
+  var needsE=titles.filter(function(t){return t.status==="active"&&(!t._tmdbId||!t.genres||!t.genres.length);});
   if(needsE.length){
     var bar=document.getElementById("enrichBar");if(bar)bar.style.display="flex";
-    var cnt=document.getElementById("enrichBarCount");if(cnt)cnt.textContent=needsE.length+" faltando";
+    var cnt=document.getElementById("enrichBarCount");if(cnt)cnt.textContent=needsE.length+" pendientes";
     setTimeout(function(){startEnrich();},200);
   }
 }
@@ -821,7 +802,8 @@ function handleWelcomeImport(file){
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!uri||!name||ourURIs.has(uri))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:added;
-      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
       ourURIs.add(uri);added++;
     });
     saveState();return added;
@@ -845,194 +827,10 @@ function handleWelcomeImport(file){
     reader.readAsText(file);
   }else{if(msg)msg.innerHTML='<span style="color:var(--red)">Usa .csv o .zip</span>';}
 }
-async function importFromLBUrl(){
-  var urlEl=document.getElementById("lbUrlInput");
-  var keyEl=document.getElementById("lbApiKey");
-  var msg=document.getElementById("lbUrlMsg");
-  var url=(urlEl&&urlEl.value||"").trim();
-  var apiKey=(keyEl&&keyEl.value||"").trim()||"6eb9bd8e94msh0f467a70cd2b796p13dfa1jsnc306373d3d10";
-  if(!url){if(msg)msg.innerHTML='<span style="color:var(--red)">Pega una URL de Letterboxd</span>';return;}
-  if(!url.startsWith("http"))url="https://"+url;
-  if(!url.includes("letterboxd.com")){
-    if(msg)msg.innerHTML='<span style="color:var(--red)">La URL debe ser de letterboxd.com</span>';
-    return;
-  }
-  if(msg)msg.innerHTML='<span style="color:var(--muted)">Analizando URL...</span>';
-  var RHOST="letterboxd9.p.rapidapi.com";
-  var RBASE="https://letterboxd9.p.rapidapi.com";
-  var headers={"x-rapidapi-key":apiKey,"x-rapidapi-host":RHOST};
-  try{
-    console.log("LB Import — key:", apiKey.substring(0,4)+"..."+apiKey.slice(-4), "url:", url);
-    // Guardar la key para usarla en el resto de la app
-    try{localStorage.setItem("wq_lbKey",apiKey);}catch(e){}
-    // Parsear la URL para determinar el tipo de endpoint
-    var parsed=parseLBUrl(url);
-    if(!parsed){
-      if(msg)msg.innerHTML='<span style="color:var(--red)">URL no reconocida. Usa /usuario/watchlist/ o /usuario/list/nombre/</span>';
-      return;
-    }
-    if(msg)msg.innerHTML='<span style="color:var(--muted)">Buscando '+parsed.type+'...</span>';
-    // Resolver username a LID si es necesario
-    var lid=null,listName=parsed.listName||null;
-    if(parsed.type==="watchlist"||parsed.type==="list"){
-      // Buscar el miembro por username
-      var sr=await fetch(RBASE+"/api/letterboxd/search?input="+encodeURIComponent(parsed.username)+"&include=MemberSearchItem&perPage=10",{headers:headers,signal:AbortSignal.timeout(8000)});
-      if(!sr.ok){
-        var errBody=await sr.text().catch(()=>"");
-        throw new Error("Error buscando usuario ("+sr.status+"): "+errBody.substring(0,100));
-      }
-      var sdata=await sr.json();
-      // Encontrar el miembro cuyo username coincide exactamente
-      var member=sdata.items&&sdata.items.find(function(i){return i.member&&i.member.username&&i.member.username.toLowerCase()===parsed.username.toLowerCase();});
-      if(!member&&sdata.items&&sdata.items.length)member=sdata.items[0];
-      if(!member){if(msg)msg.innerHTML='<span style="color:var(--red)">Usuario no encontrado: '+parsed.username+'</span>';return;}
-      lid=member.member.id;
-    }
-    if(parsed.type==="list"){
-      // Buscar la lista por nombre dentro de las listas del miembro
-      var lr=await fetch(RBASE+"/api/letterboxd/lists?member="+lid+"&memberRelationship=Owner&perPage=50",{headers:headers,signal:AbortSignal.timeout(8000)});
-      if(!lr.ok)throw new Error("Error buscando listas ("+lr.status+")");
-      var ldata=await lr.json();
-      // Encontrar la lista cuyo slug coincide
-      var listSlug=parsed.listSlug;
-      var foundList=ldata.items&&ldata.items.find(function(l){
-        var llink=l.url||l.shareUrl||"";
-        return llink.includes(listSlug)||normName(l.name)===normName(listSlug.replace(/-/g," "));
-      });
-      if(!foundList&&ldata.items&&ldata.items.length){
-        // Buscar por búsqueda global
-        var lsr=await fetch(RBASE+"/api/letterboxd/search?input="+encodeURIComponent(parsed.listSlug.replace(/-/g," "))+"&include=ListSearchItem&perPage=10",{headers:headers,signal:AbortSignal.timeout(8000)});
-        var lsdata=await lsr.json();
-        foundList=lsdata.items&&lsdata.items.find(function(i){return i.list&&i.list.owner&&i.list.owner.id===lid;});
-        if(foundList)foundList=foundList.list;
-      }
-      if(!foundList){if(msg)msg.innerHTML='<span style="color:var(--red)">Lista no encontrada. Verifica que sea pública.</span>';return;}
-      lid=foundList.id;
-      listName=foundList.name||listName;
-    }
-    // Obtener todas las películas paginando
-    var allFilms=[],cursor=null,page=1,maxPages=100;
-    while(page<=maxPages){
-      if(msg)msg.innerHTML='<span style="color:var(--muted)">Cargando página '+page+'... ('+allFilms.length+' películas)</span>';
-      var endpoint=parsed.type==="watchlist"
-        ?RBASE+"/api/letterboxd/member/"+lid+"/watchlist?perPage=100"+(cursor?"&cursor="+encodeURIComponent(cursor):"")
-        :RBASE+"/api/letterboxd/list/"+lid+"/entries?perPage=100"+(cursor?"&cursor="+encodeURIComponent(cursor):"");
-      var fr=await fetch(endpoint,{headers:headers,signal:AbortSignal.timeout(10000)});
-      if(!fr.ok)throw new Error("Error obteniendo películas ("+fr.status+")");
-      var fdata=await fr.json();
-      var items=fdata.items||[];
-      items.forEach(function(item){
-        // list entries tienen item.film, watchlist devuelve el film directamente
-        var film=item.film||item;
-        if(film&&film.name)allFilms.push(film);
-      });
-      if(!fdata.next||items.length===0)break;
-      cursor=fdata.next;
-      page++;
-    }
-    if(!allFilms.length){
-      if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron películas. ¿La lista es pública?</span>';
-      return;
-    }
-    // Agregar a la lista
-    var ourURIs=new Set(titles.map(function(t){return t.u;}));
-    var added=0,tagged=0;
-    allFilms.forEach(function(film){
-      var filmUrl=film.link||("https://letterboxd.com/film/"+film.id+"/");
-      var tmdbId=film.links&&film.links.find(function(l){return l.type==="tmdb";})
-      var imdbId=film.links&&film.links.find(function(l){return l.type==="imdb";});
-      if(ourURIs.has(filmUrl)){
-        var existing=titles.find(function(t){return t.u===filmUrl;});
-        if(existing&&listName){
-          if(!existing.lists)existing.lists=[];
-          if(existing.lists.indexOf(listName)===-1){existing.lists.push(listName);tagged++;}
-        }
-      }else{
-        var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:added;
-        var genres=(film.genres||[]).map(function(g){
-          return typeof g==="object"?(g.id||g.name):g;
-        });
-        var isSeries=false;
-        var runtime=film.runTime||0;
-        titles.push({
-          idx:ni,n:film.name,y:film.releaseYear||null,m:runtime,
-          u:filmUrl,is_series:isSeries,
-          genres:genres,
-          type:genres.indexOf(99)!==-1?"doc":(runtime>0&&runtime<45?"short":"movie"),
-          overview:"",poster:null,
-          _lbPoster:film.poster&&film.poster.sizes&&film.poster.sizes.length?film.poster.sizes[film.poster.sizes.length-1].url:null,
-          director:(film.directors||[]).map(function(d){return d.name;}).join(", ")||"",
-          country:"",status:"active",isNew:true,
-          lists:listName?[listName]:[],pinned:false,
-          _tmdbId:tmdbId?parseInt(tmdbId.id):null,
-          _imdbId:imdbId?imdbId.id:null,
-          _mediaType:"movie"
-        });
-        ourURIs.add(filmUrl);added++;
-      }
-    });
-    saveState();buildGenres();buildDecades();buildCountries();updateStats();updateCandidates();
-    var txt='<span style="color:var(--green)">&#10003; '+allFilms.length+' películas'
-      +(added?" &middot; "+added+" nuevas":"")
-      +(tagged?" &middot; "+tagged+" etiquetadas":"")
-      +(listName?' &middot; lista: &ldquo;'+listName+'&rdquo;':"")
-      +'</span>';
-    if(msg)msg.innerHTML=txt;
-    // Ir a enriquecer — pero solo los que no tienen géneros detallados de TMDB
-    setTimeout(function(){
-      showCard("enrichCard");
-      startEnrich();
-    },1000);
-  }catch(e){
-    if(msg)msg.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';
-  }
-}
-
-
-
-function parseLBUrl(url){
-  try{
-    var u=new URL(url);
-    var parts=u.pathname.replace(/^\/+|\/+$/g,"").split("/").filter(Boolean);
-    // /username/watchlist
-    if(parts.length>=2&&parts[1]==="watchlist")
-      return {type:"watchlist",username:parts[0],listName:parts[0]+"'s Watchlist"};
-    // /username/list/slug
-    if(parts.length>=3&&parts[1]==="list")
-      return {type:"list",username:parts[0],listSlug:parts[2],
-              listName:parts[2].replace(/-/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})};
-    // /username/films
-    if(parts.length>=2&&parts[1]==="films")
-      return {type:"watchlist",username:parts[0],listName:null};
-  }catch(e){}
-  return null;
-}
-function extractLBListName(url){
-  // /usuario/list/nombre-lista/ → "Nombre Lista"
-  var m=url.match(/\/list\/([^/]+)\/?$/);
-  if(m)return m[1].replace(/-/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();});
-  // /usuario/watchlist/ → "Watchlist"
-  if(url.includes("/watchlist/"))return "Watchlist";
-  // /usuario/films/ → null (no etiquetar)
-  return null;
-}
-
-function parseLBTitle(title){
-  // Quitar caracteres de dirección de texto que Letterboxd agrega al inicio
-  title=title.replace(/^[\u200e\u200f\u200b]+/,"").trim();
-  // "Nombre de la Lista, a list of films by Usuario"
-  var m=title.match(/^(.+?),?\s+(?:a list|watchlist)/i);
-  if(m)return m[1].trim();
-  // "Nombre • Letterboxd"
-  var m2=title.match(/^(.+?)\s*[\u2022\u00b7]/);
-  if(m2)return m2[1].trim();
-  return null;
-}
-
 function skipEnrich(){
   document.getElementById("setupOverlay").style.display="none";
   switchMode("filter");
-  var needsE=titles.filter(function(t){return t.status==="active"&&(!t.genres||!t.genres.length);});
+  var needsE=titles.filter(function(t){return t.status==="active"&&(!t._tmdbId||!t.genres||!t.genres.length);});
   if(needsE.length){var bar=document.getElementById("enrichBar");if(bar)bar.style.display="flex";setTimeout(function(){startEnrich();},200);}
   document.getElementById("eDot").className="edot";
   document.getElementById("eTxt2").textContent="Sin generos";
@@ -1050,10 +848,9 @@ var TMDB_OVERRIDES={
 };
 
 async function startEnrich(){
-  // Solo saltar si ya tiene metadatos de TMDB (tmdbId confirmado)
   var toE=titles.filter(function(t){
     if(t.status!=="active")return false;
-    if(t._tmdbId&&t.genres&&t.genres.length&&t.poster)return false; // ya enriquecido con TMDB
+    if(t._tmdbId&&t.genres&&t.genres.length&&t.poster)return false; // ya completo
     return true;
   });
   if(!toE.length){finishEnrich(true);return;}
@@ -1074,62 +871,44 @@ async function startEnrich(){
         if(!res.length)return;
         var best=res[0];
         if(t.y){var ym=res.find(function(x){return(x.release_date||x.first_air_date||"").startsWith(String(t.y));});if(ym)best=ym;}
-        // Obtener datos de Letterboxd una sola vez (director + duración)
-        var _lbCache=null;
-        if(t.u&&t.u.includes("letterboxd.com")){
-          _lbCache=await fetchLBData(t.u);
-        }
-        // Doble chequeo director con LB
-        if(_lbCache&&_lbCache.director&&res.length>1){
-          var lbData=_lbCache;
+        // Doble chequeo con Letterboxd
+        if(t.u&&t.u.includes("letterboxd.com")&&res.length>1){
+          var lbData=await fetchLBData(t.u);
           if(lbData&&lbData.director){
             var lbNorm=normName(lbData.director);
-            // Buscar entre los resultados de TMDB el que tiene director que coincide
-            // Necesitamos hacer una petición rápida de cada candidato para ver el director
             for(var ri=0;ri<Math.min(res.length,4);ri++){
-              var cand=res[ri];
-              var candEp=cand.media_type==="tv"?"tv":"movie";
+              var cand=res[ri];var candEp=cand.media_type==="tv"?"tv":"movie";
               try{
                 var rc=await fetch("https://api.themoviedb.org/3/"+candEp+"/"+cand.id+"?api_key="+KEY+"&append_to_response=credits",{signal:AbortSignal.timeout(4000)});
                 if(!rc.ok)continue;
                 var dc=await rc.json();
                 var crew=(dc.credits&&dc.credits.crew)||[];
                 var dirC=crew.find(function(c){return c.job==="Director";});
-                if(dirC&&normName(dirC.name)===lbNorm){
-                  best=cand;break;
-                }
+                if(dirC&&normName(dirC.name)===lbNorm){best=cand;break;}
               }catch(e){continue;}
             }
           }
         }
-        var ep=best.media_type,tid=best.id;
-        // Si el CSV marcó is_series=false pero TMDB dice TV, confiar en TMDB
-        // SOLO buscar versión movie si hay una alternativa Y el título tiene pistas de ser película
+        var ep=best.media_type==="tv"?"tv":"movie",tid=best.id;
+        // Si CSV marcó is_series=false pero TMDB dice TV, solo usar movie si el año coincide mejor
         if(!t.is_series&&best.media_type==="tv"){
           var mv=res.find(function(x){return x.media_type==="movie";});
-          // Usar la versión movie solo si el año coincide mejor
-          if(mv&&t.y&&(mv.release_date||"").startsWith(String(t.y))){
-            tid=mv.id;ep="movie";
-          }
-          // Si no hay alternativa movie con año correcto, aceptar la serie
+          if(mv&&t.y&&(mv.release_date||"").startsWith(String(t.y))){tid=mv.id;ep="movie";}
         }
         var ok=t.n+"_"+t.y;if(TMDB_OVERRIDES[ok]){tid=TMDB_OVERRIDES[ok].id;ep=TMDB_OVERRIDES[ok].type;}
         var r2=await fetch("https://api.themoviedb.org/3/"+ep+"/"+tid+"?api_key="+KEY+"&language=en-US&append_to_response=credits,translations",{signal:AbortSignal.timeout(8000)});
         if(!r2.ok)return;
         var det=await r2.json();
-        t.m=det.runtime||(det.episode_run_time&&det.episode_run_time[0])||0;
-        // Para series: calcular duración total = episodios × duración por episodio
+        t.m=det.runtime||(det.episode_run_time&&det.episode_run_time[0])||t.m||0;
         if(ep==="tv"){
-          var epRuntime=det.episode_run_time&&det.episode_run_time[0]||0;
-          var numEps=(det.number_of_episodes)||0;
-          if(epRuntime>0&&numEps>0){
-            t.m=epRuntime*numEps; // duración total estimada
-          }else if(epRuntime>0){
-            t.m=epRuntime; // al menos la duración de un episodio
-          }
+          var epRt=det.episode_run_time&&det.episode_run_time[0]||0;
+          var numEps=det.number_of_episodes||0;
+          if(epRt>0&&numEps>0)t.m=epRt*numEps;
         }
-        // Fallback desde LB si TMDB no tiene duración (películas sin runtime en TMDB)
-        if(!t.m&&_lbCache&&_lbCache.mins)t.m=_lbCache.mins;
+        if(!t.m&&t.u&&t.u.includes("letterboxd.com")){
+          var lbFall=await fetchLBData(t.u);
+          if(lbFall&&lbFall.mins)t.m=lbFall.mins;
+        }
         t.poster=det.poster_path||null;
         t.backdrop=det.backdrop_path||null;
         t.genres=(det.genres||[]).map(function(g){return g.id;});
@@ -1141,43 +920,33 @@ async function startEnrich(){
         t.overview=(overviewEs||det.overview||"").substring(0,400);
         var crew=(det.credits&&det.credits.crew)||[];
         var dir=crew.find(function(c){return c.job==="Director";});
-        t.director=dir?dir.name:"";
+        if(!t.director)t.director=dir?dir.name:"";
         var ctry=det.production_countries||det.origin_country||[];
         if(ctry.length)t.country=typeof ctry[0]==="string"?ctry[0]:(ctry[0].iso_3166_1||"");
         t._tmdbId=tid;t._mediaType=ep;t._imdbId=det.imdb_id||null;
-        // Si no tiene URL de Letterboxd, buscarla en background
-        if(!t.u){
-          (function(tt){
-            fetchLBUrl(tt.n,tt.y).then(function(url){if(url)tt.u=url;});
-          })(t);
-        }
-        // Detectar si es serie según TMDB
         if(ep==="tv"){
-          var epRt=det.episode_run_time&&det.episode_run_time[0]||0;
-          var numEpsTotal=det.number_of_episodes||0;
-          // Cortometraje mal catalogado: 1 episodio y duración <45 min
-          if(numEpsTotal===1&&epRt>0&&epRt<45){
-            t.is_series=false;t.type=epRt<45?"short":"movie";
-          }else{
-            t.is_series=true;t.type="tv";
-          }
+          var epRt2=det.episode_run_time&&det.episode_run_time[0]||0;
+          var numEps2=det.number_of_episodes||0;
+          if(numEps2===1&&epRt2>0&&epRt2<45){t.is_series=false;t.type=epRt2<45?"short":"movie";}
+          else{t.is_series=true;t.type="tv";}
         }
         t.y=t.y||parseInt((det.release_date||det.first_air_date||"").substring(0,4))||t.y;
         if(!t.is_series)t.type=t.genres.indexOf(99)!==-1?"doc":(t.m>0&&t.m<45?"short":"movie");
+        if(!t.u){
+          (function(tt){fetchLBUrl(tt.n,tt.y).then(function(url){if(url)tt.u=url;});})(t);
+        }
       }catch(e){}
     }));
     done+=batch.length;
     var pct=Math.round(done/total*100);
-    var pendientes=total-done;
-    // Barra en overlay
     var sf=document.getElementById("sFill");if(sf)sf.style.width=pct+"%";
     var st=document.getElementById("sTxt");if(st)st.textContent=done+"/"+total+" procesados ("+pct+"%)";
     var readyNow=titles.filter(function(t){return t.status==="active"&&t.genres&&t.genres.length;}).length;
     var er=document.getElementById("enrichReady");
     if(er&&readyNow>0)er.textContent=readyNow+" títulos disponibles — puedes entrar ahora";
-    // Barra flotante
     var bar=document.getElementById("enrichBar");
     if(bar){
+      var pendientes=total-done;
       bar.style.display=pendientes>0?"flex":"none";
       var fill=document.getElementById("enrichBarFill");if(fill)fill.style.width=pct+"%";
       var cnt=document.getElementById("enrichBarCount");if(cnt)cnt.textContent=pendientes+" faltando ("+pct+"% listo)";
@@ -1187,7 +956,9 @@ async function startEnrich(){
     await sleep(120);
   }
   var cache=titles.map(function(t){
-    return {g:t.genres,t:t.type,o:t.overview,p:t.poster,b:t.backdrop||null,d:t.director,c:t.country,u:t.u,m:t.m||null,ii:t._imdbId||null,ti:t._tmdbId||null,mt:t._mediaType||null};
+    return {g:t.genres,t:t.type,o:t.overview,p:t.poster,b:t.backdrop||null,
+            d:t.director,c:t.country,u:t.u,m:t.m||null,
+            ii:t._imdbId||null,ti:t._tmdbId||null,mt:t._mediaType||null};
   });
   try{localStorage.setItem("wq_cC",JSON.stringify(cache));}catch(e){}
   finishEnrich(false);
@@ -1305,7 +1076,7 @@ function updateDur(v){
 function getCandidates(){
   return titles.filter(function(t){
     if(t.status!=="active")return false;
-    if(!t.genres||!t.genres.length)return false; // solo títulos con metadatos
+    if(!t.genres||!t.genres.length)return false;
     if(t.m>0&&t.m>maxDur)return false;
     if(activeType!=="all"){
       if(activeType==="movie"&&t.type!=="movie"&&!t.isNew)return false;
@@ -1387,11 +1158,7 @@ function showResult(t){
   var watchedBtn=document.getElementById("rWatchedBtn");
   if(watchedBtn){watchedBtn.style.display="flex";if(t.status==="watched"){watchedBtn.classList.add("watched");watchedBtn.title="Desmarcar como vista";}else{watchedBtn.classList.remove("watched");watchedBtn.title="Marcar como vista";}}
   var rLink=document.getElementById("rLink");
-  if(t.u){
-    rLink.href=t.u;rLink.style.display="";
-  }else{
-    rLink.href="#";rLink.style.display="none";
-  }
+  if(t.u){rLink.href=t.u;rLink.style.display="";}else{rLink.href="#";rLink.style.display="none";}
   var stremioQ=encodeURIComponent(t.n+(t.y?" "+t.y:""));
   var stremioEl=document.getElementById("rStremio");
   // Stremio: copiar ID primero, luego abrir app
@@ -1779,14 +1546,14 @@ function renderManage(){
 }
 function markW(idx){var t=titles.find(function(t){return t.idx===idx;});if(!t)return;t.status="watched";saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();}
 function removeT(idx){
-  if(!confirm("¿Eliminar esta película de tu lista? Esta acción no se puede deshacer."))return;
+  if(!confirm("\u00bfEliminar esta pel\u00edcula? Esta acci\u00f3n no se puede deshacer."))return;
   titles=titles.filter(function(t){return t.idx!==idx;});
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();
   showToast("Eliminada");
 }
 function restoreT(idx){var t=titles.find(function(t){return t.idx===idx;});if(!t)return;t.status="active";saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();}
 function clearAllTitles(){
-  if(!confirm("¿Borrar TODAS las películas? Esta acción no se puede deshacer."))return;
+  if(!confirm("\u00bfBorrar TODAS las pel\u00edculas? Esta acci\u00f3n no se puede deshacer."))return;
   titles=[];
   try{localStorage.removeItem("wq_s7");localStorage.removeItem("wq_cC");localStorage.removeItem("wq_sc");}catch(e){}
   saveState();updateStats();updateCandidates();renderManage();
@@ -2222,7 +1989,7 @@ function getBrowseTitles(){
   q=q?(q+'').toLowerCase():'';
   var pool=titles.filter(function(t){
     if(t.status!=='active')return false;
-    if(!t.genres||!t.genres.length)return false; // solo títulos con metadatos
+    if(!t.genres||!t.genres.length)return false;
     if(q&&t.n.toLowerCase().indexOf(q)===-1)return false;
     if(browseType==='movie'&&t.type!=='movie'&&!t.isNew)return false;
     if(browseType==='tv'&&t.type!=='tv')return false;
@@ -2600,7 +2367,6 @@ async function applyTMDBResult(item){
     var r=await fetch("https://api.themoviedb.org/3/"+ep+"/"+item.id+"?api_key="+KEY+"&language=en-US&append_to_response=credits,translations",{signal:AbortSignal.timeout(8000)});
     if(!r.ok)return;
     var det=await r.json();
-    // Actualizar TODOS los metadatos incluyendo tipo, duración, serie
     t.genres=(det.genres||[]).map(function(g){return g.id;});
     t.m=det.runtime||(det.episode_run_time&&det.episode_run_time[0])||t.m||0;
     t.is_series=ep==="tv";
@@ -2636,7 +2402,6 @@ async function applyTMDBResult(item){
     if(el("fixName"))el("fixName").value=t.n;
     if(el("fixYear"))el("fixYear").value=t.y||"";
     if(el("fixMins"))el("fixMins").value=t.m||"";
-    if(el("fixType"))el("fixType").value=t.type||"movie";
     if(el("fixDirector"))el("fixDirector").value=t.director||"";
     if(el("fixCountry"))el("fixCountry").value=t.country||"";
     if(el("fixType"))el("fixType").value=t.type||"movie";
@@ -2761,7 +2526,7 @@ function tmdbAutocomplete(q){
         div.onmouseover=function(){this.style.background="var(--surface)";};
         div.onmouseout=function(){this.style.background="";};
         var imgHtml=poster?'<img style="width:28px;height:42px;object-fit:cover;border-radius:2px;flex-shrink:0;" src="'+poster+'">':'<div style="width:28px;height:42px;background:var(--border);border-radius:2px;flex-shrink:0;"></div>';
-                var metaStr=year+(year?' · ':' ')+(isSeries?'Serie':'Película');
+        var metaStr=year+(year?" · ":"")+(isSeries?"Serie":"Película");
         div.innerHTML=imgHtml+'<div><div style="color:var(--text);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">'+title+'</div><div style="color:var(--muted);font-size:10px;margin-top:1px;">'+metaStr+'</div></div>';
         (function(t,y,mt,id,pp){div.onclick=function(){
           document.getElementById("addSearchQ").value=t;
@@ -2784,38 +2549,137 @@ async function autoAddFromSuggestion(name,year,mediaType,tmdbId,posterPath){
     var d=await r.json();
     var crew=(d.credits&&d.credits.crew)||[];var dir=crew.find(function(c){return c.job==="Director";});
     var genres=(d.genres||[]).map(function(g){return g.id;});
-    var ctry=d.production_countries||d.origin_country||[];
-    var country=ctry.length?(typeof ctry[0]==="string"?ctry[0]:(ctry[0].iso_3166_1||"")):""
-    var mins=d.runtime||0;
-    var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+    var ctry=d.production_countries||d.origin_country||[];var country=ctry.length?(typeof ctry[0]==="string"?ctry[0]:(ctry[0].iso_3166_1||"")):""
+    var mins=d.runtime||(d.episode_run_time&&d.episode_run_time[0])||0;
+    var overviewEs="";if(d.translations&&d.translations.translations){var esTr=d.translations.translations.find(function(tr){return tr.iso_639_1==="es";});if(esTr&&esTr.data&&esTr.data.overview)overviewEs=esTr.data.overview;}
     var isSeries=mediaType==="tv";
-    // Obtener título en inglés si existe en translations
-    var enTitle=name;
-    if(d.translations&&d.translations.translations){
-      var enTr=d.translations.translations.find(function(tr){return tr.iso_639_1==="en"&&tr.data&&tr.data.title;});
-      if(enTr&&enTr.data.title)enTitle=enTr.data.title;
-    }
-    var newT={idx:ni,n:enTitle,y:parseInt(year)||0,m:mins,
-      u:"", // URL se busca en background
-      type:isSeries?"tv":(genres.indexOf(99)!==-1?"doc":(mins>0&&mins<45?"short":"movie")),
-      is_series:isSeries,genres:genres,overview:d.overview||"",
+    var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+    var newT={idx:ni,n:name,y:parseInt(year)||0,m:mins,
+      u:"",type:isSeries?"tv":(genres.indexOf(99)!==-1?"doc":(mins>0&&mins<45?"short":"movie")),
+      is_series:isSeries,genres:genres,overview:overviewEs||d.overview||"",
       poster:posterPath||null,backdrop:d.backdrop_path||null,
       director:dir?dir.name:"",country:country,
       status:"active",isNew:true,lists:[],pinned:false,
       _tmdbId:tmdbId,_mediaType:mediaType,_imdbId:d.imdb_id||null};
     titles.push(newT);saveState();buildGenres();buildDecades();buildCountries();updateStats();updateCandidates();renderManage();
-    if(msg){msg.textContent="✓ Agregada: "+enTitle;setTimeout(function(){if(msg)msg.style.display="none";},2000);}
-    showToast("Agregada: "+enTitle);
+    // Buscar URL de LB en background
+    (function(t){fetchLBUrl(t.n,t.y).then(function(url){if(url){t.u=url;saveState();}});})(newT);
+    if(msg){msg.textContent="\u2713 Agregada: "+name;setTimeout(function(){if(msg)msg.style.display="none";},2000);}
+    showToast("Agregada: "+name);
     document.getElementById("addSearchQ").value="";
     var yi=document.getElementById("addSearchY");if(yi)yi.value="";
-    // Buscar URL real de Letterboxd en background
-    (function(t,n,y){
-      fetchLBUrl(n,y).then(function(url){
-        if(url){t.u=url;saveState();renderManage();}
-      });
-    })(newT,enTitle,parseInt(year)||0);
   }catch(e){if(msg){msg.textContent="Error al obtener datos";msg.style.display="block";}}
 }
+function parseLBUrl(url){
+  try{
+    var u=new URL(url);
+    var parts=u.pathname.replace(/^\/+|\/+$/g,"").split("/").filter(Boolean);
+    if(parts.length>=2&&parts[1]==="watchlist")
+      return {type:"watchlist",username:parts[0],listName:parts[0]+"'s Watchlist"};
+    if(parts.length>=3&&parts[1]==="list")
+      return {type:"list",username:parts[0],listSlug:parts[2],
+              listName:parts[2].replace(/-/g," ").replace(/\b\w/g,function(c){return c.toUpperCase();})};
+    if(parts.length>=2&&parts[1]==="films")
+      return {type:"watchlist",username:parts[0],listName:null};
+  }catch(e){}
+  return null;
+}
+
+async function importFromLBUrl(){
+  var urlEl=document.getElementById("lbUrlInput");
+  var keyEl=document.getElementById("lbApiKey");
+  var msg=document.getElementById("lbUrlMsg");
+  var url=(urlEl&&urlEl.value||"").trim();
+  var apiKey=(keyEl&&keyEl.value||"").trim()||"6eb9bd8e94msh0f467a70cd2b796p13dfa1jsnc306373d3d10";
+  if(!url){if(msg)msg.innerHTML='<span style="color:var(--red)">Pega una URL de Letterboxd</span>';return;}
+  if(!url.startsWith("http"))url="https://"+url;
+  if(!url.includes("letterboxd.com")){if(msg)msg.innerHTML='<span style="color:var(--red)">La URL debe ser de letterboxd.com</span>';return;}
+  if(msg)msg.innerHTML='<span style="color:var(--muted)">Analizando URL...</span>';
+  var RHOST="letterboxd9.p.rapidapi.com";
+  var RBASE="https://letterboxd9.p.rapidapi.com";
+  var headers={"x-rapidapi-key":apiKey,"x-rapidapi-host":RHOST};
+  try{
+    try{localStorage.setItem("wq_lbKey",apiKey);}catch(e){}
+    var parsed=parseLBUrl(url);
+    if(!parsed){if(msg)msg.innerHTML='<span style="color:var(--red)">URL no reconocida. Usa /usuario/watchlist/ o /usuario/list/nombre/</span>';return;}
+    if(msg)msg.innerHTML='<span style="color:var(--muted)">Buscando usuario...</span>';
+    var lid=null,listName=parsed.listName||null;
+    if(parsed.type==="watchlist"||parsed.type==="list"){
+      var sr=await fetch(RBASE+"/api/letterboxd/search?input="+encodeURIComponent(parsed.username)+"&include=MemberSearchItem&perPage=10",{headers:headers,signal:AbortSignal.timeout(8000)});
+      if(!sr.ok)throw new Error("Error buscando usuario ("+(await sr.text().catch(()=>sr.status))+")");
+      var sdata=await sr.json();
+      var member=sdata.items&&sdata.items.find(function(i){return i.member&&i.member.username&&i.member.username.toLowerCase()===parsed.username.toLowerCase();});
+      if(!member&&sdata.items&&sdata.items.length)member=sdata.items[0];
+      if(!member){if(msg)msg.innerHTML='<span style="color:var(--red)">Usuario no encontrado: '+parsed.username+'</span>';return;}
+      lid=member.member.id;
+    }
+    if(parsed.type==="list"){
+      if(msg)msg.innerHTML='<span style="color:var(--muted)">Buscando lista...</span>';
+      var lsr=await fetch(RBASE+"/api/letterboxd/search?input="+encodeURIComponent(parsed.listSlug.replace(/-/g," "))+"&include=ListSearchItem&perPage=20",{headers:headers,signal:AbortSignal.timeout(8000)});
+      var lsdata=await lsr.json();
+      var foundList=lsdata.items&&lsdata.items.find(function(i){return i.list&&i.list.owner&&i.list.owner.id===lid;});
+      if(!foundList)foundList=lsdata.items&&lsdata.items[0];
+      if(!foundList){if(msg)msg.innerHTML='<span style="color:var(--red)">Lista no encontrada. Verifica que sea pública.</span>';return;}
+      lid=foundList.list?foundList.list.id:foundList.id;
+      listName=(foundList.list?foundList.list.name:foundList.name)||listName;
+    }
+    var allFilms=[],cursor=null,page=1;
+    while(page<=100){
+      if(msg)msg.innerHTML='<span style="color:var(--muted)">Cargando página '+page+'... ('+allFilms.length+' películas)</span>';
+      var endpoint=parsed.type==="watchlist"
+        ?RBASE+"/api/letterboxd/member/"+lid+"/watchlist?perPage=100"+(cursor?"&cursor="+encodeURIComponent(cursor):"")
+        :RBASE+"/api/letterboxd/list/"+lid+"/entries?perPage=100"+(cursor?"&cursor="+encodeURIComponent(cursor):"");
+      var fr=await fetch(endpoint,{headers:headers,signal:AbortSignal.timeout(10000)});
+      if(!fr.ok)throw new Error("Error obteniendo películas ("+fr.status+")");
+      var fdata=await fr.json();
+      var items=fdata.items||[];
+      items.forEach(function(item){
+        var film=item.film||item;
+        if(film&&film.name)allFilms.push(film);
+      });
+      if(!fdata.next||items.length===0)break;
+      cursor=fdata.next;page++;
+    }
+    if(!allFilms.length){if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron películas. ¿La lista es pública?</span>';return;}
+    var ourURIs=new Set(titles.map(function(t){return t.u;}));
+    var added=0,tagged=0;
+    allFilms.forEach(function(film){
+      var filmUrl=film.link||("https://letterboxd.com/film/"+film.id+"/");
+      var tmdbLink=film.links&&film.links.find(function(l){return l.type==="tmdb";});
+      var imdbLink=film.links&&film.links.find(function(l){return l.type==="imdb";});
+      if(ourURIs.has(filmUrl)){
+        var existing=titles.find(function(t){return t.u===filmUrl;});
+        if(existing&&listName){if(!existing.lists)existing.lists=[];if(existing.lists.indexOf(listName)===-1){existing.lists.push(listName);tagged++;}}
+      }else{
+        var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:added;
+        var genres=(film.genres||[]).map(function(g){return typeof g==="object"?(g.id||g.name):g;});
+        var runtime=film.runTime||0;
+        var isSeries=false;
+        var lbPosterUrl=film.poster&&film.poster.sizes&&film.poster.sizes.length?film.poster.sizes[film.poster.sizes.length-1].url:null;
+        var tmdbId=tmdbLink?parseInt(tmdbLink.id):null;
+        titles.push({
+          idx:ni,n:film.name,y:film.releaseYear||null,m:runtime,u:filmUrl,
+          is_series:isSeries,genres:genres,
+          type:genres.indexOf(99)!==-1?"doc":(runtime>0&&runtime<45?"short":"movie"),
+          overview:"",poster:null,_lbPoster:lbPosterUrl,
+          director:(film.directors||[]).map(function(d){return d.name;}).join(", ")||"",
+          country:"",status:"active",isNew:true,
+          lists:listName?[listName]:[],pinned:false,
+          _tmdbId:tmdbId,_imdbId:imdbLink?imdbLink.id:null,_mediaType:"movie"
+        });
+        ourURIs.add(filmUrl);added++;
+      }
+    });
+    saveState();
+    buildGenres();buildDecades();buildCountries();updateStats();updateCandidates();
+    var txt='<span style="color:var(--green)">&#10003; '+allFilms.length+' películas'+(added?" &middot; "+added+" nuevas":"")+(tagged?" &middot; "+tagged+" etiquetadas":"")+(listName?' &middot; lista: &ldquo;'+listName+'&rdquo;':"")+'</span>';
+    if(msg)msg.innerHTML=txt;
+    setTimeout(function(){showCard("enrichCard");startEnrich();},1000);
+  }catch(e){
+    if(msg)msg.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';
+  }
+}
+
 function clearAddResults(){
   var msg=document.getElementById("addResultsMsg");
   var res=document.getElementById("addResults");
