@@ -868,74 +868,80 @@ function handleWelcomeImport(file){
   var msg=document.getElementById("welcomeMsg");
   if(msg)msg.innerHTML='<span style="color:var(--muted)">Procesando...</span>';
 
-  // Agrega filas del watchlist como pendientes
-  function addWatchlistRows(rows){
-    var added=0,ourURIs=new Set(titles.map(function(t){return t.u;}));
-    rows.forEach(function(r){
-      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
-      var name=r["Name"]||r["name"]||"";
-      var year=parseInt(r["Year"]||r["year"])||null;
-      if(!uri||!name||ourURIs.has(uri))return;
-      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:added;
-      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
-        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
-      ourURIs.add(uri);added++;
-    });
-    return added;
-  }
+  function processAllCSVs(wlCSV, wdCSV, dCSV){
+    var wlRows=wlCSV?parseCSVText(wlCSV):[];
+    var wdRows=wdCSV?parseCSVText(wdCSV):[];
+    var dRows=dCSV?parseCSVText(dCSV):[];
 
-  // Marca como vistas las películas del watched.csv
-  // Si no están en la lista, las agrega directamente como "watched"
-  function applyWatchedRows(rows){
-    // Índices para match: URI exacta O nombre+año (boxd.it vs letterboxd.com/film/)
-    var wByURI={};
-    var wByKey={};
-    rows.forEach(function(r){
+    // Construir índices de watched: por URI y por nombre+año
+    var wdByURI={}, wdByKey={};
+    wdRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var nm=(r["Name"]||r["name"]||"").trim().toLowerCase();
       var yr=parseInt(r["Year"]||r["year"])||null;
-      if(uri)wByURI[uri]=true;
-      if(nm)wByKey[nm+(yr?"|"+yr:"")]=true;
+      if(uri)wdByURI[uri]=true;
+      if(nm)wdByKey[nm+(yr?"|"+yr:"")]=true;
     });
-    var markedExisting=0,addedNew=0;
+
+    // 1. Agregar watchlist como pendientes
+    var addedWL=0;
     var ourURIs=new Set(titles.map(function(t){return t.u;}));
-    // Marcar por URI exacta O por nombre+año
+    wlRows.forEach(function(r){
+      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
+      var name=(r["Name"]||r["name"]||"").trim();
+      var year=parseInt(r["Year"]||r["year"])||null;
+      if(!uri||!name||ourURIs.has(uri))return;
+      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedWL;
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
+      ourURIs.add(uri);addedWL++;
+    });
+
+    // 2. Marcar como vistas las que están en el watchlist (URI o nombre+año)
+    var markedWatched=0;
     titles.forEach(function(t){
       if(t.status==="watched")return;
-      var mURI=t.u&&wByURI[t.u];
-      var mKey=!mURI&&t.n&&wByKey[t.n.toLowerCase()+(t.y?"|"+t.y:"")];
-      if(mURI||mKey){t.status="watched";markedExisting++;}
+      var mURI=t.u&&wdByURI[t.u];
+      var mKey=!mURI&&t.n&&wdByKey[t.n.toLowerCase()+(t.y?"|"+t.y:"")];
+      if(mURI||mKey){t.status="watched";markedWatched++;}
     });
-    // Agregar vistas que no estaban en el watchlist
-    rows.forEach(function(r){
+
+    // 3. Agregar vistas que no estaban en el watchlist
+    var addedWD=0;
+    wdRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!name)return;
       if(uri&&ourURIs.has(uri))return;
-      // Evitar duplicados por nombre+año
-      if(titles.find(function(t){return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);}))return;
-      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedNew;
+      if(titles.find(function(t){
+        return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);
+      }))return;
+      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedWD;
       titles.push({idx:ni,n:name,y:year,m:0,u:uri||"",is_series:false,genres:[],type:null,
         overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
-      if(uri)ourURIs.add(uri);addedNew++;
+      if(uri)ourURIs.add(uri);addedWD++;
     });
-    return {markedExisting:markedExisting,addedNew:addedNew};
-  }
 
-  function afterImport(stats){
-    var wl=stats.watchlist,wt=stats.watched;
-    if(!wl&&!wt.addedNew){
-      if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron t&iacute;tulos.</span>';return;
+    // 4. Diary
+    if(dRows.length){
+      var ds=new Set();
+      dRows.forEach(function(r){var d=r["Watched Date"]||r["Date"]||"";if(d)ds.add(d.trim().slice(0,10));});
+      diaryDates=Array.from(ds);
     }
-    var parts=[];
-    if(wl)parts.push('<span style="color:var(--accent)">'+wl+' pendientes</span>');
-    if(wt.markedExisting)parts.push('<span style="color:var(--green)">'+wt.markedExisting+' marcadas como vistas</span>');
-    if(wt.addedNew)parts.push('<span style="color:var(--muted)">'+wt.addedNew+' vistas sin watchlist</span>');
-    if(msg)msg.innerHTML='&#10003; '+parts.join(' &middot; ');
+
+    var total=addedWL+markedWatched+addedWD;
+    if(!total){
+      if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron t&iacute;tulos. Verifica que el archivo sea un export de Letterboxd.</span>';
+      return;
+    }
     saveState();
+    var parts=[];
+    if(addedWL)parts.push('<span style="color:var(--accent)">'+addedWL+' pendientes</span>');
+    if(markedWatched)parts.push('<span style="color:var(--green)">'+markedWatched+' marcadas como vistas</span>');
+    if(addedWD)parts.push('<span style="color:var(--muted)">'+addedWD+' vistas (no estaban en watchlist)</span>');
+    if(msg)msg.innerHTML='&#10003; '+parts.join(' &middot; ');
     showCard("enrichCard");
-    // Solo enriquecer las pendientes (watched no necesitan enriquecimiento urgente)
     setTimeout(function(){startEnrich();},400);
   }
 
@@ -945,55 +951,36 @@ function handleWelcomeImport(file){
       zip.forEach(function(path,f){
         var b=path.split("/").pop().toLowerCase();
         if(b==="watchlist.csv")wlf=f;
-        if(b==="watched.csv")wdf=f;
-        if(b==="diary.csv")ddf=f;
+        else if(b==="watched.csv")wdf=f;
+        else if(b==="diary.csv")ddf=f;
       });
       if(!wlf&&!wdf){
-        var foundCsvs=[];
-        zip.forEach(function(path){var b=path.split("/").pop();if(b.toLowerCase().endsWith(".csv"))foundCsvs.push(b);});
-        var msg2=document.getElementById("welcomeMsg");
-        var errTxt='No se encontr\u00f3 watchlist.csv ni watched.csv.';
-        if(foundCsvs.length)errTxt+=' CSV encontrados: '+foundCsvs.join(", ");
-        else errTxt+=' El ZIP no contiene archivos CSV.';
+        var csvs=[];
+        zip.forEach(function(p){if(p.toLowerCase().endsWith(".csv"))csvs.push(p.split("/").pop());});
+        var errTxt="El ZIP no tiene watchlist.csv ni watched.csv.";
+        if(csvs.length)errTxt+=" Archivos encontrados: "+csvs.join(", ");
         if(msg)msg.innerHTML='<span style="color:var(--red)">'+errTxt+'</span>';
         return;
       }
-      // Leer ambos archivos en paralelo
       var p1=wlf?wlf.async("string"):Promise.resolve("");
       var p2=wdf?wdf.async("string"):Promise.resolve("");
       var p3=ddf?ddf.async("string"):Promise.resolve("");
-      Promise.all([p1,p2,p3]).then(function(csvs){
-        var wlRows=csvs[0]?parseCSVText(csvs[0]):[];
-        var wdRows=csvs[1]?parseCSVText(csvs[1]):[];
-        var dRows=csvs[2]?parseCSVText(csvs[2]):[];
-        var addedWL=addWatchlistRows(wlRows);
-        var wtStats=applyWatchedRows(wdRows);
-        // Guardar fechas del diary
-        if(dRows.length){
-          var ds=new Set();
-          dRows.forEach(function(r){var d=r["Watched Date"]||r["Date"]||"";if(d)ds.add(d.trim().slice(0,10));});
-          diaryDates=Array.from(ds);
-        }
-        afterImport({watchlist:addedWL,watched:wtStats});
-      });
+      Promise.all([p1,p2,p3]).then(function(r){processAllCSVs(r[0],r[1],r[2]);});
     }).catch(function(e){if(msg)msg.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';});
   }else if(file.name.toLowerCase().endsWith(".csv")){
-    // CSV suelto: detectar si es watchlist o watched por las columnas
     var reader=new FileReader();
     reader.onload=function(ev){
-      var rows=parseCSVText(ev.target.result);
-      if(!rows.length){if(msg)msg.innerHTML='<span style="color:var(--red)">CSV vac&iacute;o</span>';return;}
-      // Si el nombre del archivo dice "watched" o tiene columna "Rating" típica de watched, tratar como watched
-      var isWatched=file.name.toLowerCase().indexOf("watched")!==-1||
-        (rows[0]&&rows[0]["Rating"]!==undefined&&rows[0]["Name"]!==undefined);
-      var addedWL=0,wtStats={markedExisting:0,addedNew:0};
-      if(isWatched){wtStats=applyWatchedRows(rows);}
-      else{addedWL=addWatchlistRows(rows);}
-      afterImport({watchlist:addedWL,watched:wtStats});
+      var text=ev.target.result;
+      var isWatched=file.name.toLowerCase().indexOf("watched")!==-1;
+      if(isWatched)processAllCSVs("",text,"");
+      else processAllCSVs(text,"","");
     };
     reader.readAsText(file);
-  }else{if(msg)msg.innerHTML='<span style="color:var(--red)">Usa .csv o .zip</span>';}
+  }else{
+    if(msg)msg.innerHTML='<span style="color:var(--red)">Usa un archivo .zip o .csv de Letterboxd.</span>';
+  }
 }
+
 function skipEnrich(){
   document.getElementById("setupOverlay").style.display="none";
   switchMode("filter");
@@ -2021,39 +2008,41 @@ async function processZip(file){
     zip.forEach(function(path,f){
       var b=path.split("/").pop().toLowerCase();
       if(b==="watched.csv")wf=f;
-      if(b==="watchlist.csv")wlf=f;
-      if(b==="diary.csv")df=f;
+      else if(b==="watchlist.csv")wlf=f;
+      else if(b==="diary.csv")df=f;
     });
     if(!wf&&!wlf){
-      var foundFiles=[];
-      zip.forEach(function(path){foundFiles.push(path.split("/").pop());});
-      var csvFiles=foundFiles.filter(function(f){return f.toLowerCase().endsWith(".csv");});
-      result.innerHTML='<span style="color:var(--red)">No se encontraron watched.csv ni watchlist.csv.</span>'+
-        (csvFiles.length?'<br><span style="color:var(--muted);font-size:10px;">CSV encontrados: '+csvFiles.join(", ")+'</span>':'<br><span style="color:var(--muted);font-size:10px;">El ZIP no contiene archivos CSV.</span>');
+      var csvs=[];
+      zip.forEach(function(p){if(p.toLowerCase().endsWith(".csv"))csvs.push(p.split("/").pop());});
+      var errTxt="El ZIP no tiene watchlist.csv ni watched.csv.";
+      if(csvs.length)errTxt+=" Archivos encontrados: "+csvs.join(", ");
+      result.innerHTML='<span style="color:var(--red)">'+errTxt+'</span>';
       return;
     }
+
     var wCSV=wf?await wf.async("string"):"";
     var wlCSV=wlf?await wlf.async("string"):"";
     var dCSV=df?await df.async("string"):"";
     var wRows=parseCSVText(wCSV);
     var wlRows=parseCSVText(wlCSV);
     var dRows=parseCSVText(dCSV);
-    var stats={markedWatched:0,addedWatchlist:0,addedWatched:0,alreadyWatched:0};
-    // 1. Marcar como vistas las que ya están en la lista
-    var wURIs=new Set();
-    wRows.forEach(function(r){var u=(r["Letterboxd URI"]||r["URI"]||"").trim();if(u)wURIs.add(u);});
-    titles.forEach(function(t){
-      if(!t.u)return;
-      if(wURIs.has(t.u)){
-        if(t.status==="watched"){stats.alreadyWatched++;return;}
-        t.status="watched";stats.markedWatched++;
-      }
+    var stats={addedWatchlist:0,markedWatched:0,addedWatched:0,alreadyWatched:0};
+
+    // Índices de watched: por URI y por nombre+año
+    var wdByURI={}, wdByKey={};
+    wRows.forEach(function(r){
+      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
+      var nm=(r["Name"]||r["name"]||"").trim().toLowerCase();
+      var yr=parseInt(r["Year"]||r["year"])||null;
+      if(uri)wdByURI[uri]=true;
+      if(nm)wdByKey[nm+(yr?"|"+yr:"")]=true;
     });
-    // 2. Agregar nuevas del watchlist como pendientes
+
+    // 1. Agregar nuevas del watchlist como pendientes
     var ourURIs=new Set(titles.map(function(t){return t.u;}));
     wlRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
-      var name=r["Name"]||r["name"]||"";
+      var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!uri||!name||ourURIs.has(uri))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
@@ -2061,27 +2050,40 @@ async function processZip(file){
         overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
       ourURIs.add(uri);stats.addedWatchlist++;
     });
-    // 3. Agregar películas de watched.csv que no estaban en ninguna lista
+
+    // 2. Marcar como vistas (URI o nombre+año)
+    titles.forEach(function(t){
+      if(t.status==="watched"){stats.alreadyWatched++;return;}
+      var mURI=t.u&&wdByURI[t.u];
+      var mKey=!mURI&&t.n&&wdByKey[t.n.toLowerCase()+(t.y?"|"+t.y:"")];
+      if(mURI||mKey){t.status="watched";stats.markedWatched++;}
+    });
+
+    // 3. Agregar vistas que no estaban en ninguna lista
     wRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!name)return;
       if(uri&&ourURIs.has(uri))return;
-      if(titles.find(function(t){return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);}))return;
+      if(titles.find(function(t){
+        return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);
+      }))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
-      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri||"",is_series:false,genres:[],type:null,
         overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
-      ourURIs.add(uri);stats.addedWatched++;
+      if(uri)ourURIs.add(uri);stats.addedWatched++;
     });
+
     // 4. Diary
     if(dRows.length){
       var ds=new Set();
       dRows.forEach(function(r){var wd=r["Watched Date"]||r["Date"]||"";if(wd)ds.add(wd.trim().slice(0,10));});
       diaryDates=Array.from(ds);
     }
+
     saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();
-    // Enriquecer los nuevos que no tienen metadatos
+
     var needsEnrich=titles.filter(function(t){return t.isNew&&(!t._tmdbId||!t.genres||!t.genres.length);});
     if(needsEnrich.length){
       var bar=document.getElementById("enrichBar");
@@ -2093,12 +2095,9 @@ async function processZip(file){
         '<div class="sync-stat"><div class="sync-stat-lbl">Nuevas pendientes</div><div class="sync-stat-val" style="color:var(--accent)">'+stats.addedWatchlist+'</div></div>'+
         '<div class="sync-stat"><div class="sync-stat-lbl">Marcadas vistas</div><div class="sync-stat-val" style="color:var(--green)">'+stats.markedWatched+'</div></div>'+
         '<div class="sync-stat"><div class="sync-stat-lbl">Vistas agregadas</div><div class="sync-stat-val" style="color:var(--muted)">'+stats.addedWatched+'</div></div>'+
-        '<div class="sync-stat"><div class="sync-stat-lbl">D&iacute;as en diary</div><div class="sync-stat-val" style="color:var(--muted)">'+diaryDates.length+'</div></div>'+
+        '<div class="sync-stat"><div class="sync-stat-lbl">D&iacute;as diary</div><div class="sync-stat-val" style="color:var(--muted)">'+diaryDates.length+'</div></div>'+
       '</div>'+
-      '<div style="color:var(--muted);font-size:10px;margin-top:10px;">'+
-        (needsEnrich.length?'Cargando metadatos de '+needsEnrich.length+' t&iacute;tulos en background &mdash; ':'')+
-        'Ve a <strong>Estad&iacute;sticas</strong> para ver tu racha de vistas.'+
-      '</div>';
+      (needsEnrich.length?'<div style="color:var(--muted);font-size:10px;margin-top:10px;">Cargando metadatos en background...</div>':'');
   }catch(err){result.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>';}
 }
 
