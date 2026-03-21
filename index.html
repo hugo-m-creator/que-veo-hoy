@@ -181,6 +181,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .browse-star:hover{color:#f5c842;}
 .browse-card.is-pinned{border-color:var(--blue);}
 .browse-card.is-starred .browse-card-info{background:rgba(245,200,66,0.05);}
+.watched-badge{position:absolute;top:5px;left:5px;font-size:10px;background:rgba(77,186,135,0.9);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#000;font-weight:700;z-index:2;}
+.browse-card.is-watched{opacity:0.65;}
+.browse-card.is-watched:hover{opacity:1;}
+.bc-img-wrap{width:100%;aspect-ratio:2/3;overflow:hidden;background:var(--surface2);}
+.bc-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer;}
 .pin-badge{position:absolute;top:5px;right:5px;font-size:12px;background:rgba(91,141,238,0.85);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#fff;}
 /* Modal re-enrich / póster */
 .fix-modal{display:none;position:fixed;inset:0;z-index:300;background:rgba(12,12,14,0.95);align-items:center;justify-content:center;}
@@ -437,6 +442,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
           <div style="display:flex;gap:6px;">
             <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar / Quitar de fijados">&#9822; Fijar</button>
             <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Marcar como vista / desmarcar">&#10003; Ya la vi</button>
+            <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Agregar a lista">&#9776; Listas</button>
             <button class="r-top-btn" onclick="editResult()" title="Editar metadatos">&#9998; Editar</button>
           </div>
         </div>
@@ -452,6 +458,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
         <div class="r-actions" style="align-items:center;flex-wrap:wrap;">
           <a id="rLink" href="#" target="_blank" class="r-link">Letterboxd</a>
           <a id="rStremio" href="#" target="_blank" class="r-link" style="border-color:#8458e8;color:#8458e8;">&#9654; Stremio</a>
+          <button id="rRemoveBtn" class="r-btn" onclick="removeFromResult()" title="Quitar de la lista" style="border-color:var(--red);color:var(--red);">&#215; Quitar</button>
+          <div id="rRemoveConfirm" style="display:none;background:var(--surface2);border:1px solid var(--red);padding:8px 12px;font-size:10px;letter-spacing:1px;margin-top:4px;">
+            <div style="margin-bottom:8px;color:var(--text);">&#191;Seguro que quieres eliminar esta pel&#237;cula?</div>
+            <div style="display:flex;gap:8px;">
+              <button class="r-btn" onclick="confirmRemoveResult()" style="border-color:var(--red);color:var(--red);">Confirmar</button>
+              <button class="r-btn" onclick="cancelRemoveResult()">Cancelar</button>
+            </div>
+          </div>
+          <div id="rListPanel" style="display:none;margin-top:8px;border:1px solid var(--border);background:var(--surface2);padding:10px 14px;">
+            <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Agregar a lista</div>
+            <div id="rListOptions" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="rNewListName" type="text" class="manage-input" placeholder="Nueva lista..." style="flex:1;font-size:11px;padding:5px 10px;" onkeydown="if(event.key==='Enter')createListFromResult()">
+              <button class="r-btn" onclick="createListFromResult()" style="white-space:nowrap;">+ Crear</button>
+            </div>
+          </div>
           <div id="streamSection" style="display:none;margin-left:4px;">
             <div id="streamLogos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
           </div>
@@ -521,6 +543,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
           <div class="bd-item active" data-val="random" onclick="setBDFilter('browseSort','random',this,'bdSort')">&#127922; Aleatorio</div>
         </div>
       </div>
+      <div class="bd-wrap" id="bdStatus">
+        <button class="bd-btn" onclick="toggleBD('bdStatus')">Estado <span class="bd-arrow">&#9660;</span></button>
+        <div class="bd-menu">
+          <div class="bd-item" data-val="all" onclick="setBDFilter('browseStatus','all',this,'bdStatus')">Todo</div>
+          <div class="bd-item active" data-val="pending" onclick="setBDFilter('browseStatus','pending',this,'bdStatus')">&#9634; Por ver</div>
+          <div class="bd-item" data-val="watched" onclick="setBDFilter('browseStatus','watched',this,'bdStatus')">&#10003; Vistas</div>
+        </div>
+      </div>
       <button id="bdResetBtn" onclick="resetBDFilters()" style="display:none;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;padding:5px 10px;border:1px solid var(--accent2);color:var(--accent2);background:transparent;cursor:pointer;text-transform:uppercase;border-radius:2px;">&#215; Limpiar</button>
     </div>
     <div id="browseGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;"></div>
@@ -540,11 +570,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 
   <div id="manageMode">
     <div class="sync-box">
-      <h3>&#9654; Sincronizar con Letterboxd</h3>
+      <h3>&#8635; Sincronizar con Letterboxd</h3>
       <div class="sync-steps">
+        Puedes hacer esto cuando quieras para mantener tu lista actualizada.<br><br>
         1. Ve a <a href="https://letterboxd.com/settings/data/" target="_blank">letterboxd.com/settings/data</a><br>
         2. Clic en <strong>Export Your Data</strong> &#8212; descarga un ZIP<br>
-        3. Arrastra el ZIP aqu&#237; abajo
+        3. Arrastra el ZIP aqu&#237; abajo<br><br>
+        <strong>El ZIP actualiza:</strong> pel&#237;culas nuevas en tu watchlist, pel&#237;culas reci&#233;n vistas y tu historial de diary.
       </div>
       <div class="sync-drop" id="syncDrop" onclick="document.getElementById('syncFile').click()"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -809,7 +841,9 @@ function handleWelcomeFile(e){var file=e.target.files[0];if(file)handleWelcomeIm
 function handleWelcomeImport(file){
   var msg=document.getElementById("welcomeMsg");
   if(msg)msg.innerHTML='<span style="color:var(--muted)">Procesando...</span>';
-  function addRows(rows){
+
+  // Agrega filas del watchlist como pendientes
+  function addWatchlistRows(rows){
     var added=0,ourURIs=new Set(titles.map(function(t){return t.u;}));
     rows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
@@ -821,24 +855,98 @@ function handleWelcomeImport(file){
         overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
       ourURIs.add(uri);added++;
     });
-    saveState();return added;
+    return added;
   }
-  function afterImport(added){
-    if(!added){if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron t&iacute;tulos.</span>';return;}
-    if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; '+added+' t&iacute;tulos importados.</span>';
+
+  // Marca como vistas las películas del watched.csv
+  // Si no están en la lista, las agrega directamente como "watched"
+  function applyWatchedRows(rows){
+    var watchedURIs=new Set();
+    rows.forEach(function(r){
+      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
+      if(uri)watchedURIs.add(uri);
+    });
+    var markedExisting=0,addedNew=0;
+    var ourURIs=new Set(titles.map(function(t){return t.u;}));
+    // Marcar las que ya están en la lista
+    titles.forEach(function(t){
+      if(t.u&&watchedURIs.has(t.u)){t.status="watched";markedExisting++;}
+    });
+    // Agregar las que no están (películas vistas que no están en el watchlist)
+    rows.forEach(function(r){
+      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
+      var name=r["Name"]||r["name"]||"";
+      var year=parseInt(r["Year"]||r["year"])||null;
+      if(!uri||!name||ourURIs.has(uri))return;
+      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedNew;
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+        overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
+      ourURIs.add(uri);addedNew++;
+    });
+    return {markedExisting:markedExisting,addedNew:addedNew};
+  }
+
+  function afterImport(stats){
+    var wl=stats.watchlist,wt=stats.watched;
+    if(!wl&&!wt.addedNew){
+      if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron t&iacute;tulos.</span>';return;
+    }
+    var parts=[];
+    if(wl)parts.push('<span style="color:var(--accent)">'+wl+' pendientes</span>');
+    if(wt.markedExisting)parts.push('<span style="color:var(--green)">'+wt.markedExisting+' marcadas como vistas</span>');
+    if(wt.addedNew)parts.push('<span style="color:var(--muted)">'+wt.addedNew+' vistas sin watchlist</span>');
+    if(msg)msg.innerHTML='&#10003; '+parts.join(' &middot; ');
+    saveState();
     showCard("enrichCard");
+    // Solo enriquecer las pendientes (watched no necesitan enriquecimiento urgente)
     setTimeout(function(){startEnrich();},400);
   }
+
   if(file.name.toLowerCase().endsWith(".zip")){
     JSZip.loadAsync(file).then(function(zip){
-      var wlf=null;
-      zip.forEach(function(path,f){var b=path.split("/").pop();if(b==="watchlist.csv")wlf=f;else if(!wlf&&path.toLowerCase().endsWith(".csv"))wlf=f;});
-      if(!wlf){if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontr&oacute; watchlist.csv</span>';return;}
-      wlf.async("string").then(function(csv){afterImport(addRows(parseCSVText(csv)));});
+      var wlf=null,wdf=null,ddf=null;
+      zip.forEach(function(path,f){
+        var b=path.split("/").pop();
+        if(b==="watchlist.csv")wlf=f;
+        if(b==="watched.csv")wdf=f;
+        if(b==="diary.csv")ddf=f;
+      });
+      if(!wlf&&!wdf){
+        if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontr&oacute; watchlist.csv ni watched.csv</span>';return;
+      }
+      // Leer ambos archivos en paralelo
+      var p1=wlf?wlf.async("string"):Promise.resolve("");
+      var p2=wdf?wdf.async("string"):Promise.resolve("");
+      var p3=ddf?ddf.async("string"):Promise.resolve("");
+      Promise.all([p1,p2,p3]).then(function(csvs){
+        var wlRows=csvs[0]?parseCSVText(csvs[0]):[];
+        var wdRows=csvs[1]?parseCSVText(csvs[1]):[];
+        var dRows=csvs[2]?parseCSVText(csvs[2]):[];
+        var addedWL=addWatchlistRows(wlRows);
+        var wtStats=applyWatchedRows(wdRows);
+        // Guardar fechas del diary
+        if(dRows.length){
+          var ds=new Set();
+          dRows.forEach(function(r){var d=r["Watched Date"]||r["Date"]||"";if(d)ds.add(d.trim().slice(0,10));});
+          diaryDates=Array.from(ds);
+        }
+        afterImport({watchlist:addedWL,watched:wtStats});
+      });
     }).catch(function(e){if(msg)msg.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';});
   }else if(file.name.toLowerCase().endsWith(".csv")){
+    // CSV suelto: detectar si es watchlist o watched por las columnas
     var reader=new FileReader();
-    reader.onload=function(ev){afterImport(addRows(parseCSVText(ev.target.result)));};
+    reader.onload=function(ev){
+      var rows=parseCSVText(ev.target.result);
+      if(!rows.length){if(msg)msg.innerHTML='<span style="color:var(--red)">CSV vac&iacute;o</span>';return;}
+      // Si el nombre del archivo dice "watched" o tiene columna "Rating" típica de watched, tratar como watched
+      var isWatched=file.name.toLowerCase().indexOf("watched")!==-1||
+        (rows[0]&&rows[0]["Rating"]!==undefined&&rows[0]["Name"]!==undefined);
+      var addedWL=0,wtStats={markedExisting:0,addedNew:0};
+      if(isWatched){wtStats=applyWatchedRows(rows);}
+      else{addedWL=addWatchlistRows(rows);}
+      afterImport({watchlist:addedWL,watched:wtStats});
+    };
     reader.readAsText(file);
   }else{if(msg)msg.innerHTML='<span style="color:var(--red)">Usa .csv o .zip</span>';}
 }
@@ -1253,6 +1361,9 @@ function showResult(t){
     pinBtn.title=t.pinned?"Quitar de fijados":"Fijar / Quitar de fijados";
   }
   var ss=document.getElementById("streamSection");if(ss)ss.style.display="none";
+  var rc2=document.getElementById("rRemoveConfirm");if(rc2)rc2.style.display="none";
+  var lp=document.getElementById("rListPanel");if(lp)lp.style.display="none";
+  var lb=document.getElementById("rListBtn");if(lb){lb.style.borderColor="";lb.style.color="";}
   var card=document.getElementById("resultCard");
   card.classList.remove("show");void card.offsetWidth;card.classList.add("show");
   // Scroll solo si NO estamos en browse (en browse el anchor maneja el scroll)
@@ -1819,32 +1930,78 @@ async function processZip(file){
   try{
     var zip=await JSZip.loadAsync(file);
     var wf=null,wlf=null,df=null;
-    zip.forEach(function(path,f){var b=path.split("/").pop();if(b==="watched.csv")wf=f;if(b==="watchlist.csv")wlf=f;if(b==="diary.csv")df=f;});
-    if(!wf&&!wlf){result.innerHTML='<span style="color:var(--red)">No se encontraron los CSV. Verifica el export de Letterboxd.</span>';return;}
+    zip.forEach(function(path,f){
+      var b=path.split("/").pop();
+      if(b==="watched.csv")wf=f;
+      if(b==="watchlist.csv")wlf=f;
+      if(b==="diary.csv")df=f;
+    });
+    if(!wf&&!wlf){result.innerHTML='<span style="color:var(--red)">No se encontraron watched.csv ni watchlist.csv. Verifica el export de Letterboxd.</span>';return;}
     var wCSV=wf?await wf.async("string"):"";
     var wlCSV=wlf?await wlf.async("string"):"";
     var dCSV=df?await df.async("string"):"";
-    var wRows=parseCSVText(wCSV),wlRows=parseCSVText(wlCSV),dRows=parseCSVText(dCSV);
-    var wURIs=new Set();wRows.forEach(function(r){var u=r["Letterboxd URI"]||r["URI"]||"";if(u)wURIs.add(u.trim());});
-    var stats={watched:0,added:0};
-    titles.forEach(function(t){if(!t.u||t.status==="watched")return;if(wURIs.has(t.u)){t.status="watched";stats.watched++;}});
+    var wRows=parseCSVText(wCSV);
+    var wlRows=parseCSVText(wlCSV);
+    var dRows=parseCSVText(dCSV);
+    var stats={markedWatched:0,addedWatchlist:0,addedWatched:0,alreadyWatched:0};
+    // 1. Marcar como vistas las que ya están en la lista
+    var wURIs=new Set();
+    wRows.forEach(function(r){var u=(r["Letterboxd URI"]||r["URI"]||"").trim();if(u)wURIs.add(u);});
+    titles.forEach(function(t){
+      if(!t.u)return;
+      if(wURIs.has(t.u)){
+        if(t.status==="watched"){stats.alreadyWatched++;return;}
+        t.status="watched";stats.markedWatched++;
+      }
+    });
+    // 2. Agregar nuevas del watchlist como pendientes
     var ourURIs=new Set(titles.map(function(t){return t.u;}));
     wlRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=r["Name"]||r["name"]||"";
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!uri||!name||ourURIs.has(uri))return;
-      var ni=Math.max.apply(null,titles.map(function(t){return t.idx;}))+1;
-      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,overview:"",poster:null,director:"",country:"",status:"active",isNew:true});
-      ourURIs.add(uri);stats.added++;
+      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
+      ourURIs.add(uri);stats.addedWatchlist++;
     });
-    if(dRows.length){var ds=new Set();dRows.forEach(function(r){var wd=r["Watched Date"]||r["Date"]||"";if(wd)ds.add(wd.trim().slice(0,10));});diaryDates=Array.from(ds);}
+    // 3. Agregar películas de watched.csv que no estaban en ninguna lista
+    wRows.forEach(function(r){
+      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
+      var name=r["Name"]||r["name"]||"";
+      var year=parseInt(r["Year"]||r["year"])||null;
+      if(!uri||!name||ourURIs.has(uri))return;
+      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+        overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
+      ourURIs.add(uri);stats.addedWatched++;
+    });
+    // 4. Diary
+    if(dRows.length){
+      var ds=new Set();
+      dRows.forEach(function(r){var wd=r["Watched Date"]||r["Date"]||"";if(wd)ds.add(wd.trim().slice(0,10));});
+      diaryDates=Array.from(ds);
+    }
     saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();
-    result.innerHTML='<div class="sync-row">'+
-      '<div class="sync-stat"><div class="sync-stat-lbl">Marcadas vistas</div><div class="sync-stat-val" style="color:var(--green)">'+stats.watched+'</div></div>'+
-      '<div class="sync-stat"><div class="sync-stat-lbl">Titulos nuevos</div><div class="sync-stat-val" style="color:var(--accent)">'+stats.added+'</div></div>'+
-      '<div class="sync-stat"><div class="sync-stat-lbl">Dias en diary</div><div class="sync-stat-val" style="color:var(--muted)">'+diaryDates.length+'</div></div>'+
-      '</div><div style="color:var(--muted);font-size:10px;margin-top:8px;">Sincronizacion completada. Ve a Estadisticas para tu racha.</div>';
+    // Enriquecer los nuevos que no tienen metadatos
+    var needsEnrich=titles.filter(function(t){return t.isNew&&(!t._tmdbId||!t.genres||!t.genres.length);});
+    if(needsEnrich.length){
+      var bar=document.getElementById("enrichBar");
+      if(bar)bar.style.display="flex";
+      setTimeout(function(){startEnrich();},500);
+    }
+    result.innerHTML=
+      '<div class="sync-row">'+
+        '<div class="sync-stat"><div class="sync-stat-lbl">Nuevas pendientes</div><div class="sync-stat-val" style="color:var(--accent)">'+stats.addedWatchlist+'</div></div>'+
+        '<div class="sync-stat"><div class="sync-stat-lbl">Marcadas vistas</div><div class="sync-stat-val" style="color:var(--green)">'+stats.markedWatched+'</div></div>'+
+        '<div class="sync-stat"><div class="sync-stat-lbl">Vistas agregadas</div><div class="sync-stat-val" style="color:var(--muted)">'+stats.addedWatched+'</div></div>'+
+        '<div class="sync-stat"><div class="sync-stat-lbl">D&iacute;as en diary</div><div class="sync-stat-val" style="color:var(--muted)">'+diaryDates.length+'</div></div>'+
+      '</div>'+
+      '<div style="color:var(--muted);font-size:10px;margin-top:10px;">'+
+        (needsEnrich.length?'Cargando metadatos de '+needsEnrich.length+' t&iacute;tulos en background &mdash; ':'')+
+        'Ve a <strong>Estad&iacute;sticas</strong> para ver tu racha de vistas.'+
+      '</div>';
   }catch(err){result.innerHTML='<span style="color:var(--red)">Error: '+err.message+'</span>';}
 }
 
@@ -1998,7 +2155,7 @@ function handleImportCSV(e){
 // ── BROWSE MODE v2 ────────────────────────────────────────────────────────────
 var lastWizardIdxs=[];
 var browseType="all", browseDecade="all", browseGenre="all";
-var browseCountry="all", browseService="all", browseSort="random";
+var browseCountry="all", browseService="all", browseSort="random", browseStatus="pending";
 var browsePage=0, BROWSE_PER_PAGE=60;
 var browseServiceCache={}; // URI -> [provider_ids] para filtro de servicio
 
@@ -2025,7 +2182,8 @@ function setBDFilter(varName,val,el,wrapId){
   else if(varName==='browseGenre')browseGenre=val;
   else if(varName==='browseCountry')browseCountry=val;
   else if(varName==='browseService')browseService=val;
-  else if(varName==='browseSort'){browseSort=val;if(val==='random'){titles.forEach(function(t){t._randKey=Math.random();});}}
+  else if(varName==='browseSort'){browseSort=val;if(val==='random'){titles.forEach(function(t){t._randKey=Math.random();})}}
+  else if(varName==='browseStatus'){browseStatus=val;}
   // Marcar item activo
   var menu=el.closest('.bd-menu');
   if(menu)menu.querySelectorAll('.bd-item').forEach(function(i){i.classList.remove('active');});
@@ -2042,14 +2200,14 @@ function setBDFilter(varName,val,el,wrapId){
 }
 
 function updateResetBtn(){
-  var hasFilter=browseType!=='all'||browseDecade!=='all'||browseGenre!=='all'||browseCountry!=='all'||browseService!=='all'||(browseSort!=='random'&&browseSort!=='alpha_asc');
+  var hasFilter=browseType!=='all'||browseDecade!=='all'||browseGenre!=='all'||browseCountry!=='all'||browseService!=='all'||(browseSort!=='random'&&browseSort!=='alpha_asc')||browseStatus!=='pending';
   var btn=document.getElementById('bdResetBtn');
   if(btn)btn.style.display=hasFilter?'inline-block':'none';
 }
 
 function resetBDFilters(){
   browseType='all';browseDecade='all';browseGenre='all';
-  browseCountry='all';browseService='all';browseSort='alpha_asc';
+  browseCountry='all';browseService='all';browseSort='alpha_asc';browseStatus='pending';
   // Resetear items activos en todos los menús
   document.querySelectorAll('.bd-item').forEach(function(i){i.classList.remove('active');});
   document.querySelectorAll('.bd-item[data-val="all"]').forEach(function(i){i.classList.add('active');});
@@ -2133,7 +2291,10 @@ function getBrowseTitles(){
   var q=(document.getElementById('browseSearch')||{}).value;
   q=q?(q+'').toLowerCase():'';
   var pool=titles.filter(function(t){
-    if(t.status!=='active')return false;
+    // Filtro de estado
+    if(browseStatus==='pending'&&t.status!=='active')return false;
+    if(browseStatus==='watched'&&t.status!=='watched')return false;
+    if(browseStatus==='all'&&t.status==='removed')return false;
     if(!t.genres||!t.genres.length)return false;
     if(q&&t.n.toLowerCase().indexOf(q)===-1)return false;
     if(browseType==='movie'&&t.type!=='movie'&&!t.isNew)return false;
@@ -2263,23 +2424,31 @@ async function preloadServiceCache(){
 
 function makeBrowseCard(t){
   var div=document.createElement('div');
-  div.className='browse-card'+(t.pinned?' is-pinned':'');
-  var types={movie:'Pel',short:'Corto',tv:'Serie',doc:'Doc'};
-  var typeLabel=types[t.type]||(t.m>0&&t.m<45?'Corto':'Pel');
+  var isWatched=t.status==='watched';
+  div.className='browse-card'+(t.pinned?' is-pinned':'')+(isWatched?' is-watched':'');
   var h=Math.floor((t.m||0)/60),m2=(t.m||0)%60;
   var dur=t.m>0?(h>0?h+'h'+m2+'m':m2+'m'):'';
   var posterSrc=t.customPoster||getPoster(t)||null;
-  var imgHtml=posterSrc
-    ?'<img src="'+posterSrc+'" alt="'+t.n.replace(/"/g,'&quot;')+'" loading="lazy" onerror="this.outerHTML=\'<div class=browse-card-placeholder>&#127902;</div>\'">'
-    :'<div class="browse-card-placeholder">&#127902;</div>';
   var pinBadge=t.pinned?'<div class="pin-badge" title="Fijada">&#9822;</div>':'';
-  div.innerHTML=imgHtml+pinBadge+
+  var watchedBadge=isWatched?'<div class="watched-badge" title="Vista">&#10003;</div>':'';
+  div.innerHTML=(posterSrc?'<div class="bc-img-wrap"></div>':'<div class="browse-card-placeholder">&#127902;</div>')+
+    pinBadge+watchedBadge+
     '<div class="browse-card-info">'+
     '<div class="browse-card-title" title="'+t.n.replace(/"/g,'&quot;')+'">'+t.n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'+
     '<div class="browse-card-meta">'+(t.y||'')+(dur?' &middot; '+dur:'')+'</div>'+
     '</div>';
+  // Cargar imagen via createElement — evita onerror inline problemático
+  if(posterSrc){
+    var wrap=div.querySelector('.bc-img-wrap');
+    if(wrap){
+      var img=document.createElement('img');
+      img.src=posterSrc;img.alt=t.n;img.loading='lazy';
+      img.addEventListener('error',function(){this.parentNode.outerHTML='<div class="browse-card-placeholder">&#127902;</div>';});
+      img.addEventListener('click',function(){showBrowseResult(t.idx);});
+      wrap.appendChild(img);
+    }
+  }
   var ci=div.querySelector('.browse-card-info');if(ci)ci.addEventListener('click',function(){showBrowseResult(t.idx);});
-  var img=div.querySelector('img');if(img)img.addEventListener('click',function(){showBrowseResult(t.idx);});
   var ph=div.querySelector('.browse-card-placeholder');if(ph)ph.addEventListener('click',function(){showBrowseResult(t.idx);});
   return div;
 }
@@ -2618,6 +2787,88 @@ function toggleWatchedResult(){
   }
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();
 }
+function removeFromResult(){
+  var confirm=document.getElementById("rRemoveConfirm");
+  if(confirm)confirm.style.display=confirm.style.display==="none"?"block":"none";
+}
+function cancelRemoveResult(){
+  var confirm=document.getElementById("rRemoveConfirm");
+  if(confirm)confirm.style.display="none";
+}
+function confirmRemoveResult(){
+  if(!lastPick)return;
+  titles=titles.filter(function(t){return t.idx!==lastPick.idx;});
+  saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();
+  document.getElementById("resultCard").classList.remove("show");
+  renderBrowse();renderManage();
+  showToast("Eliminada: "+lastPick.n);
+  lastPick=null;
+}
+
+function toggleListPanel(){
+  var panel=document.getElementById("rListPanel");
+  var btn=document.getElementById("rListBtn");
+  if(!panel)return;
+  var open=panel.style.display==="none";
+  panel.style.display=open?"block":"none";
+  if(btn){btn.style.borderColor=open?"var(--accent)":"";btn.style.color=open?"var(--accent)":"";}
+  if(open)renderListOptions();
+}
+
+function renderListOptions(){
+  if(!lastPick)return;
+  var container=document.getElementById("rListOptions");
+  if(!container)return;
+  // Recopilar listas existentes
+  var allLists={};
+  titles.forEach(function(t){(t.lists||[]).forEach(function(l){allLists[l]=true;});});
+  var names=Object.keys(allLists).sort();
+  container.innerHTML="";
+  if(!names.length){
+    container.innerHTML='<span style="color:var(--muted);font-size:11px;">Sin listas todav\u00eda.</span>';
+    return;
+  }
+  names.forEach(function(name){
+    var inList=(lastPick.lists||[]).indexOf(name)!==-1;
+    var btn=document.createElement("button");
+    btn.className="pill"+(inList?" on":"");
+    btn.textContent=name;
+    btn.style.fontSize="10px";
+    (function(n,active){
+      btn.onclick=function(){
+        if(!lastPick)return;
+        if(!lastPick.lists)lastPick.lists=[];
+        if(active){
+          lastPick.lists=lastPick.lists.filter(function(l){return l!==n;});
+          btn.classList.remove("on");
+          showToast("Quitada de: "+n);
+        }else{
+          lastPick.lists.push(n);
+          btn.classList.add("on");
+          showToast("Agregada a: "+n);
+        }
+        saveState();buildLists();
+      };
+    })(name,inList);
+    container.appendChild(btn);
+  });
+}
+
+function createListFromResult(){
+  var input=document.getElementById("rNewListName");
+  var name=(input&&input.value||"").trim();
+  if(!name||!lastPick)return;
+  if(!lastPick.lists)lastPick.lists=[];
+  if(lastPick.lists.indexOf(name)===-1){
+    lastPick.lists.push(name);
+    showToast("Lista creada y agregada: "+name);
+  }else{
+    showToast("Ya est\u00e1 en: "+name);
+  }
+  if(input)input.value="";
+  saveState();buildLists();renderListOptions();
+}
+
 function markWatchedResult(){toggleWatchedResult();}
 
 // Descripción desde overview de TMDB
