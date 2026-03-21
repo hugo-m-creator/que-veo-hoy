@@ -837,8 +837,31 @@ window.addEventListener("load",function(){
   document.getElementById("enrichCard").style.display="none";
   if(titles.length){
     var msg=document.getElementById("welcomeMsg");
-    if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; '+titles.length+' t&iacute;tulos cargados.</span> '+
-      '<a href="#" onclick="continueWithExisting();return false;" style="color:var(--accent);text-decoration:underline;">Continuar sin importar</a>';
+    // Detectar si los títulos no tienen géneros (caché perdido o primera carga)
+    var tieneAlgunGenero=titles.some(function(t){return t.genres&&t.genres.length;});
+    var needsFullEnrich=!tieneAlgunGenero&&titles.length>0;
+    if(needsFullEnrich){
+      // Sin géneros — entrar a la app y enriquecer en background
+      document.getElementById("setupOverlay").style.display="none";
+      switchMode("filter");
+      var bar=document.getElementById("enrichBar");
+      if(bar){
+        bar.style.display="flex";
+        var cnt=document.getElementById("enrichBarCount");
+        if(cnt)cnt.textContent=titles.length+" títulos por enriquecer";
+      }
+      setTimeout(function(){startEnrich();},600);
+    }else{
+      if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; '+titles.length+' t&iacute;tulos cargados.</span> '+
+        '<a href="#" onclick="continueWithExisting();return false;" style="color:var(--accent);text-decoration:underline;">Continuar sin importar</a>';
+      // Si hay algunos sin géneros, enriquecer en background silenciosamente
+      var pendingEnrich=titles.filter(function(t){return t.status!=="removed"&&(!t._tmdbId||!t.genres||!t.genres.length);});
+      if(pendingEnrich.length){
+        var bar2=document.getElementById("enrichBar");
+        if(bar2)bar2.style.display="flex";
+        setTimeout(function(){startEnrich();},1000);
+      }
+    }
   }
   // Restaurar key guardada
   try{var sk=localStorage.getItem("wq_lbKey");if(sk){var ke=document.getElementById("lbApiKey");if(ke)ke.value=sk;}}catch(e){}
@@ -1185,15 +1208,16 @@ async function startEnrich(){
     var pct=Math.round(done/total*100);
     var sf=document.getElementById("sFill");if(sf)sf.style.width=pct+"%";
     var st=document.getElementById("sTxt");if(st)st.textContent=done+"/"+total+" procesados ("+pct+"%)";
-    var readyNow=titles.filter(function(t){return t.status==="active"&&t.genres&&t.genres.length;}).length;
+    var readyNow=titles.filter(function(t){return t.status!=="removed"&&t.genres&&t.genres.length;}).length;
     var er=document.getElementById("enrichReady");
-    if(er&&readyNow>0)er.textContent=readyNow+" títulos disponibles — puedes entrar ahora";
+    if(er&&readyNow>0)er.textContent=readyNow+" títulos listos";
     var bar=document.getElementById("enrichBar");
     if(bar){
       var pendientes=total-done;
       bar.style.display=pendientes>0?"flex":"none";
       var fill=document.getElementById("enrichBarFill");if(fill)fill.style.width=pct+"%";
-      var cnt=document.getElementById("enrichBarCount");if(cnt)cnt.textContent=pendientes+" faltando ("+pct+"% listo)";
+      var cnt=document.getElementById("enrichBarCount");
+      if(cnt)cnt.textContent=readyNow+" disponibles · "+pendientes+" cargando ("+pct+"%)";
     }
     buildGenres();buildDecades();buildCountries();
     updateStats();updateCandidates();
