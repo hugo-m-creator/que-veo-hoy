@@ -226,6 +226,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .list-row:hover{background:var(--surface2);}
 .list-name-lbl{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .list-cnt-lbl{font-size:10px;color:var(--muted);white-space:nowrap;}
+#deleteListModal{display:none;position:fixed;inset:0;z-index:400;background:rgba(12,12,14,0.92);align-items:center;justify-content:center;}
+#deleteListModal.show{display:flex;}
+.delete-list-card{background:var(--surface);border:1px solid var(--border);padding:28px;max-width:420px;width:90%;}
+.delete-list-card h3{font-family:'Playfair Display',serif;font-size:18px;color:var(--accent);margin-bottom:8px;}
+.delete-list-card p{color:var(--muted);font-size:11px;line-height:1.8;margin-bottom:20px;}
+.delete-list-actions{display:flex;flex-direction:column;gap:8px;}
+.delete-list-actions .mbtn{width:100%;text-align:left;padding:12px 16px;font-size:11px;letter-spacing:1px;}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#000;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:10px 18px;z-index:999;animation:slideIn 0.3s ease;}
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
@@ -790,10 +797,14 @@ window.addEventListener("load",function(){
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem("wq_cC"));}catch(e){}
   if(cached&&cached.length){
+    // Indexar por URI (no por posición — posición no es confiable cuando hay watched)
     var cByURI={};
     cached.forEach(function(c){if(c.u)cByURI[c.u]=c;});
-    titles.forEach(function(t,i){
-      var c=cByURI[t.u]||(i<cached.length?cached[i]:null);
+    // También indexar por tmdbId+mediaType como fallback secundario
+    var cByTmdb={};
+    cached.forEach(function(c){if(c.ti&&c.mt)cByTmdb[c.mt+"_"+c.ti]=c;});
+    titles.forEach(function(t){
+      var c=cByURI[t.u]||(t._tmdbId&&t._mediaType?cByTmdb[t._mediaType+"_"+t._tmdbId]:null);
       if(c){
         if(c.g&&c.g.length)t.genres=c.g;
         if(c.o)t.overview=c.o;
@@ -841,7 +852,7 @@ function startEmpty(){
 function continueWithExisting(){
   document.getElementById("setupOverlay").style.display="none";
   switchMode("filter");
-  var needsE=titles.filter(function(t){return t.status==="active"&&(!t._tmdbId||!t.genres||!t.genres.length);});
+  var needsE=titles.filter(function(t){return t.status!=="removed"&&(!t._tmdbId||!t.genres||!t.genres.length);});
   if(needsE.length){
     var bar=document.getElementById("enrichBar");if(bar)bar.style.display="flex";
     var cnt=document.getElementById("enrichBarCount");if(cnt)cnt.textContent=needsE.length+" pendientes";
@@ -987,7 +998,7 @@ var TMDB_OVERRIDES={
 
 async function startEnrich(){
   var toE=titles.filter(function(t){
-    if(t.status!=="active")return false;
+    if(t.status==="removed")return false;
     if(t._tmdbId&&t.genres&&t.genres.length&&t.poster)return false; // ya completo
     return true;
   });
@@ -1215,10 +1226,13 @@ function buildLists(){
   if(group)group.style.display=listNames.length?"":"none";
   c.innerHTML='<div class="pill on" data-v="all" onclick="pickList(this)">Todas</div>';
   if(listNames.length){
-    // Opción "cualquier lista"
     var anyEl=document.createElement("div");anyEl.className="pill";anyEl.dataset.v="any";
     anyEl.setAttribute("onclick","pickList(this)");anyEl.textContent="Con lista";
     c.appendChild(anyEl);
+    var noneEl=document.createElement("div");noneEl.className="pill";noneEl.dataset.v="none";
+    noneEl.setAttribute("onclick","pickList(this)");noneEl.textContent="Sin lista";
+    noneEl.title="Pel\u00edculas que no pertenecen a ninguna lista";
+    c.appendChild(noneEl);
   }
   listNames.sort().forEach(function(name){
     var el=document.createElement("div");
@@ -1277,6 +1291,7 @@ function getCandidates(){
     if(activeList!=="all"){
       if(!t.lists||!t.lists.length)return false;
       if(activeList==="any"){if(!t.lists.length)return false;}
+      else if(activeList==="none"){if(t.lists&&t.lists.length)return false;}
       else if(Array.isArray(activeList)){
         if(!activeList.some(function(l){return t.lists.indexOf(l)!==-1;}))return false;
       }
@@ -1797,23 +1812,34 @@ function filterByList(name){
   },150);
 }
 
+var _deleteListTarget=null;
+
 function deleteList(name){
   var count=titles.filter(function(t){
-    return t.status==="active"&&(t.lists||[]).indexOf(name)!==-1;
+    return (t.status==="active"||t.status==="watched")&&(t.lists||[]).indexOf(name)!==-1;
   }).length;
-  var choice=prompt(
-    "\u201c"+name+"\u201d ("+count+" t\u00edtulos)\n\n"+
-    "1 = Solo quitar la etiqueta\n"+
-    "2 = Eliminar tambi\u00e9n las pel\u00edculas de esta lista\n"+
-    "0 = Cancelar"
-  ,"1");
-  if(!choice||choice==="0")return;
-  if(choice==="1"){
+  _deleteListTarget=name;
+  var title=document.getElementById("deleteListTitle");
+  var desc=document.getElementById("deleteListDesc");
+  if(title)title.textContent="“"+name+"”";
+  if(desc)desc.textContent=count+" título"+(count!==1?"s":"")+" en esta lista.";
+  document.getElementById("deleteListModal").classList.add("show");
+}
+
+function closeDeleteListModal(){
+  document.getElementById("deleteListModal").classList.remove("show");
+  _deleteListTarget=null;
+}
+
+function confirmDeleteList(action){
+  var name=_deleteListTarget;
+  if(!name){closeDeleteListModal();return;}
+  if(action==="untag"){
     titles.forEach(function(t){
       if(t.lists)t.lists=t.lists.filter(function(l){return l!==name;});
     });
-    showToast("Etiqueta eliminada");
-  }else if(choice==="2"){
+    showToast("Etiqueta eliminada: "+name);
+  }else if(action==="remove"){
     var removed=0;
     titles=titles.filter(function(t){
       if((t.lists||[]).indexOf(name)===-1)return true;
@@ -1821,8 +1847,9 @@ function deleteList(name){
       if(t.lists.length===0){removed++;return false;}
       return true;
     });
-    showToast(removed+" eliminada"+(removed!==1?"s":""));
+    showToast(removed+" película"+(removed!==1?"s":"")+" eliminada"+(removed!==1?"s":""));
   }
+  closeDeleteListModal();
   saveState();buildLists();buildGenres();buildDecades();buildCountries();
   updateStats();updateCandidates();renderManage();renderListsPanel();
 }
@@ -3229,6 +3256,23 @@ async function addFromTMDB(item){
 function addTitle(){var n=(document.getElementById("addN")||{}).value;if(n){var sq=document.getElementById("addSearchQ");if(sq){sq.value=n;searchToAdd();}}}
 
 </script>
+<div id="deleteListModal">
+  <div class="delete-list-card">
+    <h3 id="deleteListTitle">Eliminar lista</h3>
+    <p id="deleteListDesc"></p>
+    <div class="delete-list-actions">
+      <button class="mbtn mbtn-d" onclick="confirmDeleteList('untag')">
+        Solo quitar la etiqueta
+        <div style="font-size:9px;color:var(--muted);font-weight:normal;margin-top:3px;letter-spacing:0;">Las pel&iacute;culas quedan en tu watchlist</div>
+      </button>
+      <button class="mbtn" style="border-color:var(--red);color:var(--red);" onclick="confirmDeleteList('remove')">
+        Eliminar las pel&iacute;culas de esta lista
+        <div style="font-size:9px;color:rgba(224,82,82,0.7);font-weight:normal;margin-top:3px;letter-spacing:0;">Solo borra las que pertenecen &uacute;nicamente a esta lista</div>
+      </button>
+      <button class="mbtn mbtn-d" onclick="closeDeleteListModal()" style="margin-top:4px;">Cancelar</button>
+    </div>
+  </div>
+</div>
 <div id="enrichBar" class="enrich-bar">
   <span style="white-space:nowrap;">&#9654; Cargando metadatos</span>
   <div class="enrich-bar-track"><div class="enrich-bar-fill" id="enrichBarFill" style="width:0%"></div></div>
