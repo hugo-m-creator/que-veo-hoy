@@ -841,16 +841,8 @@ window.addEventListener("load",function(){
     var tieneAlgunGenero=titles.some(function(t){return t.genres&&t.genres.length;});
     var needsFullEnrich=!tieneAlgunGenero&&titles.length>0;
     if(needsFullEnrich){
-      // Sin géneros — entrar a la app y enriquecer en background
-      document.getElementById("setupOverlay").style.display="none";
-      switchMode("filter");
-      var bar=document.getElementById("enrichBar");
-      if(bar){
-        bar.style.display="flex";
-        var cnt=document.getElementById("enrichBarCount");
-        if(cnt)cnt.textContent=titles.length+" títulos por enriquecer";
-      }
-      setTimeout(function(){startEnrich();},600);
+      // Sin géneros — entrar a la app directo y enriquecer en background
+      continueWithExisting();
     }else{
       if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; '+titles.length+' t&iacute;tulos cargados.</span> '+
         '<a href="#" onclick="continueWithExisting();return false;" style="color:var(--accent);text-decoration:underline;">Continuar sin importar</a>';
@@ -873,18 +865,18 @@ function finishEnrich(fc){
   document.getElementById("eDot").className="edot ok";
   document.getElementById("eTxt2").textContent=fc?"Generos cargados (cache)":"Generos cargados desde TMDB";
   buildGenres();buildDecades();buildCountries();buildLists();updateStats();updateCandidates();buildBDMenus();
-  switchMode("filter");
+  var fb=document.querySelector(".mode-tab");if(fb)setMode("filter",fb);
 }
 function showCard(id){
   ["importCard","enrichCard"].forEach(function(c){var el=document.getElementById(c);if(el)el.style.display=c===id?"":"none";});
 }
 function startEmpty(){
   document.getElementById("setupOverlay").style.display="none";
-  switchMode("filter");
+  var fb2=document.querySelector(".mode-tab");if(fb2)setMode("filter",fb2);
 }
 function continueWithExisting(){
   document.getElementById("setupOverlay").style.display="none";
-  switchMode("filter");
+  var filterBtn=document.querySelector(".mode-tab");if(filterBtn)setMode("filter",filterBtn);
   var needsE=titles.filter(function(t){return t.status!=="removed"&&(!t._tmdbId||!t.genres||!t.genres.length);});
   if(needsE.length){
     var bar=document.getElementById("enrichBar");if(bar)bar.style.display="flex";
@@ -1021,7 +1013,7 @@ function handleWelcomeImport(file){
 
 function skipEnrich(){
   document.getElementById("setupOverlay").style.display="none";
-  switchMode("filter");
+  var filterBtn2=document.querySelector(".mode-tab");if(filterBtn2)setMode("filter",filterBtn2);
   var needsE=titles.filter(function(t){return t.status==="active"&&(!t._tmdbId||!t.genres||!t.genres.length);});
   if(needsE.length){var bar=document.getElementById("enrichBar");if(bar)bar.style.display="flex";setTimeout(function(){startEnrich();},200);}
   document.getElementById("eDot").className="edot";
