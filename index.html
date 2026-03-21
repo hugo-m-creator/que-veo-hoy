@@ -1223,9 +1223,8 @@ function pickList(el){
   updateCandidates();
 }
 function buildLists(){
-  // Recopilar todas las listas únicas de los títulos activos
   var lc={};
-  titles.filter(function(t){return t.status==="active";}).forEach(function(t){
+  titles.filter(function(t){return t.status==="active"||t.status==="watched";}).forEach(function(t){
     (t.lists||[]).forEach(function(l){lc[l]=(lc[l]||0)+1;});
   });
   var listNames=Object.keys(lc);
