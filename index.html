@@ -943,13 +943,20 @@ function handleWelcomeImport(file){
     JSZip.loadAsync(file).then(function(zip){
       var wlf=null,wdf=null,ddf=null;
       zip.forEach(function(path,f){
-        var b=path.split("/").pop();
+        var b=path.split("/").pop().toLowerCase();
         if(b==="watchlist.csv")wlf=f;
         if(b==="watched.csv")wdf=f;
         if(b==="diary.csv")ddf=f;
       });
       if(!wlf&&!wdf){
-        if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontr&oacute; watchlist.csv ni watched.csv</span>';return;
+        var foundCsvs=[];
+        zip.forEach(function(path){var b=path.split("/").pop();if(b.toLowerCase().endsWith(".csv"))foundCsvs.push(b);});
+        var msg2=document.getElementById("welcomeMsg");
+        var errTxt='No se encontr\u00f3 watchlist.csv ni watched.csv.';
+        if(foundCsvs.length)errTxt+=' CSV encontrados: '+foundCsvs.join(", ");
+        else errTxt+=' El ZIP no contiene archivos CSV.';
+        if(msg)msg.innerHTML='<span style="color:var(--red)">'+errTxt+'</span>';
+        return;
       }
       // Leer ambos archivos en paralelo
       var p1=wlf?wlf.async("string"):Promise.resolve("");
@@ -2012,12 +2019,19 @@ async function processZip(file){
     var zip=await JSZip.loadAsync(file);
     var wf=null,wlf=null,df=null;
     zip.forEach(function(path,f){
-      var b=path.split("/").pop();
+      var b=path.split("/").pop().toLowerCase();
       if(b==="watched.csv")wf=f;
       if(b==="watchlist.csv")wlf=f;
       if(b==="diary.csv")df=f;
     });
-    if(!wf&&!wlf){result.innerHTML='<span style="color:var(--red)">No se encontraron watched.csv ni watchlist.csv. Verifica el export de Letterboxd.</span>';return;}
+    if(!wf&&!wlf){
+      var foundFiles=[];
+      zip.forEach(function(path){foundFiles.push(path.split("/").pop());});
+      var csvFiles=foundFiles.filter(function(f){return f.toLowerCase().endsWith(".csv");});
+      result.innerHTML='<span style="color:var(--red)">No se encontraron watched.csv ni watchlist.csv.</span>'+
+        (csvFiles.length?'<br><span style="color:var(--muted);font-size:10px;">CSV encontrados: '+csvFiles.join(", ")+'</span>':'<br><span style="color:var(--muted);font-size:10px;">El ZIP no contiene archivos CSV.</span>');
+      return;
+    }
     var wCSV=wf?await wf.async("string"):"";
     var wlCSV=wlf?await wlf.async("string"):"";
     var dCSV=df?await df.async("string"):"";
