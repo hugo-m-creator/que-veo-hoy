@@ -1796,11 +1796,17 @@ function openSurvey(editMode){
   _surveyRefs = (surveyAnswers.refs || []).slice();
   var ol = document.getElementById("surveyOverlay");
   if(ol) ol.classList.add("show");
+  var _so=document.getElementById("setupOverlay");
+  if(_so)_so.style.display="none";
   renderSurveyStep();
 }
 function closeSurvey(){
   var ol = document.getElementById("surveyOverlay");
   if(ol) ol.classList.remove("show");
+  if(!titles.length||!titles.some(function(t){return t.status!=="removed";})){
+    var _so=document.getElementById("setupOverlay");
+    if(_so)_so.style.display="";
+  }
 }
 
 // ── Renderizar paso actual ─────────────────────────────────────────
@@ -1990,7 +1996,7 @@ function searchSurveyRef(q){
   _surveyRefTimer=setTimeout(async function(){
     try{
       var r=await fetch("https://api.themoviedb.org/3/search/movie?api_key="+KEY+
-        "&query="+encodeURIComponent(q)+"&language=es-MX&page=1",
+        "&query="+encodeURIComponent(q)+"&language=en-US&page=1",
         {signal:AbortSignal.timeout(5000)});
       if(!r.ok)return;
       var data=await r.json();
@@ -2205,7 +2211,7 @@ async function buildSuggestionPool(){
   try{
     for(var page=1;page<=8&&candidates.length<200;page++){
       var url="https://api.themoviedb.org/3/discover/movie?api_key="+KEY+
-        "&language=es-MX&sort_by=vote_average.desc&"+params.join("&")+"&page="+page;
+        "&language=en-US&sort_by=vote_average.desc&"+params.join("&")+"&page="+page;
       var r=await fetch(url,{signal:AbortSignal.timeout(8000)});
       if(!r.ok)break;
       var data=await r.json();
@@ -3540,7 +3546,7 @@ function getBrowseTitles(){
     if(browseStatus==='pending'&&t.status!=='active')return false;
     if(browseStatus==='watched'&&t.status!=='watched')return false;
     if(browseStatus==='all'&&t.status==='removed')return false;
-    if(!t.genres||!t.genres.length)return false;
+    if(browseStatus!=='watched'&&(!t.genres||!t.genres.length))return false;
     if(q&&t.n.toLowerCase().indexOf(q)===-1)return false;
     if(browseType==='movie'&&t.type!=='movie'&&!t.isNew)return false;
     if(browseType==='tv'&&t.type!=='tv')return false;
