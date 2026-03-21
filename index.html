@@ -887,27 +887,38 @@ function handleWelcomeImport(file){
   // Marca como vistas las películas del watched.csv
   // Si no están en la lista, las agrega directamente como "watched"
   function applyWatchedRows(rows){
-    var watchedURIs=new Set();
+    // Índices para match: URI exacta O nombre+año (boxd.it vs letterboxd.com/film/)
+    var wByURI={};
+    var wByKey={};
     rows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
-      if(uri)watchedURIs.add(uri);
+      var nm=(r["Name"]||r["name"]||"").trim().toLowerCase();
+      var yr=parseInt(r["Year"]||r["year"])||null;
+      if(uri)wByURI[uri]=true;
+      if(nm)wByKey[nm+(yr?"|"+yr:"")]=true;
     });
     var markedExisting=0,addedNew=0;
     var ourURIs=new Set(titles.map(function(t){return t.u;}));
-    // Marcar las que ya están en la lista
+    // Marcar por URI exacta O por nombre+año
     titles.forEach(function(t){
-      if(t.u&&watchedURIs.has(t.u)){t.status="watched";markedExisting++;}
+      if(t.status==="watched")return;
+      var mURI=t.u&&wByURI[t.u];
+      var mKey=!mURI&&t.n&&wByKey[t.n.toLowerCase()+(t.y?"|"+t.y:"")];
+      if(mURI||mKey){t.status="watched";markedExisting++;}
     });
-    // Agregar las que no están (películas vistas que no están en el watchlist)
+    // Agregar vistas que no estaban en el watchlist
     rows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
-      var name=r["Name"]||r["name"]||"";
+      var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
-      if(!uri||!name||ourURIs.has(uri))return;
+      if(!name)return;
+      if(uri&&ourURIs.has(uri))return;
+      // Evitar duplicados por nombre+año
+      if(titles.find(function(t){return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);}))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedNew;
-      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+      titles.push({idx:ni,n:name,y:year,m:0,u:uri||"",is_series:false,genres:[],type:null,
         overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
-      ourURIs.add(uri);addedNew++;
+      if(uri)ourURIs.add(uri);addedNew++;
     });
     return {markedExisting:markedExisting,addedNew:addedNew};
   }
@@ -2039,9 +2050,11 @@ async function processZip(file){
     // 3. Agregar películas de watched.csv que no estaban en ninguna lista
     wRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
-      var name=r["Name"]||r["name"]||"";
+      var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
-      if(!uri||!name||ourURIs.has(uri))return;
+      if(!name)return;
+      if(uri&&ourURIs.has(uri))return;
+      if(titles.find(function(t){return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);}))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
       titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
         overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
