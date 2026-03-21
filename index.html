@@ -507,6 +507,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button id="srcToggleBtn" class="mbtn mbtn-d" style="font-size:9px;" onclick="toggleSuggestionSource(this)">&#127922; Desde mi lista</button>
       <span id="poolStatus" style="font-size:10px;color:var(--muted);"></span>
     </div>
+    <button id="rollPrevBtn" onclick="rollPrev()" style="display:none;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:10px 18px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer;margin-bottom:8px;">&#8592; Anterior</button>
     <button class="roll-btn" onclick="rollWithSource()">Sorpr&#233;ndeme</button>
 
 
@@ -818,7 +819,7 @@ var titles = RAW.map(function(t,i){
 });
 
 var activeType="all",activeGenres=[],activeDecades=["all"],activeMood="any",activeCountry="all",activeList="all",excludeList=null,activeWatchedFilter="all";
-var maxDur=9999,lastPick=null,mFilter="all",wStep=0,wAnswers={},editIdx=-1;
+var maxDur=9999,lastPick=null,lastPickHistory=[],mFilter="all",wStep=0,wAnswers={},editIdx=-1;
 var diaryDates=[];
 var streamCache={};
 var userProfile=null;      // Perfil del usuario (encuesta)
@@ -1894,13 +1895,18 @@ function renderSurveyField(f){
 }
 
 function postRenderSurveyStep(step){
-  // Renderizar refs guardadas
   renderSurveyRefs();
-  // Si el paso tiene servicios, renderizarlos según el país actual
   var hasServices = step.fields.some(function(f){return f.type==="services";});
   if(hasServices){
     var country = surveyAnswers.country;
-    if(country) renderServicesForCountry(country);
+    if(country){
+      // Mapear texto del país a código ISO
+      var _codeMap={"México":"MX","Estados Unidos":"US","España":"ES","Argentina":"AR"};
+      renderServicesForCountry(_codeMap[country]||country);
+    }else{
+      var wrap=document.getElementById("sf_services_wrap");
+      if(wrap)wrap.innerHTML='<div style="color:var(--muted);font-size:11px;padding:8px 0;">Selecciona tu pa\u00eds arriba para ver los servicios disponibles.</div>';
+    }
   }
 }
 
@@ -1916,7 +1922,10 @@ function pickSurveyOpt(el){
     el.classList.add("sel");
     surveyAnswers[field] = val;
     // Si cambia el país, actualizar servicios
-    if(field==="country") renderServicesForCountry(val);
+    if(field==="country"){
+      var _cMap={"México":"MX","Estados Unidos":"US","España":"ES","Argentina":"AR"};
+      renderServicesForCountry(_cMap[val]||val);
+    }
   } else {
     // Multi: toggle
     if(!Array.isArray(surveyAnswers[field])) surveyAnswers[field]=[];
@@ -2386,6 +2395,16 @@ function toggleSuggestionSource(btn){
 
 // Sobrescribir roll() para soportar el pool de sugerencias
 var _originalRoll=null;
+function rollPrev(){
+  if(!lastPickHistory.length)return;
+  var prev=lastPickHistory.pop();
+  var tmp=lastPick;lastPick=null;
+  showResult(prev);
+  lastPick=prev;
+  var prevBtn=document.getElementById("rollPrevBtn");
+  if(prevBtn)prevBtn.style.display=lastPickHistory.length?"inline-block":"none";
+}
+
 function rollWithSource(){
   if(_useSuggestions&&suggestionPool.length){
     var available=suggestionPool.filter(function(m){return m!==lastPick;});
@@ -2431,6 +2450,9 @@ function roll(){
   lastPick=f[Math.floor(Math.random()*f.length)];showResult(lastPick);
 }
 function showResult(t){
+  if(lastPick&&lastPick!==t){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
+  var prevBtn=document.getElementById("rollPrevBtn");
+  if(prevBtn)prevBtn.style.display=lastPickHistory.length?"inline-block":"none";
   var types={movie:"Pelicula",short:"Cortometraje",tv:"Serie",doc:"Documental"};
   document.getElementById("rBadge").textContent=(types[t.type]||(t.m>0&&t.m<45?"Cortometraje":"Pelicula"))+(t.y?" \xb7 "+t.y:"");
   document.getElementById("rTitle").textContent=t.n;
@@ -4031,6 +4053,31 @@ function saveManualFix(){
 // Toggle Ya la vi
 function toggleWatchedResult(){
   if(!lastPick)return;
+  // Si es una sugerencia del pool, agregarla a titles primero
+  if(lastPick._isSuggestion){
+    // Agregar a lista como "watched" directamente
+    var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
+    var newT=Object.assign({},lastPick,{
+      idx:ni,status:"watched",isNew:true,lists:[],pinned:false,
+      customPoster:null,u:lastPick.u||"",m:lastPick.m||0,
+      is_series:false,type:lastPick.type||"movie",
+      director:lastPick.director||"",country:lastPick.country||""
+    });
+    delete newT._isSuggestion;
+    titles.push(newT);
+    suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==lastPick._tmdbId;});
+    saveSuggestionPool();
+    if(lastPick._tmdbId&&signalsPositive.indexOf(lastPick._tmdbId)===-1)
+      signalsPositive.push(lastPick._tmdbId);
+    saveSignals();
+    lastPick=newT; // apuntar al objeto en titles
+  }
+  // Verificar que está en titles
+  var inTitles=titles.find(function(t){return t.idx===lastPick.idx;});
+  if(!inTitles){
+    showToast("Agrega la película a tu lista primero");
+    return;
+  }
   var btn=document.getElementById("rWatchedBtn");
   if(lastPick.status==="watched"){
     lastPick.status="active";
