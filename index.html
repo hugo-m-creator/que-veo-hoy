@@ -2371,11 +2371,12 @@ function acceptSuggestion(t){
   // Verificar que no está ya en titles (evitar duplicado si ya presionó "Ya la vi")
   var alreadyIn=t._tmdbId&&titles.find(function(x){return x._tmdbId===t._tmdbId;});
   if(alreadyIn){
-    // Ya está — solo asegurarse que el status es active
-    if(alreadyIn.status!=="active")alreadyIn.status="active";
+    // Ya está — solo mover a active si no estaba ya como watched
+    if(alreadyIn.status!=="watched")alreadyIn.status="active";
     suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==t._tmdbId;});
     saveSuggestionPool();saveSignals();saveState();
     updateStats();updateCandidates();buildGenres();buildDecades();buildLists();renderManage();
+    showToast(alreadyIn.status==="watched"?"Ya estaba en vistas: "+alreadyIn.n:"Actualizada: "+alreadyIn.n);
     setTimeout(function(){rollWithSource();},1500);
     return;
   }
@@ -2423,9 +2424,9 @@ function rollWithSource(){
     var available=suggestionPool.filter(function(m){return m!==lastPick;});
     if(!available.length)available=suggestionPool;
     if(!available.length){showToast("Pool vacío. Regenera sugerencias desde tu perfil.");return;}
+    if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
     lastPick=available[Math.floor(Math.random()*available.length)];
     showResult(lastPick);
-    // Mostrar badges de sugerencia y botones extra en la tarjeta
     showSuggestionActions(lastPick);
   }else{
     roll();
@@ -2464,7 +2465,6 @@ function roll(){
   lastPick=f[Math.floor(Math.random()*f.length)];showResult(lastPick);
 }
 function showResult(t){
-  if(lastPick&&lastPick!==t){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
   var prevBtn=document.getElementById("rollPrevBtn");
   if(prevBtn)prevBtn.style.display=lastPickHistory.length?"inline-block":"none";
   var types={movie:"Pelicula",short:"Cortometraje",tv:"Serie",doc:"Documental"};
