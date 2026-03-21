@@ -457,7 +457,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <button class="mode-tab" onclick="setMode('stats',this)">Estad&#237;sticas</button>
     <button class="mode-tab" onclick="setMode('browse',this)">Mi lista</button>
     <button class="mode-tab" onclick="setMode('manage',this)">Gestionar lista</button>
-    <button class="profile-badge" onclick="openSurvey(true)" title="Editar tu perfil" style="margin-left:auto;">&#9881; Perfil</button>
+    <button class="profile-badge" id="profileBadgeBtn" onclick="confirmOpenSurvey()" title="Editar tu perfil" style="margin-left:auto;">&#9881; Perfil</button>
   </div>
 
   <div id="filterMode">
@@ -1595,12 +1595,20 @@ function buildFilterServicePills(){
 // ══════════════════════════════════════════════════════════════════
 function saveProfile(){
   try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
+  updateProfileBadge();
+}
+function updateProfileBadge(){
+  var btn=document.getElementById("profileBadgeBtn");
+  if(!btn)return;
+  var name=userProfile&&userProfile.userName?userProfile.userName:null;
+  btn.innerHTML=name?"&#9881; "+name:"&#9881; Perfil";
 }
 function loadProfile(){
   try{
     var p=JSON.parse(localStorage.getItem("wq_profile"));
     if(p)userProfile=p;
   }catch(e){}
+  setTimeout(updateProfileBadge,100);
   try{
     var sg=JSON.parse(localStorage.getItem("wq_signals"));
     if(sg){
