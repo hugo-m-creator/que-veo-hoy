@@ -456,8 +456,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <button class="mode-tab" onclick="setMode('wizard',this)">Cu&#233;ntame qu&#233; quieres ver</button>
     <button class="mode-tab" onclick="setMode('stats',this)">Estad&#237;sticas</button>
     <button class="mode-tab" onclick="setMode('browse',this)">Mi lista</button>
-    <button class="mode-tab" onclick="setMode('manage',this)">Gestionar lista</button>
-    <button class="profile-badge" id="profileBadgeBtn" onclick="confirmOpenSurvey()" title="Editar tu perfil" style="margin-left:auto;">&#9881; Perfil</button>
+    <button class="mode-tab" onclick="setMode('manage',this)">Mi perfil</button>
   </div>
 
   <div id="filterMode">
@@ -654,6 +653,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   </div>
 
   <div id="manageMode">
+  <!-- Sección de perfil -->
+  <div id="profileSection" style="margin-bottom:20px;padding:16px;border:1px solid var(--border);background:var(--surface);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Tu perfil</div>
+      <button class="mbtn mbtn-d" style="font-size:9px;" onclick="confirmOpenSurvey()">&#9998; Editar encuesta</button>
+    </div>
+    <div id="profileSummary" style="font-size:11px;color:var(--muted);">Sin perfil guardado. Responde la encuesta para obtener recomendaciones personalizadas.</div>
+  </div>
     <div class="sync-box">
       <h3>&#8635; Sincronizar con Letterboxd</h3>
       <div class="sync-steps">
@@ -1042,15 +1049,31 @@ function handleWelcomeImport(file){
       ourURIs.add(uri);addedWL++;
     });
 
-    // 2. Marcar como vistas las que están en el watchlist (URI o nombre+año)
+    // 2. Marcar como vistas + extraer ratings de Letterboxd como señales
+    var wdRatingByURI={},wdRatingByKey={};
+    wdRows.forEach(function(r){
+      var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
+      var nm=(r["Name"]||r["name"]||"").trim().toLowerCase();
+      var yr=parseInt(r["Year"]||r["year"])||null;
+      var rating=parseFloat(r["Rating"]||r["rating"]||"0")||0;
+      if(uri&&rating)wdRatingByURI[uri]=rating;
+      if(nm&&yr&&rating)wdRatingByKey[nm+"|"+yr]=rating;
+    });
     var markedWatched=0;
     titles.forEach(function(t){
       if(t.status==="watched")return;
       var mURI=t.u&&wdByURI[t.u];
-      // Solo hacer match por nombre+año si tiene año (evitar falsos positivos)
       var mKey=!mURI&&t.n&&t.y&&wdByKey[t.n.toLowerCase()+"|"+t.y];
-      if(mURI||mKey){t.status="watched";markedWatched++;}
+      if(mURI||mKey){
+        t.status="watched";markedWatched++;
+        var rating=(t.u&&wdRatingByURI[t.u])||(t.n&&t.y&&wdRatingByKey[t.n.toLowerCase()+"|"+t.y])||0;
+        if(rating&&t._tmdbId){
+          if(rating>=4){if(signalsPositive.indexOf(t._tmdbId)===-1)signalsPositive.push(t._tmdbId);}
+          else if(rating<=2){if(signalsNegative.indexOf(t._tmdbId)===-1)signalsNegative.push(t._tmdbId);}
+        }
+      }
     });
+    if(signalsPositive.length||signalsNegative.length)saveSignals();
 
     // 3. Agregar vistas que no estaban en el watchlist
     var addedWD=0;
@@ -1748,6 +1771,18 @@ var _surveyRefResults = [];
 var _surveyRefs = []; // {tmdbId, title, year, poster}
 
 // ── Abrir / cerrar ────────────────────────────────────────────────
+function confirmOpenSurvey(){
+  if(userProfile){
+    if(!confirm("¿Editar tu perfil?\n\nVolver a contestar la encuesta actualizará tus recomendaciones."))return;
+  }
+  openSurvey(true);
+}
+
+function updateProfileBadge(){
+  // Sin botón en el modebar — no hacer nada
+  // El nombre se muestra en Mi perfil (pestaña)
+}
+
 function openSurvey(editMode){
   _surveyEditMode = editMode || false;
   surveyStep = 0;
@@ -2765,9 +2800,29 @@ function renderServicesPills(){
   });
 }
 function setMF(f,btn){mFilter=f;document.querySelectorAll(".mfbtn").forEach(function(b){b.classList.remove("active");});btn.classList.add("active");renderManage();}
+function renderProfileSummary(){
+  var el=document.getElementById("profileSummary");
+  if(!el)return;
+  if(!userProfile){el.innerHTML='Sin perfil guardado. <a href="#" onclick="openSurvey(false);return false;" style="color:var(--blue);">Responder encuesta</a>';return;}
+  var p=userProfile;
+  var name=p.userName||"";
+  var age=p.birthYear?new Date().getFullYear()-parseInt(p.birthYear):null;
+  var parts=[];
+  if(name)parts.push('<strong style="color:var(--text);">'+name+'</strong>');
+  if(age)parts.push(age+" a\u00f1os");
+  if(p.country)parts.push("&#127758; "+p.country);
+  if(p.frequency)parts.push(p.frequency.toLowerCase());
+  if(p.genresLike&&p.genresLike.length)parts.push("Le gusta: "+p.genresLike.slice(0,3).join(", "));
+  if(p.services&&p.services.length)parts.push(p.services.length+" servicio"+(p.services.length!==1?"s":""));
+  if(p.refs&&p.refs.length)parts.push(p.refs.length+" pel\u00edculas de referencia");
+  var poolInfo=suggestionPool.length?'<br><span style="color:var(--green);font-size:10px;">&#10003; '+suggestionPool.length+' sugerencias generadas</span>':'<br><a href="#" onclick="buildSuggestionPool();return false;" style="color:var(--blue);font-size:10px;">Generar sugerencias</a>';
+  el.innerHTML=parts.join(" &nbsp;&middot;&nbsp; ")+(parts.length?poolInfo:"");
+}
+
 function renderManage(){
   renderServicesPills();
   renderListsPanel();
+  renderProfileSummary();
   var q=(document.getElementById("searchM").value||"").toLowerCase();
   var filtered=titles.filter(function(t){
     if(q&&t.n.toLowerCase().indexOf(q)===-1)return false;
@@ -4376,7 +4431,10 @@ function addTitle(){var n=(document.getElementById("addN")||{}).value;if(n){var 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
       <div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">
         &#127902; Tu perfil de cine</div>
-      <div id="surveyStepLabel" style="font-size:9px;color:var(--muted);letter-spacing:1px;"></div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div id="surveyStepLabel" style="font-size:9px;color:var(--muted);letter-spacing:1px;"></div>
+        <button onclick="closeSurvey()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0;line-height:1;" title="Cerrar">&#215;</button>
+      </div>
     </div>
     <div class="survey-progress" id="surveyProgress"></div>
     <div id="surveyBody"></div>
