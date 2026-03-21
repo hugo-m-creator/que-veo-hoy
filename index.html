@@ -2368,6 +2368,17 @@ function acceptSuggestion(t){
   signalsPositive.push(t._tmdbId);
   saveSignals();
   // Agregar a titles como active
+  // Verificar que no está ya en titles (evitar duplicado si ya presionó "Ya la vi")
+  var alreadyIn=t._tmdbId&&titles.find(function(x){return x._tmdbId===t._tmdbId;});
+  if(alreadyIn){
+    // Ya está — solo asegurarse que el status es active
+    if(alreadyIn.status!=="active")alreadyIn.status="active";
+    suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==t._tmdbId;});
+    saveSuggestionPool();saveSignals();saveState();
+    updateStats();updateCandidates();buildGenres();buildDecades();buildLists();renderManage();
+    setTimeout(function(){rollWithSource();},1500);
+    return;
+  }
   var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
   var newT=Object.assign({},t,{
     idx:ni,status:"active",isNew:true,lists:[],pinned:false,
@@ -4053,9 +4064,9 @@ function saveManualFix(){
 // Toggle Ya la vi
 function toggleWatchedResult(){
   if(!lastPick)return;
-  // Si es una sugerencia del pool, agregarla a titles primero
+  var btn=document.getElementById("rWatchedBtn");
+  // Si es una sugerencia del pool, agregarla a titles como vista y terminar
   if(lastPick._isSuggestion){
-    // Agregar a lista como "watched" directamente
     var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
     var newT=Object.assign({},lastPick,{
       idx:ni,status:"watched",isNew:true,lists:[],pinned:false,
@@ -4070,15 +4081,18 @@ function toggleWatchedResult(){
     if(lastPick._tmdbId&&signalsPositive.indexOf(lastPick._tmdbId)===-1)
       signalsPositive.push(lastPick._tmdbId);
     saveSignals();
-    lastPick=newT; // apuntar al objeto en titles
-  }
-  // Verificar que está en titles
-  var inTitles=titles.find(function(t){return t.idx===lastPick.idx;});
-  if(!inTitles){
-    showToast("Agrega la película a tu lista primero");
+    lastPick=newT;
+    if(btn){btn.classList.add("watched");btn.title="Desmarcar como vista";}
+    saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();renderBrowse();
+    showToast("Vista: "+newT.n);
+    setTimeout(function(){showRatingPrompt(newT);},300);
     return;
   }
-  var btn=document.getElementById("rWatchedBtn");
+  // Película de la lista normal — toggle
+  if(!titles.find(function(t){return t.idx===lastPick.idx;})){
+    showToast("La película no está en tu lista");
+    return;
+  }
   if(lastPick.status==="watched"){
     lastPick.status="active";
     if(btn){btn.classList.remove("watched");btn.title="Marcar como vista";}
