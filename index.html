@@ -648,6 +648,12 @@ var diaryDates=[];
 var streamCache={};
 
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function getPoster(t){
+  if(t.poster)return getPoster(t)||"";
+  if(t._lbPoster)return t._lbPoster;
+  return null;
+}
+
 
 // Buscar URL real de Letterboxd a partir del nombre y año
 async function fetchLBUrl(name,year){
@@ -953,7 +959,8 @@ async function importFromLBUrl(){
           u:filmUrl,is_series:isSeries,
           genres:genres,
           type:genres.indexOf(99)!==-1?"doc":(runtime>0&&runtime<45?"short":"movie"),
-          overview:"",poster:film.poster&&film.poster.sizes&&film.poster.sizes.length?film.poster.sizes[film.poster.sizes.length-1].url:null,
+          overview:"",poster:null,
+          _lbPoster:film.poster&&film.poster.sizes&&film.poster.sizes.length?film.poster.sizes[film.poster.sizes.length-1].url:null,
           director:(film.directors||[]).map(function(d){return d.name;}).join(", ")||"",
           country:"",status:"active",isNew:true,
           lists:listName?[listName]:[],pinned:false,
@@ -1043,10 +1050,10 @@ var TMDB_OVERRIDES={
 };
 
 async function startEnrich(){
-  // Saltar títulos que ya tienen metadatos completos de LB
+  // Solo saltar si ya tiene metadatos de TMDB (tmdbId confirmado)
   var toE=titles.filter(function(t){
     if(t.status!=="active")return false;
-    if(t.genres&&t.genres.length&&t.m&&t.poster)return false; // ya completo
+    if(t._tmdbId&&t.genres&&t.genres.length&&t.poster)return false; // ya enriquecido con TMDB
     return true;
   });
   if(!toE.length){finishEnrich(true);return;}
@@ -1422,7 +1429,7 @@ function showResult(t){
   }
   // Poster grande
   var pw=document.getElementById("rPosterWrap");
-  var posterSrc=t.customPoster||(t.poster?TMDB_IMG+t.poster:null);
+  var posterSrc=t.customPoster||getPoster(t)||null;
   pw.innerHTML=posterSrc?('<img class="r-poster loaded" src="'+posterSrc+'" alt="">'):('<div class="r-poster-placeholder">&#127902;</div>');
 
   // Backdrop difuminado — usar backdrop si existe, sino el poster
@@ -2349,7 +2356,7 @@ function makeBrowseCard(t){
   var typeLabel=types[t.type]||(t.m>0&&t.m<45?'Corto':'Pel');
   var h=Math.floor((t.m||0)/60),m2=(t.m||0)%60;
   var dur=t.m>0?(h>0?h+'h'+m2+'m':m2+'m'):'';
-  var posterSrc=t.customPoster||(t.poster?TMDB_IMG+t.poster:null);
+  var posterSrc=t.customPoster||getPoster(t)||null;
   var imgHtml=posterSrc
     ?'<img src="'+posterSrc+'" alt="'+t.n.replace(/"/g,'&quot;')+'" loading="lazy" onerror="this.outerHTML=\'<div class=browse-card-placeholder>&#127902;</div>\'">'
     :'<div class="browse-card-placeholder">&#127902;</div>';
