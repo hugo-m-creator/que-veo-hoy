@@ -880,7 +880,7 @@ function handleWelcomeImport(file){
       var nm=(r["Name"]||r["name"]||"").trim().toLowerCase();
       var yr=parseInt(r["Year"]||r["year"])||null;
       if(uri)wdByURI[uri]=true;
-      if(nm)wdByKey[nm+(yr?"|"+yr:"")]=true;
+      if(nm&&yr)wdByKey[nm+"|"+yr]=true;
     });
 
     // 1. Agregar watchlist como pendientes
@@ -902,7 +902,8 @@ function handleWelcomeImport(file){
     titles.forEach(function(t){
       if(t.status==="watched")return;
       var mURI=t.u&&wdByURI[t.u];
-      var mKey=!mURI&&t.n&&wdByKey[t.n.toLowerCase()+(t.y?"|"+t.y:"")];
+      // Solo hacer match por nombre+año si tiene año (evitar falsos positivos)
+      var mKey=!mURI&&t.n&&t.y&&wdByKey[t.n.toLowerCase()+"|"+t.y];
       if(mURI||mKey){t.status="watched";markedWatched++;}
     });
 
@@ -930,19 +931,23 @@ function handleWelcomeImport(file){
       diaryDates=Array.from(ds);
     }
 
-    var total=addedWL+markedWatched+addedWD;
-    if(!total){
-      if(msg)msg.innerHTML='<span style="color:var(--red)">No se encontraron t&iacute;tulos. Verifica que el archivo sea un export de Letterboxd.</span>';
-      return;
-    }
     saveState();
     var parts=[];
-    if(addedWL)parts.push('<span style="color:var(--accent)">'+addedWL+' pendientes</span>');
+    if(addedWL)parts.push('<span style="color:var(--accent)">'+addedWL+' nuevas pendientes</span>');
     if(markedWatched)parts.push('<span style="color:var(--green)">'+markedWatched+' marcadas como vistas</span>');
-    if(addedWD)parts.push('<span style="color:var(--muted)">'+addedWD+' vistas (no estaban en watchlist)</span>');
+    if(addedWD)parts.push('<span style="color:var(--muted)">'+addedWD+' vistas agregadas</span>');
+    if(!addedWL&&!markedWatched&&!addedWD){
+      // Todo ya estaba — igual es éxito
+      parts.push('<span style="color:var(--muted)">Todo ya estaba sincronizado</span>');
+    }
     if(msg)msg.innerHTML='&#10003; '+parts.join(' &middot; ');
-    showCard("enrichCard");
-    setTimeout(function(){startEnrich();},400);
+    if(addedWL){
+      showCard("enrichCard");
+      setTimeout(function(){startEnrich();},400);
+    }else{
+      // Si no hay nuevos pendientes, entrar directo
+      continueWithExisting();
+    }
   }
 
   if(file.name.toLowerCase().endsWith(".zip")){
@@ -2035,7 +2040,7 @@ async function processZip(file){
       var nm=(r["Name"]||r["name"]||"").trim().toLowerCase();
       var yr=parseInt(r["Year"]||r["year"])||null;
       if(uri)wdByURI[uri]=true;
-      if(nm)wdByKey[nm+(yr?"|"+yr:"")]=true;
+      if(nm&&yr)wdByKey[nm+"|"+yr]=true;
     });
 
     // 1. Agregar nuevas del watchlist como pendientes
