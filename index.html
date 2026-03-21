@@ -4027,9 +4027,10 @@ function toggleWatchedResult(){
   }else{
     lastPick.status="watched";
     if(btn){btn.classList.add("watched");btn.title="Desmarcar como vista";}
-    showToast("Vista: "+lastPick.n);
+    var tRef=lastPick;
+    setTimeout(function(){showRatingPrompt(tRef);},300);
   }
-  saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();
+  saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();renderBrowse();
 }
 function removeFromResult(){
   var confirm=document.getElementById("rRemoveConfirm");
