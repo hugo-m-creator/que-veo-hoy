@@ -2026,41 +2026,32 @@ function clearAllTitles(){
 }
 function reEnrich(){
   var btn=document.getElementById("reEnrichBtn");
-  var prog=document.getElementById("reEnrichProgress");
   if(btn){btn.textContent="Limpiando...";btn.disabled=true;}
-  if(prog){prog.style.display="inline";prog.textContent="Preparando...";}
+  // Limpiar metadatos de TODOS los títulos (no solo active)
+  // para que el re-enriquecimiento los revise de nuevo con la lógica mejorada
   try{localStorage.removeItem("wq_cC");}catch(e){}
   titles.forEach(function(t){
+    if(t.status==="removed")return;
     t.genres=[];t.overview="";t.poster=null;t.backdrop=null;
     t.director="";t.country="";t._imdbId=null;t._tmdbId=null;t._mediaType=null;
     t.logline=null;
   });
-  var total=titles.filter(function(t){return t.status==="active";}).length;
-  var done=0;
-  // Interceptar finishEnrich para saber cuando termina
-  var origFinish=finishEnrich;
-  var origEnrichOne=enrichOne;
-  // Monitorear progreso via el texto del eDot/eTxt
-  var interval=setInterval(function(){
-    var txt=document.getElementById("eTxt2");
-    if(txt&&txt.textContent){
-      var m=txt.textContent.match(/(\d+)\/(\d+)/);
-      if(m){prog&&(prog.textContent=m[0]+" enriquecidos");}
-      if(txt.textContent.indexOf("completo")!==-1||txt.textContent.indexOf("listo")!==-1||txt.textContent.indexOf("Géneros")!==-1){
-        clearInterval(interval);
-        if(btn){btn.textContent="★ Re-enriquecer";btn.disabled=false;}
-        if(prog){prog.textContent=total+" títulos listos ✔";setTimeout(function(){prog.style.display="none";},4000);}
-        showToast("Re-enriquecimiento completo");
-      }
-    }
-  },1000);
-  // Timeout de seguridad — 5 minutos
+  updateStats();updateCandidates();renderManage();
+  // Mostrar barra flotante de progreso
+  var bar=document.getElementById("enrichBar");
+  if(bar)bar.style.display="flex";
+  var cnt=document.getElementById("enrichBarCount");
+  var total=titles.filter(function(t){return t.status!=="removed";}).length;
+  if(cnt)cnt.textContent=total+" títulos por re-enriquecer";
+  if(btn){btn.textContent="Re-enriqueciendo...";btn.disabled=true;}
   setTimeout(function(){
-    clearInterval(interval);
-    if(btn&&btn.disabled){btn.textContent="★ Re-enriquecer";btn.disabled=false;}
-    if(prog&&prog.style.display!=="none"){prog.style.display="none";}
-  },300000);
-  setTimeout(function(){startEnrich();},300);
+    startEnrich().then(function(){
+      if(btn){btn.textContent="★ Re-enriquecer";btn.disabled=false;}
+      showToast("Re-enriquecimiento completo ✓");
+    }).catch(function(){
+      if(btn){btn.textContent="★ Re-enriquecer";btn.disabled=false;}
+    });
+  },300);
 }
 
 function restoreAll(){if(!confirm("Restaurar todos?"))return;titles.forEach(function(t){t.status="active";});saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();}
