@@ -2380,8 +2380,10 @@ function acceptSuggestion(t){
     return;
   }
   var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
+  // Preservar status "watched" si ya se marcó como vista
+  var keepStatus=lastPick&&lastPick._tmdbId===t._tmdbId&&lastPick.status==="watched"?"watched":"active";
   var newT=Object.assign({},t,{
-    idx:ni,status:"active",isNew:true,lists:[],pinned:false,
+    idx:ni,status:keepStatus,isNew:true,lists:[],pinned:false,
     customPoster:null,u:t.u||"",m:t.m||0,
     is_series:false,type:"movie",
     director:t.director||"",country:t.country||""
@@ -2458,6 +2460,7 @@ function showSuggestionActions(t){
 function roll(){
   var pool=getCandidates();if(!pool.length){alert("Sin titulos. Amplia los filtros.");return;}
   var f=pool.filter(function(t){return t!==lastPick;});if(!f.length)f=pool;
+  if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
   lastPick=f[Math.floor(Math.random()*f.length)];showResult(lastPick);
 }
 function showResult(t){
