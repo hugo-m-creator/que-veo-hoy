@@ -215,6 +215,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .r-top-btn-watched{border-color:var(--green) !important;color:var(--green) !important;}
 .r-top-btn.watched{border-color:var(--green);color:var(--green);background:rgba(77,186,135,0.12);}
 .r-top-btn.pinned{border-color:var(--blue);color:var(--blue);}
+.list-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);}
+.list-row:last-child{border-bottom:none;}
+.list-row:hover{background:var(--surface2);}
+.list-name-lbl{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.list-cnt-lbl{font-size:10px;color:var(--muted);white-space:nowrap;}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#000;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:10px 18px;z-index:999;animation:slideIn 0.3s ease;}
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
@@ -550,15 +555,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <input type="file" id="syncFile" accept=".zip" style="display:none" onchange="handleFileSelect(event)">
       <div class="sync-result" id="syncResult"></div>
     </div>
-    <div id="listsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);padding:16px 20px;margin-bottom:16px;">
-      <div class="slabel" style="margin-bottom:10px;">Listas importadas</div>
-      <div id="listsPanelContent"></div>
+    <div id="listsPanel" style="display:none;background:var(--surface);border:1px solid var(--border);margin-bottom:16px;">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Mis listas</div>
+        <div style="display:flex;gap:8px;align-items:center;flex:1;min-width:200px;justify-content:flex-end;">
+          <input id="newListUrl" type="url" class="manage-input" placeholder="https://letterboxd.com/usuario/list/..." style="font-size:11px;flex:1;max-width:320px;" onkeydown="if(event.key==='Enter')importListFromPanel()">
+          <button class="mbtn mbtn-g" style="white-space:nowrap;font-size:10px;" onclick="importListFromPanel()">+ Importar</button>
+        </div>
+      </div>
+      <div id="newListMsg" style="font-size:11px;color:var(--muted);padding:0 16px;min-height:0;"></div>
+      <div id="listsPanelContent" style="padding:4px 0;"></div>
     </div>
     <div class="manage-toolbar">
       <input class="manage-input" type="text" id="searchM" placeholder="Buscar..." oninput="renderManage()" style="width:240px;">
       <button class="mbtn mbtn-d" onclick="exportCSV()">&#8595; CSV</button>
       <button class="mbtn mbtn-d" onclick="restoreAll()" style="font-size:9px;">&#8635; Restaurar</button>
       <button class="mbtn mbtn-g" onclick="reEnrich()" id="reEnrichBtn">&#9733; Re-enriquecer</button>
+      <button class="mbtn" style="border-color:var(--blue);color:var(--blue);" onclick="toggleListsPanel()" id="listsPanelBtn">&#9776; Listas</button>
       <button class="mbtn" style="border-color:var(--red);color:var(--red);" onclick="clearAllTitles()">&#215; Borrar todo</button>
       <span id="reEnrichProgress" style="display:none;font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
     </div>
@@ -1033,7 +1046,29 @@ function pickDecade(el){
   updateCandidates();
 }
 function pickCountry(el){document.querySelectorAll("#countryPills .pill").forEach(function(p){p.classList.remove("on");});el.classList.add("on");activeCountry=el.dataset.v;updateCandidates();}
-function pickList(el){document.querySelectorAll("#listPills .pill").forEach(function(p){p.classList.remove("on");});el.classList.add("on");activeList=el.dataset.v;updateCandidates();}
+function pickList(el){
+  var v=el.dataset.v;
+  if(v==="all"){
+    document.querySelectorAll("#listPills .pill").forEach(function(p){p.classList.remove("on");});
+    el.classList.add("on");
+    activeList="all";
+  }else{
+    var allPill=document.querySelector("#listPills .pill[data-v='all']");
+    if(allPill)allPill.classList.remove("on");
+    el.classList.toggle("on");
+    var selected=Array.from(document.querySelectorAll("#listPills .pill.on"))
+      .map(function(p){return p.dataset.v;}).filter(function(v){return v!=="all";});
+    if(!selected.length){
+      if(allPill)allPill.classList.add("on");
+      activeList="all";
+    }else if(selected.length===1){
+      activeList=selected[0];
+    }else{
+      activeList=selected;
+    }
+  }
+  updateCandidates();
+}
 function buildLists(){
   // Recopilar todas las listas únicas de los títulos activos
   var lc={};
@@ -1092,6 +1127,9 @@ function getCandidates(){
     if(activeList!=="all"){
       if(!t.lists||!t.lists.length)return false;
       if(activeList==="any"){if(!t.lists.length)return false;}
+      else if(Array.isArray(activeList)){
+        if(!activeList.some(function(l){return t.lists.indexOf(l)!==-1;}))return false;
+      }
       else if(t.lists.indexOf(activeList)===-1)return false;
     }
     if(activeMood!=="any"&&MOOD[activeMood]&&(t.genres||[]).length>0){var mg=MOOD[activeMood];if(!mg.some(function(g){return(t.genres||[]).indexOf(g)!==-1;}))return false;}
@@ -1554,6 +1592,111 @@ function removeT(idx){
   showToast("Eliminada");
 }
 function restoreT(idx){var t=titles.find(function(t){return t.idx===idx;});if(!t)return;t.status="active";saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();}
+function toggleListsPanel(){
+  var p=document.getElementById("listsPanel");
+  var btn=document.getElementById("listsPanelBtn");
+  if(!p)return;
+  var open=p.style.display==="none";
+  p.style.display=open?"block":"none";
+  if(btn){btn.style.borderColor=open?"var(--accent)":"var(--blue)";btn.style.color=open?"var(--accent)":"var(--blue)";}
+  if(open)renderListsPanel();
+}
+
+function renderListsPanel(){
+  var container=document.getElementById("listsPanelContent");
+  if(!container)return;
+  var lc={};
+  titles.filter(function(t){return t.status==="active";}).forEach(function(t){
+    (t.lists||[]).forEach(function(l){lc[l]=(lc[l]||0)+1;});
+  });
+  var names=Object.keys(lc).sort();
+  if(!names.length){
+    container.innerHTML='<div style="color:var(--muted);font-size:11px;padding:14px 16px;">Sin listas. Importa una lista de Letterboxd arriba.</div>';
+    return;
+  }
+  container.innerHTML="";
+  names.forEach(function(name){
+    var row=document.createElement("div");
+    row.className="list-row";
+    var n=document.createElement("div");n.className="list-name-lbl";n.textContent="▤ "+name;
+    var c=document.createElement("div");c.className="list-cnt-lbl";c.textContent=lc[name]+" título"+(lc[name]!==1?"s":"");
+    var btns=document.createElement("div");btns.style.cssText="display:flex;gap:4px;";
+    var bv=document.createElement("button");bv.className="ib ib-e";bv.title="Ver esta lista";bv.innerHTML="&equiv;";
+    var bd=document.createElement("button");bd.className="ib ib-r";bd.title="Eliminar lista";bd.innerHTML="&times;";
+    (function(nm){
+      bv.onclick=function(){filterByList(nm);};
+      bd.onclick=function(){deleteList(nm);};
+    })(name);
+    btns.appendChild(bv);btns.appendChild(bd);
+    row.appendChild(n);row.appendChild(c);row.appendChild(btns);
+    container.appendChild(row);
+  });
+}
+
+function filterByList(name){
+  setMode("filter",document.querySelector(".mode-tab"));
+  setTimeout(function(){
+    var pills=document.querySelectorAll("#listPills .pill");
+    pills.forEach(function(p){p.classList.remove("on");});
+    var pill=Array.from(pills).find(function(p){return p.dataset.v===name;});
+    if(pill){pill.classList.add("on");activeList=name;updateCandidates();}
+  },150);
+}
+
+function deleteList(name){
+  var count=titles.filter(function(t){
+    return t.status==="active"&&(t.lists||[]).indexOf(name)!==-1;
+  }).length;
+  var choice=prompt(
+    "\u201c"+name+"\u201d ("+count+" t\u00edtulos)\n\n"+
+    "1 = Solo quitar la etiqueta\n"+
+    "2 = Eliminar tambi\u00e9n las pel\u00edculas de esta lista\n"+
+    "0 = Cancelar"
+  ,"1");
+  if(!choice||choice==="0")return;
+  if(choice==="1"){
+    titles.forEach(function(t){
+      if(t.lists)t.lists=t.lists.filter(function(l){return l!==name;});
+    });
+    showToast("Etiqueta eliminada");
+  }else if(choice==="2"){
+    var removed=0;
+    titles=titles.filter(function(t){
+      if((t.lists||[]).indexOf(name)===-1)return true;
+      t.lists=t.lists.filter(function(l){return l!==name;});
+      if(t.lists.length===0){removed++;return false;}
+      return true;
+    });
+    showToast(removed+" eliminada"+(removed!==1?"s":""));
+  }
+  saveState();buildLists();buildGenres();buildDecades();buildCountries();
+  updateStats();updateCandidates();renderManage();renderListsPanel();
+}
+
+async function importListFromPanel(){
+  var input=document.getElementById("newListUrl");
+  var msg=document.getElementById("newListMsg");
+  var url=(input&&input.value||"").trim();
+  if(!url){
+    if(msg){msg.style.padding="8px 16px";msg.innerHTML='<span style="color:var(--red)">Pega una URL de Letterboxd</span>';}
+    return;
+  }
+  var lbEl=document.getElementById("lbUrlInput");
+  var lbMsgEl=document.getElementById("lbUrlMsg");
+  var prevUrl=lbEl?lbEl.value:"";
+  if(lbEl)lbEl.value=url;
+  if(msg){msg.style.padding="8px 16px";msg.innerHTML='<span style="color:var(--muted)">Importando...</span>';}
+  var interval=setInterval(function(){if(lbMsgEl&&msg)msg.innerHTML=lbMsgEl.innerHTML;},200);
+  try{
+    await importFromLBUrl();
+    renderListsPanel();
+    if(input)input.value="";
+  }finally{
+    clearInterval(interval);
+    if(lbEl)lbEl.value=prevUrl;
+  }
+}
+
 function clearAllTitles(){
   if(!confirm("\u00bfBorrar TODAS las pel\u00edculas? Esta acci\u00f3n no se puede deshacer."))return;
   titles=[];
