@@ -821,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.68");
+console.log("QVH version: 11.69");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -829,31 +829,32 @@ var TMDB_IMG = "https://image.tmdb.org/t/p/w200";
 var TMDB_LOGO = "https://image.tmdb.org/t/p/original";
 
 var ALL_PROVIDERS = {
-  // México
-  8:   {name:"Netflix",             region:"MX"},
-  384: {name:"HBO Max",             region:"MX"},
-  337: {name:"Disney+",             region:"MX"},
-  119: {name:"Prime Video",         region:"MX"},
-  531: {name:"Paramount+",          region:"MX"},
-  350: {name:"Apple TV+",           region:"MX"},
-  619: {name:"Star+",               region:"MX"},
-  2113:{name:"Paramount+ (Prime)",  region:"MX"},
-  1870:{name:"VIX Premium",         region:"MX"},
-  186: {name:"HBO Max (Prime)",      region:"MX"},
-  11:  {name:"MUBI",                region:"MX"},
-  167: {name:"Claro Video",         region:"MX"},
-  330: {name:"Blim TV",             region:"MX"},
+  // México — IDs verificados contra TMDB API (watch_region=MX) marzo 2025
+  8:    {name:"Netflix",               region:"MX"},
+  1796: {name:"Netflix (con anuncios)", region:"MX"},
+  337:  {name:"Disney+",               region:"MX"},
+  119:  {name:"Prime Video",           region:"MX"},
+  531:  {name:"Paramount+",            region:"MX"},
+  350:  {name:"Apple TV+",             region:"MX"},
+  1899: {name:"HBO Max",               region:"MX"},
+  1825: {name:"HBO Max (Prime)",        region:"MX"},
+  457:  {name:"VIX",                   region:"MX"},
+  1866: {name:"VIX Premium (Prime)",   region:"MX"},
+  11:   {name:"MUBI",                  region:"MX"},
+  167:  {name:"Claro Video",           region:"MX"},
+  // Star+ (619) migró a Disney+ en MX
+  // Blim TV (330) descontinuado
   // Estados Unidos
-  "8_US":   {name:"Netflix (US)",        region:"US", tmdbId:8},
-  "384_US": {name:"HBO Max (US)",        region:"US", tmdbId:384},
-  "337_US": {name:"Disney+ (US)",        region:"US", tmdbId:337},
-  "119_US": {name:"Prime Video (US)",    region:"US", tmdbId:119},
-  "531_US": {name:"Paramount+ (US)",     region:"US", tmdbId:531},
-  "350_US": {name:"Apple TV+ (US)",      region:"US", tmdbId:350},
-  258:      {name:"Criterion Channel",   region:"US", tmdbId:258},
-  99:       {name:"Shudder",             region:"US", tmdbId:99},
-  "11_US":  {name:"MUBI (US)",           region:"US", tmdbId:11},
-  386:      {name:"Peacock",             region:"US", tmdbId:386},
+  "8_US":    {name:"Netflix (US)",        region:"US", tmdbId:8},
+  "1899_US": {name:"HBO Max (US)",        region:"US", tmdbId:1899},
+  "337_US":  {name:"Disney+ (US)",        region:"US", tmdbId:337},
+  "119_US":  {name:"Prime Video (US)",    region:"US", tmdbId:119},
+  "531_US":  {name:"Paramount+ (US)",     region:"US", tmdbId:531},
+  "350_US":  {name:"Apple TV+ (US)",      region:"US", tmdbId:350},
+  258:       {name:"Criterion Channel",   region:"US", tmdbId:258},
+  99:        {name:"Shudder",             region:"US", tmdbId:99},
+  "11_US":   {name:"MUBI (US)",           region:"US", tmdbId:11},
+  386:       {name:"Peacock",             region:"US", tmdbId:386},
   // España
   "8_ES":   {name:"Netflix (ES)",        region:"ES", tmdbId:8},
   "337_ES": {name:"Disney+ (ES)",        region:"ES", tmdbId:337},
@@ -875,13 +876,13 @@ var STREAMING_COUNTRIES = {
 
 // Providers por país (para la encuesta)
 var PROVIDERS_BY_COUNTRY = {
-  "MX": [8, 384, 337, 119, 531, 350, 619, 2113, 1870, 186, 11, 167, 330],
-  "US": ["8_US","384_US","337_US","119_US","531_US","350_US",258,99,"11_US",386],
+  "MX": [8, 1796, 337, 119, 531, 350, 1899, 1825, 457, 1866, 11, 167],
+  "US": ["8_US","1899_US","337_US","119_US","531_US","350_US",258,99,"11_US",386],
   "ES": ["8_ES","337_ES","119_ES","11_ES"],
   "AR": ["8_AR","337_AR","119_AR"]
 };
 
-var DEFAULT_SERVICES = [8, 384, 337, 119, 531, 2113, 1870, 258];
+var DEFAULT_SERVICES = [8, 1899, 337, 119, 531, 350, 457, 258];
 var activeServices = DEFAULT_SERVICES.slice();
 
 var GENRE_MAP = {28:"Accion",12:"Aventura",16:"Animacion",35:"Comedia",80:"Crimen",99:"Documental",18:"Drama",10751:"Familia",14:"Fantasia",36:"Historia",27:"Terror",10402:"Musica",9648:"Misterio",10749:"Romance",878:"Ciencia Ficcion",53:"Suspenso",10752:"Belica",37:"Western"};
