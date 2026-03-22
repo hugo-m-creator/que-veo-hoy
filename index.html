@@ -821,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.70");
+console.log("QVH version: 11.71");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1394,7 +1394,8 @@ var TMDB_OVERRIDES={
   "Crash_1996":      {id:11849,  type:"movie"},
   "Dreams_1990":     {id:11377,  type:"movie"},
   "The Trial_1962":  {id:30619,  type:"movie"}, // Le Procès, Orson Welles
-  "Le Procès_1962":  {id:30619,  type:"movie"}
+  "Le Procès_1962":  {id:30619,  type:"movie"},
+  "M_1931":          {id:832,    type:"movie"}  // M - Fritz Lang (evitar confusión con serie coreana)
 };
 
 async function startEnrich(){
@@ -1447,6 +1448,15 @@ async function startEnrich(){
           }
         }
         if(!best)best=res[0];
+        // Si el título no tiene is_series=true, preferir resultados de tipo movie sobre tv
+        // Evita que series recientes con nombres cortos/comunes ganen sobre películas clásicas
+        if(!t.is_series&&best&&best.media_type==="tv"){
+          var movieAlt=res.find(function(x){
+            return x.media_type==="movie"&&t.y&&
+              Math.abs(parseInt((x.release_date||"").substring(0,4)||9999)-t.y)<=2;
+          });
+          if(movieAlt)best=movieAlt;
+        }
         // Verificación con Letterboxd: director + título original como factores clave
         if(t.u&&(t.u.includes("letterboxd.com")||t.u.includes("boxd.it"))){
           var lbData=await fetchLBData(t.u);
