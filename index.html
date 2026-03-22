@@ -821,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.73");
+console.log("QVH version: 11.74");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4809,27 +4809,19 @@ function renderBrowse(){
 async function searchBrowseTMDB(q,listPool){
   var grid=document.getElementById('browseGrid');
   if(!grid)return;
-  // IDs ya en la lista para no duplicar
   var listTmdbIds=new Set(titles.filter(function(t){return t._tmdbId;}).map(function(t){return t._tmdbId;}));
-  var listNorms=new Set(listPool.map(function(t){return t.n.toLowerCase();}));
-  try{
-    var r=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY
-      +"&query="+encodeURIComponent(q)+"&language=en-US&page=1",
-      {signal:AbortSignal.timeout(5000)});
-    if(!r.ok)return;
-    var results=(await r.json()).results
-      .filter(function(x){return x.media_type==="movie"||x.media_type==="tv";})
-      .filter(function(x){return !listTmdbIds.has(x.id);})
-      .slice(0,8);
-    if(!results.length)return;
-    // Verificar que el query sigue siendo el mismo
+
+  function checkQueryStillCurrent(){
     var currentQ=((document.getElementById('browseSearch')||{}).value||'').trim();
-    if(currentQ.toLowerCase()!==q.toLowerCase())return;
+    return currentQ.toLowerCase()===q.toLowerCase();
+  }
+
+  function renderTMDBResults(results){
+    if(!results.length)return;
+    if(!checkQueryStillCurrent())return;
     _browseLastTMDB=results;
-    // Remover divisor anterior si existe
     var old=document.getElementById('browseTmdbDivider');
     if(old&&old.parentNode)old.parentNode.removeChild(old);
-    // Insertar divisor
     var divider=document.createElement('div');
     divider.id='browseTmdbDivider';
     divider.className='browse-tmdb-divider';
@@ -4837,10 +4829,71 @@ async function searchBrowseTMDB(q,listPool){
       +'<div class="browse-tmdb-divider-label">Agregar a tu lista</div>'
       +'<div class="browse-tmdb-divider-line"></div>';
     grid.appendChild(divider);
-    // Insertar tarjetas TMDB
-    results.forEach(function(item){
-      grid.appendChild(makeBrowseCardTMDB(item));
-    });
+    results.forEach(function(item){ grid.appendChild(makeBrowseCardTMDB(item)); });
+  }
+
+  try{
+    // Búsqueda 1: por título (search/multi)
+    var r=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY
+      +"&query="+encodeURIComponent(q)+"&language=en-US&page=1",
+      {signal:AbortSignal.timeout(5000)});
+    if(!r.ok)return;
+    var titleResults=(await r.json()).results
+      .filter(function(x){return x.media_type==="movie"||x.media_type==="tv";})
+      .filter(function(x){return !listTmdbIds.has(x.id);})
+      .slice(0,8);
+
+    // Búsqueda 2: por persona (director/actor) — en paralelo con la de título
+    var personPromise=fetch("https://api.themoviedb.org/3/search/person?api_key="+KEY
+      +"&query="+encodeURIComponent(q)+"&language=en-US",
+      {signal:AbortSignal.timeout(5000)})
+      .then(function(rp){return rp.ok?rp.json():null;})
+      .catch(function(){return null;});
+
+    var personData=await personPromise;
+    var personResults=[];
+
+    // Si encontró un director como primer resultado, buscar sus películas
+    if(personData&&personData.results&&personData.results.length){
+      var topPerson=personData.results[0];
+      // Solo usar si es director y tiene alta popularidad
+      if(topPerson.known_for_department==="Directing"||topPerson.popularity>5){
+        try{
+          var discoverR=await fetch(
+            "https://api.themoviedb.org/3/discover/movie?api_key="+KEY
+            +"&with_crew="+topPerson.id
+            +"&sort_by=vote_average.desc&vote_count.gte=100"
+            +"&language=en-US&page=1",
+            {signal:AbortSignal.timeout(6000)});
+          if(discoverR.ok){
+            var discoverData=await discoverR.json();
+            personResults=(discoverData.results||[])
+              .filter(function(x){return !listTmdbIds.has(x.id);})
+              .slice(0,8)
+              .map(function(m){return Object.assign({},m,{media_type:"movie",_byDirector:topPerson.name});});
+          }
+        }catch(e2){}
+      }
+    }
+
+    // Decidir qué mostrar: si hay resultados por director, priorizarlos
+    // Los resultados por título se muestran solo si no son superados por los de director
+    var finalResults=[];
+    if(personResults.length>=3){
+      // Query parece ser un nombre de director — mostrar sus películas primero
+      finalResults=personResults;
+    }else{
+      // Query parece ser un título — mostrar resultados de título
+      // Si además hay resultados de director, mezclar al final
+      finalResults=titleResults;
+      if(personResults.length){
+        var titleIds=new Set(titleResults.map(function(x){return x.id;}));
+        personResults.forEach(function(p){if(!titleIds.has(p.id))finalResults.push(p);});
+        finalResults=finalResults.slice(0,8);
+      }
+    }
+
+    renderTMDBResults(finalResults);
   }catch(e){}
 }
 
