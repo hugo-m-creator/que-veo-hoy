@@ -373,6 +373,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .profile-handle-prefix input{padding-left:22px;}
 .profile-handle-at{position:absolute;left:12px;top:50%;transform:translateY(-50%);
   color:var(--accent);font-family:'DM Mono',monospace;font-size:13px;pointer-events:none;}
+
+.guest-profiles-section{background:var(--surface);border:1px solid var(--border);
+  padding:20px 24px;margin-bottom:16px;}
+.guest-profile-item{display:flex;align-items:center;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--border);}
+.guest-profile-item:last-child{border-bottom:none;}
+.guest-avatar{width:36px;height:36px;border-radius:50%;background:var(--blue);
+  display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;
+  font-size:14px;font-weight:700;color:#fff;flex-shrink:0;}
+.guest-info{flex:1;min-width:0;}
+.guest-name{font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.guest-handle{font-size:10px;color:var(--blue);font-family:'DM Mono',monospace;}
+.watch-together-wrap{margin-bottom:14px;margin-top:2px;display:none;}
+.watch-together-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;}
+.watch-together-chips{display:flex;flex-wrap:wrap;gap:7px;}
+.wt-chip{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;
+  padding:6px 14px;border:1px solid var(--border);background:transparent;
+  color:var(--muted);cursor:pointer;border-radius:100px;transition:all 0.15s;user-select:none;}
+.wt-chip:hover{border-color:var(--blue);color:var(--text);}
+.wt-chip.active{border-color:var(--blue);background:rgba(91,141,238,0.12);color:var(--blue);}
+.wt-chip.solo{border-color:var(--accent);}
+.wt-chip.solo.active{border-color:var(--accent);background:rgba(245,200,66,0.1);color:var(--accent);}
 .stream-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
 .stream-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;}
 .stream-logos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:20px;}
@@ -594,6 +617,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       </div>
     </div>
     <div id="cInfo"></div>
+    <!-- Toggle ver con... -->
+    <div id="watchTogetherWrap" class="watch-together-wrap">
+      <div class="watch-together-label">Ver con</div>
+      <div class="watch-together-chips" id="watchTogetherChips"></div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;margin-top:6px;">
       <button id="srcToggleBtn" class="mbtn mbtn-d" style="font-size:9px;" onclick="toggleSuggestionSource(this)">&#127922; Desde mi lista</button>
       <span id="poolStatus" style="font-size:10px;color:var(--muted);"></span>
@@ -654,6 +682,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   </div>
 
   <div id="wizardMode">
+  <!-- Toggle ver con... Descubrir -->
+  <div id="watchTogetherWrapWizard" class="watch-together-wrap" style="margin-bottom:20px;">
+    <div class="watch-together-label">Ver con</div>
+    <div class="watch-together-chips" id="watchTogetherChipsWizard"></div>
+  </div>
   <div class="disc-wrap">
     <div id="discProgress" class="disc-progress"></div>
     <div id="discStep" class="disc-step"></div>
@@ -810,6 +843,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     </div>
     <div id="profileExportMsg" style="font-size:11px;min-height:16px;margin-top:10px;"></div>
   </div>
+  <!-- Sección perfiles externos -->
+  <div id="guestProfilesSection" style="display:none;" class="guest-profiles-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Ver con...</div>
+      <button class="mbtn mbtn-d" style="font-size:9px;"
+        onclick="document.getElementById('guestImportFile').click()">+ Agregar perfil</button>
+      <input type="file" id="guestImportFile" accept=".qvh,.json" style="display:none"
+        onchange="handleGuestImport(event)">
+    </div>
+    <div id="guestProfilesList"></div>
+    <div id="guestImportMsg" style="font-size:11px;min-height:16px;margin-top:8px;"></div>
+  </div>
   <!-- Diagnóstico de providers — temporal para verificar IDs reales de TMDB -->
   <div id="providerDiagBox" style="background:var(--surface);border:1px solid rgba(255,107,53,0.4);padding:16px 20px;margin-bottom:16px;display:none;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -898,7 +943,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.80");
+console.log("QVH version: 11.81");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1202,6 +1247,7 @@ function saveServices(){
 window.addEventListener("load",function(){
   loadState();
   loadProfile();
+  loadGuestProfiles();
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem("wq_cC"));}catch(e){}
   if(cached&&cached.length){
@@ -2900,6 +2946,24 @@ function rollPrev(){
 }
 
 function rollWithSource(){
+  // Si hay guest activo, usar candidatos filtrados por intersección
+  if(activeGuestId){
+    var pool=getCandidatesShared();
+    if(!pool.length){showToast("Sin títulos con estos filtros para ambos perfiles.");return;}
+    // Ordenar por score compartido
+    var guest=getActiveGuest();
+    if(guest&&guest.profile&&userProfile){
+      pool=pool.slice().sort(function(a,b){
+        return scoreShared(b,guest.profile)-scoreShared(a,guest.profile);
+      });
+    }
+    var f=pool.filter(function(t){return t!==lastPick;});
+    if(!f.length)f=pool;
+    if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
+    lastPick=f[Math.floor(Math.random()*Math.min(f.length,10))];
+    enrichAndReveal(lastPick);
+    return;
+  }
   if(_useSuggestions&&suggestionPool.length){
     var available=suggestionPool.filter(function(m){return m!==lastPick;});
     if(!available.length)available=suggestionPool;
@@ -3577,6 +3641,11 @@ async function runDiscover(){
     if(tmdbPick){ pick = tmdbPick; fromNew = true; }
   }
 
+  // Si hay guest activo, filtrar candidatos de la lista por intersección
+  if(!pick && activeGuestId && titles.some(function(t){return t.status==="active";})){
+    var sharedPool = getCandidatesShared().filter(function(t){return t!==lastPick;});
+    if(sharedPool.length){ pick = sharedPool[Math.floor(Math.random()*sharedPool.length)]; fromNew = false; }
+  }
   if(!pick && titles.some(function(t){return t.status==="active";})){
     var fallback = titles.filter(function(t){return t.status==="active"&&t!==lastPick;});
     if(fallback.length){ pick = fallback[Math.floor(Math.random()*fallback.length)]; fromNew = false; }
@@ -4227,11 +4296,11 @@ function showProfileImportConfirm(data){
     '</div>'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;">'+
     '<button class="mbtn" style="border-color:var(--accent);color:var(--accent);" id="importAsMine">Es mi perfil</button>'+
-    '<button class="mbtn mbtn-d" id="importAsOther" disabled title="Próximamente">Es de alguien más</button>'+
+    '<button class="mbtn" style="border-color:var(--blue);color:var(--blue);" id="importAsOther">Es de alguien más</button>'+
     '<button class="mbtn mbtn-d" id="importCancel">Cancelar</button>'+
     '</div>'+
     '<div style="font-size:9px;color:var(--muted);margin-top:10px;letter-spacing:.5px;">'+
-    'Importar como perfil secundario estará disponible cuando se implemente el sistema de múltiples usuarios.</div>'+
+    'Esto agrega el perfil como una opción de "Ver con..." en ¿Qué veo hoy? y Descubrir.</div>'+
     '</div>';
 
   document.body.appendChild(modal);
@@ -4240,6 +4309,28 @@ function showProfileImportConfirm(data){
   modal.querySelector("#importAsMine").onclick=function(){
     document.body.removeChild(modal);
     applyProfileImport(data, false);
+  };
+  modal.querySelector("#importAsOther").onclick=function(){
+    document.body.removeChild(modal);
+    // Agregar como perfil externo
+    var handle = p.userHandle;
+    var existing = guestProfiles.findIndex(function(g){ return g.userHandle===handle; });
+    var entry = {
+      userHandle: handle,
+      displayName: p.displayName||handle,
+      profile: p,
+      titles: data.titles||[],
+      signals: data.signals||{}
+    };
+    if(existing!==-1) guestProfiles[existing]=entry;
+    else guestProfiles.push(entry);
+    saveGuestProfiles();
+    renderGuestProfiles();
+    renderWatchTogetherToggle();
+    // Ir a Mi perfil para mostrar el perfil importado
+    var manageTab=document.querySelector('.mode-tab[onclick*="manage"]');
+    if(manageTab) setMode("manage",manageTab);
+    showToast("Perfil de @"+handle+" agregado ✓");
   };
 }
 
@@ -4285,6 +4376,184 @@ function applyProfileImport(data, asGuest){
   showToast("Perfil importado ✓");
 }
 
+
+// ── PERFILES EXTERNOS (amigos, pareja, familia) ───────────────────────────────
+// En el futuro estos perfiles vendrán del backend. Por ahora viven en localStorage.
+var guestProfiles = [];      // [{id, displayName, userHandle, profile, titles, signals}]
+var activeGuestId = null;    // handle del perfil con quien se está viendo
+
+function loadGuestProfiles(){
+  try{
+    var stored = JSON.parse(localStorage.getItem("wq_guests")||"[]");
+    guestProfiles = stored;
+  }catch(e){ guestProfiles = []; }
+}
+
+function saveGuestProfiles(){
+  try{ localStorage.setItem("wq_guests", JSON.stringify(guestProfiles)); }catch(e){}
+}
+
+// Importar perfil externo
+function handleGuestImport(e){
+  var file = e.target.files[0];
+  e.target.value = "";
+  if(!file) return;
+  var msg = document.getElementById("guestImportMsg");
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      var data = JSON.parse(ev.target.result);
+      if(!data.qvh_version || !data.profile || !data.profile.userHandle){
+        if(msg) msg.innerHTML = '<span style="color:var(--red)">Archivo no válido.</span>';
+        return;
+      }
+      var handle = data.profile.userHandle;
+      // Verificar que no es el mismo usuario
+      if(userProfile && userProfile.userHandle === handle){
+        if(msg) msg.innerHTML = '<span style="color:var(--red)">Este es tu propio perfil.</span>';
+        return;
+      }
+      // Verificar que no está ya importado
+      var existing = guestProfiles.findIndex(function(g){ return g.userHandle === handle; });
+      if(existing !== -1){
+        // Actualizar si ya existe
+        guestProfiles[existing] = {
+          userHandle: handle,
+          displayName: data.profile.displayName || handle,
+          profile: data.profile,
+          titles: data.titles || [],
+          signals: data.signals || {}
+        };
+        if(msg) msg.innerHTML = '<span style="color:var(--green)">✓ Perfil de @'+handle+' actualizado.</span>';
+      } else {
+        guestProfiles.push({
+          userHandle: handle,
+          displayName: data.profile.displayName || handle,
+          profile: data.profile,
+          titles: data.titles || [],
+          signals: data.signals || {}
+        });
+        if(msg) msg.innerHTML = '<span style="color:var(--green)">✓ Perfil de @'+handle+' agregado.</span>';
+      }
+      saveGuestProfiles();
+      renderGuestProfiles();
+      renderWatchTogetherToggle();
+      setTimeout(function(){ if(msg) msg.innerHTML = ""; }, 3000);
+    }catch(err){
+      if(msg) msg.innerHTML = '<span style="color:var(--red)">Error: '+err.message+'</span>';
+    }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+function removeGuestProfile(handle){
+  guestProfiles = guestProfiles.filter(function(g){ return g.userHandle !== handle; });
+  if(activeGuestId === handle) activeGuestId = null;
+  saveGuestProfiles();
+  renderGuestProfiles();
+  renderWatchTogetherToggle();
+  updateCandidates();
+}
+
+function renderGuestProfiles(){
+  var section = document.getElementById("guestProfilesSection");
+  var list = document.getElementById("guestProfilesList");
+  if(!section || !list) return;
+  section.style.display = guestProfiles.length ? "block" : "none";
+  if(!guestProfiles.length){ list.innerHTML = ""; return; }
+  list.innerHTML = "";
+  guestProfiles.forEach(function(g){
+    var initials = g.displayName
+      ? g.displayName.trim().split(/\s+/).map(function(w){ return w[0]; }).slice(0,2).join("").toUpperCase()
+      : g.userHandle.substring(0,2).toUpperCase();
+    var div = document.createElement("div");
+    div.className = "guest-profile-item";
+    div.innerHTML =
+      '<div class="guest-avatar">'+initials+'</div>'+
+      '<div class="guest-info">'+
+        '<div class="guest-name">'+
+          (g.displayName ? g.displayName.replace(/&/g,"&amp;") : "@"+g.userHandle)+
+        '</div>'+
+        '<div class="guest-handle">@'+g.userHandle+'</div>'+
+      '</div>'+
+      '<button class="ib ib-r" onclick="removeGuestProfile(\''+g.userHandle+'\')" title="Quitar perfil" style="flex-shrink:0;">&#215;</button>';
+    list.appendChild(div);
+  });
+}
+
+// Toggle "Ver con..." — aparece en ¿Qué veo hoy? y Descubrir
+function renderWatchTogetherToggle(){
+  var ids = ["watchTogetherWrap","watchTogetherWrapWizard"];
+  var chipIds = ["watchTogetherChips","watchTogetherChipsWizard"];
+  var hasGuests = guestProfiles.length > 0;
+  ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display=hasGuests?"block":"none"; });
+  if(!hasGuests){ activeGuestId=null; return; }
+  chipIds.forEach(function(chipId){
+    var container = document.getElementById(chipId);
+    if(!container) return;
+    container.innerHTML = "";
+    // Chip "Solo"
+    var soloChip = document.createElement("div");
+    soloChip.className = "wt-chip solo" + (activeGuestId===null?" active":"");
+    soloChip.textContent = "Solo";
+    soloChip.onclick = function(){
+      activeGuestId = null;
+      renderWatchTogetherToggle();
+      updateCandidates();
+    };
+    container.appendChild(soloChip);
+    // Chip por cada perfil externo
+    guestProfiles.forEach(function(g){
+      var chip = document.createElement("div");
+      chip.className = "wt-chip" + (activeGuestId===g.userHandle?" active":"");
+      chip.textContent = g.displayName || "@"+g.userHandle;
+      chip.onclick = function(){
+        activeGuestId = g.userHandle;
+        renderWatchTogetherToggle();
+        updateCandidates();
+        showToast("Modo compartido con "+(g.displayName||"@"+g.userHandle));
+      };
+      container.appendChild(chip);
+    });
+  });
+}
+
+// Scoring compartido: intersección de gustos
+function getActiveGuest(){
+  if(!activeGuestId) return null;
+  return guestProfiles.find(function(g){ return g.userHandle===activeGuestId; }) || null;
+}
+
+// Modifica scoreSuggestion para considerar el perfil del guest
+function scoreShared(m, guestProfile){
+  // Score del perfil principal
+  var s1 = scoreSuggestion(m, userProfile||{});
+  // Score del perfil guest
+  var s2 = scoreSuggestion(m, guestProfile);
+  // Intersección: penalizar si alguno de los dos puntúa muy bajo
+  // El score compartido es el mínimo de los dos, más un bonus si ambos puntúan alto
+  var minScore = Math.min(s1, s2);
+  var bonus = (s1 > 15 && s2 > 15) ? 10 : 0;
+  return minScore + bonus;
+}
+
+// Filtrar candidatos considerando géneros que el guest quiere evitar
+function getCandidatesShared(){
+  var guest = getActiveGuest();
+  if(!guest || !guest.profile) return getCandidates();
+  var pool = getCandidates();
+  var avoidIds = [];
+  (guest.profile.genresAvoid||[]).forEach(function(g){
+    var id = SURVEY_GENRE_MAP[g]; if(id) avoidIds.push(id);
+  });
+  if(!avoidIds.length) return pool;
+  return pool.filter(function(t){
+    if(!t.genres||!t.genres.length) return true;
+    // Excluir si el título tiene un género que el guest quiere evitar
+    return !avoidIds.some(function(g){ return t.genres.indexOf(g)!==-1; });
+  });
+}
+
 function renderProfileSummary(){
   var el=document.getElementById("profileSummary");
   if(!el)return;
@@ -4309,6 +4578,8 @@ function renderManage(){
   renderListsPanel();
   renderProfileIdentity();
   renderProfileSummary();
+  renderGuestProfiles();
+  renderWatchTogetherToggle();
   var q=(document.getElementById("searchM").value||"").toLowerCase();
   var filtered=titles.filter(function(t){
     if(q&&!matchesSearch(t,q))return false;
