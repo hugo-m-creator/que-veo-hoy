@@ -821,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.71");
+console.log("QVH version: 11.72");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3910,7 +3910,7 @@ function renderManage(){
   renderProfileSummary();
   var q=(document.getElementById("searchM").value||"").toLowerCase();
   var filtered=titles.filter(function(t){
-    if(q&&t.n.toLowerCase().indexOf(q)===-1)return false;
+    if(q&&!matchesSearch(t,q))return false;
     if(mFilter==="active")return t.status==="active";
     if(mFilter==="watched")return t.status==="watched";
     if(mFilter==="removed")return t.status==="removed";
@@ -4658,6 +4658,19 @@ function buildBDMenus(){
   }
 }
 
+// Búsqueda multi-campo: divide el query en palabras y verifica que cada
+// palabra aparece en al menos uno de los campos (título, director, año)
+function matchesSearch(t, q){
+  if(!q) return true;
+  var words = q.trim().split(/\s+/);
+  var searchable = [
+    t.n ? t.n.toLowerCase() : "",
+    t.director ? t.director.toLowerCase() : "",
+    t.y ? String(t.y) : ""
+  ].join(" ");
+  return words.every(function(w){ return searchable.indexOf(w) !== -1; });
+}
+
 function getBrowseTitles(){
   titles.forEach(function(t){if(t._randKey===undefined)t._randKey=Math.random();});
   var q=(document.getElementById('browseSearch')||{}).value;
@@ -4672,7 +4685,7 @@ function getBrowseTitles(){
       if(browseStatus==='all'&&t.status==='removed')return false;
       if(browseStatus!=='watched'&&(!t.genres||!t.genres.length))return false;
     }
-    if(q&&t.n.toLowerCase().indexOf(q)===-1)return false;
+    if(q&&!matchesSearch(t,q))return false;
     if(browseType==='movie'&&t.type!=='movie'&&!t.isNew)return false;
     if(browseType==='tv'&&t.type!=='tv')return false;
     if(browseType==='short'&&!(t.m>0&&t.m<45)&&t.type!=='short')return false;
