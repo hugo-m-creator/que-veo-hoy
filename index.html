@@ -733,6 +733,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     </div>
     <div id="profileSummary" style="font-size:11px;color:var(--muted);">Sin perfil guardado. Responde la encuesta para obtener recomendaciones personalizadas.</div>
   </div>
+  <!-- Diagnóstico de providers — temporal para verificar IDs reales de TMDB -->
+  <div id="providerDiagBox" style="background:var(--surface);border:1px solid rgba(255,107,53,0.4);padding:16px 20px;margin-bottom:16px;display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#ff6b35;">&#9888; Diagnóstico de Streaming</div>
+      <button onclick="document.getElementById('providerDiagBox').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">&#215;</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Providers reales de TMDB para tu región. Usa esto para verificar los IDs activos.</div>
+    <div id="providerDiagResult" style="font-size:10px;color:var(--text);line-height:1.9;font-family:'DM Mono',monospace;"></div>
+  </div>
     <div class="sync-box">
       <h3>&#8635; Sincronizar con Letterboxd</h3>
       <div class="sync-steps">
@@ -769,6 +778,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mbtn mbtn-g" onclick="reEnrich()" id="reEnrichBtn">&#9733; Re-enriquecer</button>
       <button class="mbtn" style="border-color:var(--blue);color:var(--blue);" onclick="toggleListsPanel()" id="listsPanelBtn">&#9776; Listas</button>
       <button class="mbtn" style="border-color:var(--red);color:var(--red);" onclick="clearAllTitles()">&#215; Borrar todo</button>
+      <button class="mbtn" style="border-color:#ff8000;color:#ff8000;font-size:9px;" onclick="runProviderDiag()" title="Ver IDs reales de TMDB para tu región">&#9316; Providers</button>
       <button class="mbtn" style="border-color:#ff6b35;color:#ff6b35;font-size:9px;" onclick="resetFullUser()" title="Borrar todo incluyendo perfil, encuesta y caché — para pruebas">&#9762; Reset total</button>
       <span id="reEnrichProgress" style="display:none;font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
     </div>
@@ -811,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.67");
+console.log("QVH version: 11.68");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4049,6 +4059,43 @@ async function importListFromPanel(){
     clearInterval(interval);
     if(lbEl)lbEl.value=prevUrl;
   }
+}
+
+// ── DIAGNÓSTICO DE PROVIDERS ──────────────────────────────────────────────────
+async function runProviderDiag(){
+  var box=document.getElementById('providerDiagBox');
+  var result=document.getElementById('providerDiagResult');
+  if(!box||!result)return;
+  box.style.display='block';
+  result.innerHTML='<span style="color:var(--muted);">Consultando TMDB...</span>';
+  // Determinar región según perfil del usuario
+  var regionMap={"México":"MX","Estados Unidos":"US","España":"ES","Argentina":"AR"};
+  var region=(userProfile&&userProfile.country&&regionMap[userProfile.country])||"MX";
+  try{
+    var r=await fetch("https://api.themoviedb.org/3/watch/providers/movie?api_key="+KEY
+      +"&watch_region="+region+"&language=en-US",{signal:AbortSignal.timeout(8000)});
+    if(!r.ok){result.innerHTML='<span style="color:var(--red)">Error '+r.status+'</span>';return;}
+    var data=await r.json();
+    var providers=(data.results||[])
+      .sort(function(a,b){return(a.display_priorities&&a.display_priorities[region]||99)-(b.display_priorities&&b.display_priorities[region]||99);})
+      .slice(0,30);
+    var known={8:"Netflix",384:"HBO Max",337:"Disney+",119:"Prime Video",
+      531:"Paramount+",350:"Apple TV+",619:"Star+",11:"MUBI",
+      1899:"Max",2096:"Max"};
+    var html='<div style="margin-bottom:8px;color:var(--accent);font-size:9px;letter-spacing:2px;">REGIÓN: '+region+'</div>';
+    html+='<div style="display:grid;grid-template-columns:60px 1fr 80px;gap:2px 12px;">';
+    html+='<span style="color:var(--muted);">ID</span><span style="color:var(--muted);">Nombre</span><span style="color:var(--muted);">En app?</span>';
+    providers.forEach(function(p){
+      var inApp=known[p.provider_id]||"";
+      var highlight=inApp?'color:var(--accent)':'color:var(--text)';
+      html+='<span style="'+highlight+'">'+p.provider_id+'</span>';
+      html+='<span style="'+highlight+'">'+p.provider_name+'</span>';
+      html+='<span style="color:'+(inApp?'var(--green)':'var(--muted)')+';">'+(inApp||'—')+'</span>';
+    });
+    html+='</div>';
+    html+='<div style="margin-top:12px;color:var(--muted);font-size:9px;">Servicios activos en la app: '+activeServices.join(', ')+'</div>';
+    result.innerHTML=html;
+  }catch(e){result.innerHTML='<span style="color:var(--red)">Error: '+e.message+'</span>';}
 }
 
 function resetFullUser(){
