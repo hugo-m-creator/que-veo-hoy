@@ -3071,22 +3071,25 @@ function buildDiscResultCard(t, fromNew, ans){
     : '<span class="disc-source-badge from-list">&#10003; De tu lista</span>';
   var posterHtml = poster
     ? '<img src="'+poster+'" style="width:100px;height:150px;object-fit:cover;flex-shrink:0;" alt="">'
-    : '<div style="width:100px;height:150px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:32px;">&#127902;</div>';
+    : '<div style="width:120px;height:180px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:32px;">&#127902;</div>';
+  var country = t.country ? (COUNTRY_NAMES[t.country]||t.country) : "";
   var movieHtml =
-    '<div style="display:flex;gap:16px;padding:16px;background:var(--surface);border:1px solid var(--border);margin-bottom:12px;">'+
+    '<div style="display:flex;gap:20px;padding:20px;background:var(--surface);border:1px solid var(--border);margin-bottom:16px;">'+
     posterHtml +
     '<div style="flex:1;min-width:0;">'+
     sourceBadge +
-    '<div style="font-family:Playfair Display,serif;font-size:22px;font-weight:700;color:var(--text);margin:8px 0 6px;">'+t.n+'</div>'+
-    '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">'+
-      (t.y||"")+(dur?" · "+dur:"")+(t.director?" · "+t.director:"")+"</div>"+
-    (genres.length ? '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'+
-      genres.map(function(g){return '<span style="font-size:9px;padding:2px 8px;border:1px solid var(--border);color:var(--muted);">'+g+"</span>";}).join("")+"</div>" : "")+
-    (t.overview ? '<div style="font-size:13px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">'+t.overview+"</div>" : "")+
+    '<div style="font-family:Playfair Display,serif;font-size:24px;font-weight:700;color:var(--text);margin:8px 0 6px;line-height:1.2;">'+t.n+'</div>'+
+    '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+
+      (t.y||"")+(dur?" · "+dur:"")+'</div>'+
+    (t.director ? '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Dir. '+t.director+'</div>' : "")+
+    (country ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">&#127758; '+country+'</div>' : "")+
+    (genres.length ? '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">'+
+      genres.map(function(g){return '<span style="font-size:10px;padding:3px 10px;border:1px solid var(--border);color:var(--muted);">'+g+"</span>";}).join("")+"</div>" : "")+
+    (t.overview ? '<div style="font-size:13px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">'+t.overview+"</div>" : "")+
     '</div></div>';
 
   // ── Tags (placeholders) ──
-  var tagsHtml = '<div style="margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Cómo se siente</div>';
+  var tagsHtml = '<div style="margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Palabras clave</div>';
   tagsHtml += '<div class="disc-tags" id="discTags">';
   for(var i=0;i<5;i++) tagsHtml += '<span class="disc-tag loading">···</span>';
   tagsHtml += '</div></div>';
@@ -3201,15 +3204,21 @@ async function generateDiscTags(t){
 function discAccept(){
   if(!lastPick) return;
   _discoverSkipCount = 0;
+  var name = lastPick.n;
   acceptSuggestion(lastPick);
-  document.getElementById("discResult").innerHTML = "";
+  var result = document.getElementById("discResult");
+  if(result) result.innerHTML =
+    '<div style="padding:20px 0;">'+
+    '<div style="color:var(--green);font-size:16px;margin-bottom:16px;">&#10003; Agregada a tu lista: '+name+'</div>'+
+    '<button class="mbtn mbtn-d" onclick="startWizard()" style="font-size:11px;">&#8635; Buscar otra película</button>'+
+    '</div>';
 }
 function discDismiss(){
   if(!lastPick) return;
   _discoverSkipCount++;
   dismissSuggestion(lastPick._tmdbId, lastPick.director, lastPick.genres);
-  document.getElementById("discResult").innerHTML = "";
-  // Reagendar con mismos filtros
+  document.getElementById("discResult").innerHTML =
+    '<div style="color:var(--muted);font-size:12px;padding:12px 0;">Buscando otra opción...</div>';
   setTimeout(function(){ runDiscover(); }, 400);
 }
 function discOther(){
