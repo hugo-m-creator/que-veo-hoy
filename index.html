@@ -345,6 +345,34 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   color:var(--muted);white-space:nowrap;}
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
+.profile-identity{background:var(--surface);border:1px solid var(--border);
+  padding:20px 24px;margin-bottom:16px;}
+.profile-identity-header{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;}
+.profile-avatar{width:48px;height:48px;border-radius:50%;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;
+  font-size:20px;font-weight:900;color:#000;flex-shrink:0;user-select:none;}
+.profile-names{flex:1;min-width:0;}
+.profile-display-name{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;
+  color:var(--text);line-height:1.2;margin-bottom:3px;}
+.profile-display-name.empty{color:var(--muted);font-style:italic;font-size:16px;}
+.profile-handle{font-size:11px;color:var(--accent);letter-spacing:.5px;font-family:'DM Mono',monospace;}
+.profile-handle.empty{color:var(--muted);}
+.profile-meta{font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:.3px;}
+.profile-edit-form{margin-top:16px;padding-top:16px;border-top:1px solid var(--border);
+  display:none;}
+.profile-edit-form.open{display:block;}
+.profile-field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.profile-field label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.profile-field input{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:'DM Mono',monospace;font-size:13px;padding:9px 12px;outline:none;width:100%;
+  box-sizing:border-box;}
+.profile-field input:focus{border-color:var(--accent);}
+.profile-field-hint{font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.3px;}
+.profile-handle-prefix{position:relative;}
+.profile-handle-prefix input{padding-left:22px;}
+.profile-handle-at{position:absolute;left:12px;top:50%;transform:translateY(-50%);
+  color:var(--accent);font-family:'DM Mono',monospace;font-size:13px;pointer-events:none;}
 .stream-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
 .stream-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;}
 .stream-logos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:20px;}
@@ -725,13 +753,62 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   </div>
 
   <div id="manageMode">
-  <!-- Sección de perfil -->
-  <div id="profileSection" style="margin-bottom:20px;padding:16px;border:1px solid var(--border);background:var(--surface);">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Tu perfil</div>
+  <!-- Sección de identidad del usuario -->
+  <div class="profile-identity" id="profileIdentitySection">
+    <div class="profile-identity-header">
+      <div id="profileAvatar" class="profile-avatar">?</div>
+      <div class="profile-names">
+        <div id="profileDisplayName" class="profile-display-name empty"></div>
+        <div id="profileHandle" class="profile-handle empty">@usuario</div>
+        <div id="profileMeta" class="profile-meta"></div>
+      </div>
+      <button class="mbtn mbtn-d" style="font-size:9px;flex-shrink:0;"
+        onclick="toggleProfileEditForm()">&#9998; Editar</button>
+    </div>
+    <!-- Formulario de edición inline -->
+    <div class="profile-edit-form" id="profileEditForm">
+      <div class="profile-field">
+        <label>Nombre</label>
+        <input id="profileInputName" type="text" placeholder="ej. Tyler Durden"
+          maxlength="60" oninput="previewProfileName()">
+      </div>
+      <div class="profile-field">
+        <label>Nombre de usuario</label>
+        <div class="profile-handle-prefix">
+          <span class="profile-handle-at">@</span>
+          <input id="profileInputHandle" type="text" placeholder=""
+            maxlength="30" oninput="previewProfileHandle()"
+            style="padding-left:22px;">
+        </div>
+        <div class="profile-field-hint">Solo letras, números y guiones bajos. Se usará para identificarte cuando compartas tu perfil.</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="mbtn mbtn-g" onclick="saveProfileIdentity()">Guardar</button>
+        <button class="mbtn mbtn-d" onclick="toggleProfileEditForm()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  <!-- Resumen de encuesta -->
+  <div id="profileSection" style="margin-bottom:16px;padding:14px 20px;border:1px solid var(--border);background:var(--surface);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Preferencias de cine</div>
       <button class="mbtn mbtn-d" style="font-size:9px;" onclick="confirmOpenSurvey()">&#9998; Editar encuesta</button>
     </div>
     <div id="profileSummary" style="font-size:11px;color:var(--muted);">Sin perfil guardado. Responde la encuesta para obtener recomendaciones personalizadas.</div>
+  </div>
+  <!-- Sección de exportación e importación de perfil -->
+  <div id="profileExportSection" style="background:var(--surface);border:1px solid var(--border);padding:20px 24px;margin-bottom:16px;">
+    <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Exportar e importar perfil</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:16px;">
+      Tu perfil incluye tu watchlist, encuesta, preferencias y señales de aprendizaje.<br>
+      Puedes exportarlo para hacer una copia de seguridad o compartirlo con otro dispositivo.
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="mbtn" style="border-color:var(--accent);color:var(--accent);transition:all 0.15s;" onmouseover="this.style.background='var(--accent)';this.style.color='#0c0c0e';" onmouseout="this.style.background='';this.style.color='var(--accent)';" onclick="exportProfile()">&#8593; Exportar perfil</button>
+      <button class="mbtn mbtn-d" onclick="document.getElementById('profileImportFile').click()">&#8595; Importar perfil</button>
+      <input type="file" id="profileImportFile" accept=".qvh,.json" style="display:none" onchange="handleProfileImport(event)">
+    </div>
+    <div id="profileExportMsg" style="font-size:11px;min-height:16px;margin-top:10px;"></div>
   </div>
   <!-- Diagnóstico de providers — temporal para verificar IDs reales de TMDB -->
   <div id="providerDiagBox" style="background:var(--surface);border:1px solid rgba(255,107,53,0.4);padding:16px 20px;margin-bottom:16px;display:none;">
@@ -821,7 +898,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.74");
+console.log("QVH version: 11.80");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -2382,6 +2459,22 @@ function saveSurveyFinish(){
   }
   closeSurvey();
   showToast("Perfil guardado ✓");
+  // Si no tiene handle aún, ir a Mi perfil y abrir el form de identidad
+  if(!userProfile.userHandle){
+    setTimeout(function(){
+      var manageTab=document.querySelector('.mode-tab[onclick*="manage"]');
+      if(manageTab)setMode("manage",manageTab);
+      setTimeout(function(){
+        var form=document.getElementById("profileEditForm");
+        var handleInput=document.getElementById("profileInputHandle");
+        if(form&&!form.classList.contains("open")){
+          form.classList.add("open");
+          if(handleInput)handleInput.focus();
+          showToast("Elige tu @handle para completar tu perfil");
+        }
+      },300);
+    },400);
+  }
   // Procesar películas de referencia: agregar a signalsPositive y extraer preferencias
   if(userProfile.refs&&userProfile.refs.length){
     userProfile.refs.forEach(function(ref){
@@ -3885,6 +3978,313 @@ function renderServicesPills(){
   });
 }
 function setMF(f,btn){mFilter=f;document.querySelectorAll(".mfbtn").forEach(function(b){b.classList.remove("active");});btn.classList.add("active");renderManage();}
+
+// ── IDENTIDAD DEL USUARIO ─────────────────────────────────────────────────────
+function normalizeHandle(s){
+  // Solo letras, números y guiones bajos — sin @ — lowercase
+  return s.replace(/[^a-zA-Z0-9_]/g,"").toLowerCase().substring(0,30);
+}
+
+function getInitials(name){
+  if(!name)return "?";
+  var parts=name.trim().split(/\s+/);
+  if(parts.length>=2)return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+  return name.substring(0,2).toUpperCase();
+}
+
+function renderProfileIdentity(){
+  var avatar=document.getElementById("profileAvatar");
+  var nameEl=document.getElementById("profileDisplayName");
+  var handleEl=document.getElementById("profileHandle");
+  var metaEl=document.getElementById("profileMeta");
+  if(!avatar||!nameEl||!handleEl)return;
+
+  var name=(userProfile&&userProfile.displayName)||"";
+  var handle=(userProfile&&userProfile.userHandle)||"";
+
+  // Avatar: iniciales si hay nombre, vacío si no
+  if(name){
+    avatar.textContent=getInitials(name);
+    avatar.style.background="var(--accent)";
+    avatar.style.color="#000";
+    avatar.style.display="flex";
+  }else{
+    avatar.style.display="none";
+  }
+
+  // Nombre: solo mostrar si existe
+  if(name){
+    nameEl.textContent=name;
+    nameEl.classList.remove("empty");
+    nameEl.style.display="";
+  }else{
+    nameEl.textContent="";
+    nameEl.style.display="none";
+  }
+
+  // Handle: solo mostrar si existe
+  if(handle){
+    handleEl.textContent="@"+handle;
+    handleEl.classList.remove("empty");
+    handleEl.style.display="";
+  }else{
+    handleEl.textContent="";
+    handleEl.style.display="none";
+  }
+
+  // Meta: vacío — edad y país son internos
+  if(metaEl)metaEl.textContent="";
+}
+
+function toggleProfileEditForm(){
+  var form=document.getElementById("profileEditForm");
+  if(!form)return;
+  var isOpen=form.classList.contains("open");
+  // Si no hay handle, no se puede cerrar el form — es obligatorio configurarlo
+  if(isOpen&&!(userProfile&&userProfile.userHandle)){
+    showToast("Necesitas un @handle para continuar");
+    return;
+  }
+  if(!isOpen){
+    // Poblar con valores actuales
+    var nameInput=document.getElementById("profileInputName");
+    var handleInput=document.getElementById("profileInputHandle");
+    if(nameInput)nameInput.value=(userProfile&&userProfile.displayName)||"";
+    if(handleInput)handleInput.value=(userProfile&&userProfile.userHandle)||"";
+  }
+  form.classList.toggle("open");
+}
+
+function previewProfileName(){
+  var input=document.getElementById("profileInputName");
+  var nameEl=document.getElementById("profileDisplayName");
+  var avatar=document.getElementById("profileAvatar");
+  if(!input||!nameEl)return;
+  var val=input.value.trim();
+  if(val){
+    nameEl.textContent=val;
+    nameEl.style.display="";
+    nameEl.classList.remove("empty");
+    if(avatar){avatar.textContent=getInitials(val);avatar.style.background="var(--accent)";avatar.style.color="#000";avatar.style.display="flex";}
+  }else{
+    nameEl.textContent="";
+    nameEl.style.display="none";
+    if(avatar)avatar.style.display="none";
+  }
+}
+
+function previewProfileHandle(){
+  var input=document.getElementById("profileInputHandle");
+  var handleEl=document.getElementById("profileHandle");
+  if(!input||!handleEl)return;
+  var val=normalizeHandle(input.value);
+  input.value=val;
+  if(val){
+    handleEl.textContent="@"+val;
+    handleEl.style.display="";
+    handleEl.classList.remove("empty");
+  }else{
+    handleEl.textContent="";
+    handleEl.style.display="none";
+  }
+}
+
+function saveProfileIdentity(){
+  var nameInput=document.getElementById("profileInputName");
+  var handleInput=document.getElementById("profileInputHandle");
+  var name=(nameInput&&nameInput.value.trim())||"";
+  var handle=normalizeHandle((handleInput&&handleInput.value)||"");
+
+  // Handle es obligatorio — nombre es opcional
+  if(!handle){
+    showToast("El nombre de usuario (@handle) es obligatorio");
+    if(handleInput){handleInput.focus();handleInput.style.borderColor="var(--red)";}
+    return;
+  }
+  if(handleInput)handleInput.style.borderColor="";
+
+  // Guardar en userProfile
+  if(!userProfile)userProfile={};
+  if(name)userProfile.displayName=name;
+  else delete userProfile.displayName;
+  userProfile.userHandle=handle;
+  // Compatibilidad con campo userName existente
+  userProfile.userName=name||handle;
+  saveProfile();
+
+  // Cerrar form y actualizar UI
+  var form=document.getElementById("profileEditForm");
+  if(form)form.classList.remove("open");
+  renderProfileIdentity();
+  showToast("Perfil actualizado ✓");
+}
+
+
+// ── EXPORTACIÓN E IMPORTACIÓN DE PERFIL ──────────────────────────────────────
+// Formato .qvh — "Qué Veo Hoy" profile
+// En el futuro este formato será el mismo que use el backend para sync entre dispositivos
+
+function exportProfile(){
+  var msg=document.getElementById("profileExportMsg");
+  if(!userProfile){
+    if(msg)msg.innerHTML='<span style="color:var(--red)">No hay perfil guardado. Completa la encuesta primero.</span>';
+    return;
+  }
+  if(!userProfile.userHandle){
+    if(msg)msg.innerHTML='<span style="color:var(--red)">Configura tu @handle antes de exportar.</span>';
+    return;
+  }
+
+  var exportData={
+    qvh_version:"1.0",
+    exported_at:new Date().toISOString().slice(0,10),
+    profile:{
+      displayName:userProfile.displayName||"",
+      userHandle:userProfile.userHandle,
+      // Datos de encuesta
+      gender:userProfile.gender||null,
+      birthYear:userProfile.birthYear||null,
+      frequency:userProfile.frequency||null,
+      attitude:userProfile.attitude||null,
+      ratings:userProfile.ratings||null,
+      eras:userProfile.eras||[],
+      origins:userProfile.origins||[],
+      genresLike:userProfile.genresLike||[],
+      genresAvoid:userProfile.genresAvoid||[],
+      violence:userProfile.violence||null,
+      sexual:userProfile.sexual||null,
+      topics:userProfile.topics||[],
+      country:userProfile.country||null,
+      services:userProfile.services||[],
+      duration:userProfile.duration||null,
+      sortprendemme:userProfile.sortprendemme||null,
+      refs:userProfile.refs||[]
+    },
+    titles:titles.filter(function(t){return t.status!=="removed";}),
+    signals:{
+      positive:signalsPositive,
+      negative:signalsNegative,
+      counts:signalsCounts
+    },
+    suggestion_pool:suggestionPool.slice(0,50) // limitar para no hacer el archivo enorme
+  };
+
+  var json=JSON.stringify(exportData,null,2);
+  var blob=new Blob([json],{type:"application/json;charset=utf-8;"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="qvh-"+userProfile.userHandle+"-"+exportData.exported_at+".qvh";
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; Perfil exportado como '
+    +a.download+'</span>';
+  setTimeout(function(){if(msg)msg.innerHTML="";},4000);
+}
+
+function handleProfileImport(e){
+  var file=e.target.files[0];
+  e.target.value="";
+  if(!file)return;
+  var msg=document.getElementById("profileExportMsg");
+
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var data=JSON.parse(ev.target.result);
+      // Validar formato
+      if(!data.qvh_version||!data.profile||!data.profile.userHandle){
+        if(msg)msg.innerHTML='<span style="color:var(--red)">Archivo no válido. Debe ser un perfil exportado desde esta app.</span>';
+        return;
+      }
+      // Mostrar modal de confirmación
+      showProfileImportConfirm(data);
+    }catch(err){
+      if(msg)msg.innerHTML='<span style="color:var(--red)">Error al leer el archivo: '+err.message+'</span>';
+    }
+  };
+  reader.readAsText(file,"utf-8");
+}
+
+function showProfileImportConfirm(data){
+  var p=data.profile;
+  var name=p.displayName?p.displayName+" (@"+p.userHandle+")":"@"+p.userHandle;
+  var titlesCount=(data.titles||[]).length;
+
+  // Crear modal de confirmación
+  var modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;z-index:600;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;";
+  modal.innerHTML=
+    '<div style="background:var(--surface);border:1px solid var(--border);padding:32px;max-width:460px;width:92%;">'+
+    '<div style="font-family:\'Playfair Display\',serif;font-size:20px;color:var(--accent);margin-bottom:12px;">Importar perfil</div>'+
+    '<div style="font-size:12px;color:var(--text);margin-bottom:6px;">Perfil detectado: <strong>'+name+'</strong></div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:20px;">'+titlesCount+' películas · exportado el '+data.exported_at+'</div>'+
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:20px;padding:12px;background:var(--surface2);border:1px solid var(--border);">'+
+    '&#9888; Si importas este perfil como <strong style="color:var(--text)">tuyo</strong>, '+
+    'reemplazará tu perfil actual.<br><br>'+
+    'Si es el perfil de <strong style="color:var(--text)">otra persona</strong>, '+
+    'se guardará como perfil secundario para recomendaciones compartidas (próximamente).'+
+    '</div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;">'+
+    '<button class="mbtn" style="border-color:var(--accent);color:var(--accent);" id="importAsMine">Es mi perfil</button>'+
+    '<button class="mbtn mbtn-d" id="importAsOther" disabled title="Próximamente">Es de alguien más</button>'+
+    '<button class="mbtn mbtn-d" id="importCancel">Cancelar</button>'+
+    '</div>'+
+    '<div style="font-size:9px;color:var(--muted);margin-top:10px;letter-spacing:.5px;">'+
+    'Importar como perfil secundario estará disponible cuando se implemente el sistema de múltiples usuarios.</div>'+
+    '</div>';
+
+  document.body.appendChild(modal);
+
+  modal.querySelector("#importCancel").onclick=function(){document.body.removeChild(modal);};
+  modal.querySelector("#importAsMine").onclick=function(){
+    document.body.removeChild(modal);
+    applyProfileImport(data, false);
+  };
+}
+
+function applyProfileImport(data, asGuest){
+  var p=data.profile;
+  var msg=document.getElementById("profileExportMsg");
+
+  // Importar como perfil propio
+  userProfile=Object.assign(userProfile||{}, p);
+  saveProfile();
+
+  // Importar títulos
+  if(data.titles&&data.titles.length){
+    var ourURIs=new Set(titles.map(function(t){return t.u;}));
+    var added=0;
+    data.titles.forEach(function(t){
+      if(t.u&&ourURIs.has(t.u))return;
+      var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
+      t.idx=ni;
+      titles.push(t);
+      if(t.u)ourURIs.add(t.u);
+      added++;
+    });
+    saveState();
+    buildGenres();buildDecades();buildCountries();buildLists();
+    updateStats();updateCandidates();renderManage();
+  }
+
+  // Importar señales
+  if(data.signals){
+    if(data.signals.positive)signalsPositive=data.signals.positive;
+    if(data.signals.negative)signalsNegative=data.signals.negative;
+    if(data.signals.counts)signalsCounts=data.signals.counts;
+    saveSignals();
+  }
+
+  renderProfileIdentity();
+  renderProfileSummary();
+
+  var titlesMsg=data.titles&&data.titles.length?" · "+(data.titles.length)+" películas importadas":"";
+  if(msg)msg.innerHTML='<span style="color:var(--green)">&#10003; Perfil importado correctamente'+titlesMsg+'</span>';
+  setTimeout(function(){if(msg)msg.innerHTML="";},4000);
+  showToast("Perfil importado ✓");
+}
+
 function renderProfileSummary(){
   var el=document.getElementById("profileSummary");
   if(!el)return;
@@ -3907,6 +4307,7 @@ function renderProfileSummary(){
 function renderManage(){
   renderServicesPills();
   renderListsPanel();
+  renderProfileIdentity();
   renderProfileSummary();
   var q=(document.getElementById("searchM").value||"").toLowerCase();
   var filtered=titles.filter(function(t){
