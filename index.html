@@ -1354,7 +1354,7 @@ async function startEnrich(){
           async function getTMDBDir(cand){
             try{
               var ep2=cand.media_type==="tv"?"tv":"movie";
-              var rc2=await fetch("https://api.themoviedb.org/3/"+ep2+"/"+cand.id+"?api_key="+KEY+"&append_to_response=credits",{signal:AbortSignal.timeout(4000)});
+              var rc2=await fetch("https://api.themoviedb.org/3/"+ep2+"/"+cand.id+"?api_key="+KEY+"&append_to_response=credits,release_dates,keywords",{signal:AbortSignal.timeout(4000)});
               if(!rc2.ok)return null;
               var dc2=await rc2.json();
               var crew2=(dc2.credits&&dc2.credits.crew)||[];
@@ -1444,6 +1444,18 @@ async function startEnrich(){
         var ctry=det.production_countries||det.origin_country||[];
         if(ctry.length)t.country=typeof ctry[0]==="string"?ctry[0]:(ctry[0].iso_3166_1||"");
         t._tmdbId=tid;t._mediaType=ep;t._imdbId=det.imdb_id||null;
+        // Clasificación de edad (US rating)
+        var relDates=det.release_dates&&det.release_dates.results||[];
+        var usRel=relDates.find(function(r){return r.iso_3166_1==="US";});
+        var mxRel=relDates.find(function(r){return r.iso_3166_1==="MX";});
+        var certSrc=mxRel||usRel;
+        if(certSrc&&certSrc.release_dates&&certSrc.release_dates.length){
+          var cert=certSrc.release_dates.find(function(r){return r.certification;});
+          t.certification=cert?cert.certification:null;
+        }
+        // Keywords para filtrado de contenido sensible
+        var kws=(det.keywords&&det.keywords.keywords)||(det.keywords&&det.keywords.results)||[];
+        t._keywordIds=kws.map(function(k){return k.id;});
         // Usar título en inglés excepto si el idioma original es español
         if(det.original_language==="es"){
           if(det.original_title&&det.original_title!==t.n)t.n=det.original_title;
@@ -2220,12 +2232,74 @@ function saveSurveyFinish(){
   }
   closeSurvey();
   showToast("Perfil guardado ✓");
+  // Procesar películas de referencia: agregar a signalsPositive y extraer preferencias
+  if(userProfile.refs&&userProfile.refs.length){
+    userProfile.refs.forEach(function(ref){
+      if(ref.tmdbId&&signalsPositive.indexOf(ref.tmdbId)===-1){
+        signalsPositive.push(ref.tmdbId);
+      }
+    });
+    saveSignals();
+    // Enriquecer refs en background para obtener géneros y director
+    setTimeout(function(){enrichRefs(userProfile.refs);},1000);
+  }
   // Si no hay títulos, generar pool
   if(!titles.length||!titles.some(function(t){return t.status==="active";})){
-    setTimeout(function(){buildSuggestionPool();},500);
+    setTimeout(function(){buildSuggestionPool();},2000);
   }
   // Actualizar filtros
   renderServicesPills();buildFilterServicePills();updateCandidates();
+}
+
+// ── Enriquecer películas de referencia ──────────────────────────
+async function enrichRefs(refs){
+  if(!refs||!refs.length)return;
+  var refGenres=[];
+  var refDirectors=[];
+  var refDecades=[];
+  var similarIds=[];
+  for(var i=0;i<Math.min(refs.length,5);i++){
+    var ref=refs[i];
+    if(!ref.tmdbId)continue;
+    try{
+      // Datos de la película
+      var r=await fetch("https://api.themoviedb.org/3/movie/"+ref.tmdbId+"?api_key="+KEY+"&append_to_response=credits,similar",{signal:AbortSignal.timeout(6000)});
+      if(!r.ok)continue;
+      var det=await r.json();
+      // Géneros
+      (det.genres||[]).forEach(function(g){
+        if(refGenres.indexOf(g.id)===-1)refGenres.push(g.id);
+      });
+      // Director
+      var crew=(det.credits&&det.credits.crew)||[];
+      var dir=crew.find(function(c){return c.job==="Director";});
+      if(dir&&refDirectors.indexOf(dir.name)===-1)refDirectors.push(dir.name);
+      // Década
+      if(det.release_date){
+        var decade=Math.floor(parseInt(det.release_date.substring(0,4))/10)*10;
+        if(refDecades.indexOf(decade)===-1)refDecades.push(decade);
+      }
+      // Películas similares — agregar al pool de señales positivas
+      var similar=(det.similar&&det.similar.results)||[];
+      similar.slice(0,5).forEach(function(m){
+        if(m.id&&similarIds.indexOf(m.id)===-1)similarIds.push(m.id);
+      });
+    }catch(e){}
+    await new Promise(function(res){setTimeout(res,300);});
+  }
+  // Guardar en perfil para uso en scoreSuggestion
+  if(userProfile){
+    userProfile._refGenres=refGenres;
+    userProfile._refDirectors=refDirectors;
+    userProfile._refDecades=refDecades;
+    userProfile._similarIds=similarIds;
+    saveProfile();
+  }
+  // Agregar similares a signalsPositive
+  similarIds.forEach(function(id){
+    if(signalsPositive.indexOf(id)===-1)signalsPositive.push(id);
+  });
+  saveSignals();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2234,6 +2308,15 @@ function saveSurveyFinish(){
 // OMDB_KEY removida — no se usa actualmente
 
 // Mapeo de respuestas de encuesta a IDs de género TMDB
+// Keywords de TMDB para contenido sensible
+var SENSITIVE_KEYWORDS = {
+  violence:    [156205,10148,226,4270,10384,83,226,27536],   // rape, sexual violence, violence, gore
+  sexual:      [10148,156205,6054,9663,6917,4430],           // sexual violence, nudity, sex
+  animals:     [6890,13056,4325],                            // animal cruelty, dog death
+  dark:        [3691,155358,11091,276130,10538,3539],        // suicide, self harm, abuse
+  kids:        [156205,10148,6890,83,4270,3691,155358]       // todo lo anterior para modo kids
+};
+
 var SURVEY_GENRE_MAP = {
   "Drama":28,"Drama":18,"Comedia":35,"Terror":27,"Acción":28,
   "Ciencia ficción":878,"Thriller / Suspenso":53,"Romance":10749,
@@ -2350,6 +2433,19 @@ async function buildSuggestionPool(){
     }
   }catch(e){console.error("buildSuggestionPool fetch:",e);}
 
+  // Agregar similares a las refs
+  if(p._similarIds&&p._similarIds.length){
+    try{
+      for(var si=0;si<Math.min(p._similarIds.length,20);si++){
+        var simId=p._similarIds[si];
+        if(existingIds.has(simId)||signalsNegative.indexOf(simId)!==-1)continue;
+        if(candidates.find(function(c){return c.id===simId;}))continue;
+        var simR=await fetch("https://api.themoviedb.org/3/movie/"+simId+"?api_key="+KEY+"&language=en-US",{signal:AbortSignal.timeout(4000)});
+        if(simR.ok){var simD=await simR.json();if(simD.id)candidates.push(simD);}
+        await sleep(100);
+      }
+    }catch(e){}
+  }
   if(!candidates.length){
     if(bar)bar.style.display="none";
     showToast("No se encontraron sugerencias. Intenta ampliar tu perfil.");
@@ -2375,8 +2471,9 @@ async function buildSuggestionPool(){
       _isSuggestion:true
     };
     // Filtro de contenido sensible (solo si el perfil lo requiere)
-    // filtrado de contenido sensible via TMDB keywords (Fase 2)
-  // doesthedogdie removido — API no pública
+    if(needSensitive&&entry._keywordIds){
+      if(!checkSensitiveContentByKeywords(entry._keywordIds,p.topics))continue;
+    }
     pool.push(entry);
     if(ci%20===0&&cnt)cnt.textContent=(ci+1)+"/"+candidates.length+" procesadas...";
     if(ci%20===0)await sleep(50);
@@ -2409,8 +2506,16 @@ function scoreSuggestion(m,p){
     if(genreIds.indexOf(g)!==-1)score+=10;
     if(avoidIds.indexOf(g)!==-1)score-=15;
   });
-  // Señales positivas
+  // Señales positivas (liked o vista)
   if(signalsPositive.indexOf(m.id)!==-1)score+=20;
+  // Películas similares a las de referencia
+  if(p._similarIds&&p._similarIds.indexOf(m.id)!==-1)score+=15;
+  // Géneros de películas de referencia
+  if(p._refGenres&&p._refGenres.length){
+    (m.genre_ids||[]).forEach(function(g){
+      if(p._refGenres.indexOf(g)!==-1)score+=8;
+    });
+  }
   // Popularidad inversa si prefiere descubrir
   if(p.ratings==="Prefiero descubrir películas poco conocidas"){
     score -= (m.popularity||0)*0.02;
@@ -2428,10 +2533,40 @@ function checkNeedsSensitiveFilter(p){
     (p.topics&&p.topics.length&&p.topics.indexOf("Ninguno en particular")===-1);
 }
 
-async function checkSensitiveContent(tmdbId,p){
-  // Fase 2: implementar con TMDB keywords
-  // Por ahora retorna true (no filtra) hasta implementar keywords
+function checkSensitiveContentByKeywords(keywordIds, restrictions){
+  // Filtrar por keywords de TMDB según restricciones del perfil o sesión
+  if(!keywordIds||!keywordIds.length)return true;
+  var topics=restrictions||[];
+  if(!topics.length)return true;
+  if(topics.indexOf("violence")!==-1||topics.indexOf("Prefiero evitar violencia gráfica")!==-1){
+    if(SENSITIVE_KEYWORDS.violence.some(function(k){return keywordIds.indexOf(k)!==-1;}))return false;
+  }
+  if(topics.indexOf("sexual")!==-1||topics.indexOf("Prefiero evitar desnudos o escenas explícitas")!==-1){
+    if(SENSITIVE_KEYWORDS.sexual.some(function(k){return keywordIds.indexOf(k)!==-1;}))return false;
+  }
+  if(topics.indexOf("kids")!==-1){
+    if(SENSITIVE_KEYWORDS.kids.some(function(k){return keywordIds.indexOf(k)!==-1;}))return false;
+  }
+  if(topics.indexOf("dark")!==-1||topics.indexOf("Temas oscuros")!==-1){
+    if(SENSITIVE_KEYWORDS.dark.some(function(k){return keywordIds.indexOf(k)!==-1;}))return false;
+  }
   return true;
+}
+async function checkSensitiveContent(tmdbId,p){
+  // Usar keywords que ya tenemos en memoria si están disponibles
+  var existing=titles.find(function(t){return t._tmdbId===tmdbId;});
+  if(existing&&existing._keywordIds){
+    return checkSensitiveContentByKeywords(existing._keywordIds,p.topics);
+  }
+  // Si no, consultar TMDB keywords
+  try{
+    var r=await fetch("https://api.themoviedb.org/3/movie/"+tmdbId+"/keywords?api_key="+KEY,
+      {signal:AbortSignal.timeout(4000)});
+    if(!r.ok)return true;
+    var data=await r.json();
+    var kws=(data.keywords||data.results||[]).map(function(k){return k.id;});
+    return checkSensitiveContentByKeywords(kws,p.topics);
+  }catch(e){return true;}
 }
 
 function applySignalPatterns(pool){
@@ -2493,6 +2628,10 @@ function acceptSuggestion(t){
   saveSuggestionPool();saveSignals();saveState();
   updateStats();updateCandidates();buildGenres();buildDecades();buildLists();renderManage();
   showToast("Agregada a tu lista: "+t.n);
+  // Buscar URL de Letterboxd en background si no tiene
+  if(!newT.u&&newT.n){
+    (function(nt){fetchLBUrl(nt.n,nt.y).then(function(url){if(url){nt.u=url;saveState();}});  })(newT);
+  }
 }
 
 // ── Toggle de fuente en Filtros ────────────────────────────────────
@@ -2573,6 +2712,7 @@ function showResult(t){
   if(dur)meta+="<div><span>"+dur+"</span></div>";
   if(t.director)meta+="<div>Dir. <span>"+t.director+"</span></div>";
   if(t.country)meta+="<div><span>"+(COUNTRY_NAMES[t.country]||t.country)+"</span></div>";
+  if(t.certification)meta+='<div><span style="font-size:9px;padding:1px 5px;border:1px solid var(--muted);border-radius:2px;letter-spacing:.5px;">'+t.certification+"</span></div>";
   document.getElementById("rMeta").innerHTML=meta;
   document.getElementById("rGenres").innerHTML=(t.genres||[]).map(function(g){return GENRE_MAP[g]?'<span class="r-genre">'+GENRE_MAP[g]+"</span>":""}).join("");
   document.getElementById("rOverview").textContent="";
@@ -3007,7 +3147,7 @@ async function runDiscover(){
 
   if((!pick && sourceV !== "list") || sourceV === "new"){
     // Buscar en TMDB
-    var tmdbPick = await discoverFromTMDB(timeV, moodV, typeOverride, kidsMode);
+    var tmdbPick = await discoverFromTMDB(timeV, moodV, typeOverride, kidsMode, noViolence, noSexual, noDark);
     if(tmdbPick){ pick = tmdbPick; fromNew = true; }
   }
 
@@ -3028,7 +3168,7 @@ async function runDiscover(){
   buildDiscResultCard(pick, fromNew, ans);
 }
 
-async function discoverFromTMDB(timeV, moodV, typeOverride, kidsMode){
+async function discoverFromTMDB(timeV, moodV, typeOverride, kidsMode, noViolence, noSexual, noDark){
   try{
     var params = [];
     var ep = typeOverride === "tv" ? "tv" : "movie";
@@ -3043,6 +3183,13 @@ async function discoverFromTMDB(timeV, moodV, typeOverride, kidsMode){
     params.push("vote_average.gte=6.5");
     params.push("vote_count.gte=500");
     params.push("sort_by=vote_average.desc");
+    // Filtrar contenido sensible via without_keywords
+    var badKws=[];
+    if(noViolence)(SENSITIVE_KEYWORDS.violence||[]).forEach(function(k){if(badKws.indexOf(k)===-1)badKws.push(k);});
+    if(noSexual)(SENSITIVE_KEYWORDS.sexual||[]).forEach(function(k){if(badKws.indexOf(k)===-1)badKws.push(k);});
+    if(noDark)(SENSITIVE_KEYWORDS.dark||[]).forEach(function(k){if(badKws.indexOf(k)===-1)badKws.push(k);});
+    if(kidsMode)(SENSITIVE_KEYWORDS.kids||[]).forEach(function(k){if(badKws.indexOf(k)===-1)badKws.push(k);});
+    if(badKws.length)params.push("without_keywords="+badKws.join(","));
     // Agregar servicios del usuario si tiene perfil
     if(userProfile && userProfile.services && userProfile.services.length){
       var svcIds = userProfile.services.filter(function(s){return !isNaN(parseInt(s));}).map(Number);
@@ -3069,13 +3216,28 @@ async function discoverFromTMDB(timeV, moodV, typeOverride, kidsMode){
     });
     if(!results.length) return null;
     var m = results[Math.floor(Math.random() * Math.min(results.length, 10))];
+    var cert = null;
+    try{
+      var dr=await fetch("https://api.themoviedb.org/3/"+ep+"/"+m.id+"?api_key="+KEY+"&append_to_response=release_dates",{signal:AbortSignal.timeout(4000)});
+      if(dr.ok){
+        var dd=await dr.json();
+        var rdates=(dd.release_dates&&dd.release_dates.results)||[];
+        var usRel2=rdates.find(function(r){return r.iso_3166_1==="US";});
+        var mxRel2=rdates.find(function(r){return r.iso_3166_1==="MX";});
+        var csrc=mxRel2||usRel2;
+        if(csrc&&csrc.release_dates&&csrc.release_dates.length){
+          var co=csrc.release_dates.find(function(r){return r.certification;});
+          cert=co?co.certification:null;
+        }
+      }
+    }catch(e2){}
     return {
       _tmdbId: m.id, _mediaType: ep, _isSuggestion: true,
       n: m.title || m.name, y: parseInt((m.release_date||m.first_air_date||"").substring(0,4))||null,
       poster: m.poster_path ? "https://image.tmdb.org/t/p/w200" + m.poster_path : null,
       backdrop: m.backdrop_path ? "https://image.tmdb.org/t/p/w780" + m.backdrop_path : null,
       overview: m.overview || "", genres: m.genre_ids || [],
-      m: 0, status: "active", lists: [], isNew: true
+      certification: cert, m: 0, status: "active", lists: [], isNew: true
     };
   }catch(e){ return null; }
 }
@@ -3104,7 +3266,8 @@ function buildDiscResultCard(t, fromNew, ans){
     sourceBadge +
     '<div style="font-family:Playfair Display,serif;font-size:24px;font-weight:700;color:var(--text);margin:8px 0 6px;line-height:1.2;">'+t.n+'</div>'+
     '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+
-      (t.y||"")+(dur?" · "+dur:"")+'</div>'+
+      (t.y||"")+(dur?" · "+dur:"")+(t.certification?' · <span style="font-size:10px;padding:1px 5px;border:1px solid var(--muted);border-radius:2px;">'+t.certification+'</span>':'')+
+      '</div>'+
     (t.director ? '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Dir. '+t.director+'</div>' : "")+
     (country ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">&#127758; '+country+'</div>' : "")+
     (genres.length ? '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">'+
@@ -3229,6 +3392,7 @@ function discAccept(){
   if(!lastPick) return;
   _discoverSkipCount = 0;
   var name = lastPick.n;
+  // fetchLBUrl se llama dentro de acceptSuggestion
   acceptSuggestion(lastPick);
   var result = document.getElementById("discResult");
   if(result) result.innerHTML =
@@ -4288,7 +4452,7 @@ function makeBrowseCard(t){
     pinBadge+watchedBadge+
     '<div class="browse-card-info">'+
     '<div class="browse-card-title" title="'+t.n.replace(/"/g,'&quot;')+'">'+t.n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'+
-    '<div class="browse-card-meta">'+(t.y||'')+(dur?' &middot; '+dur:'')+'</div>'+
+    '<div class="browse-card-meta">'+(t.y||'')+(dur?' &middot; '+dur:'')+(t.certification?' &middot; '+t.certification:'')+'</div>'+
     '</div>';
   // Cargar imagen via createElement — evita onerror inline problemático
   if(posterSrc){
