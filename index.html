@@ -6,7 +6,7 @@
 <title>Que veo hoy</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<style>:root{--bg:#0c0c0e;--surface:#13131a;--surface2:#1c1c28;--border:#252535;--accent:#f5c842;--accent2:#e8553e;--text:#ddd8f0;--muted:#8884aa;--green:#4dba87;--red:#e05252;--blue:#5b8dee;}
+<style>:root{--bg:#07070a;--surface:#0e0e14;--surface2:#14141f;--border:#1e1e2e;--accent:#f5c842;--accent2:#e8553e;--text:#d4cfec;--muted:#7a7696;--green:#4dba87;--red:#e05252;--blue:#5b8dee;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;overflow-x:hidden;}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:0.35;}
@@ -57,11 +57,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .roll-thinking #rTitle{opacity:0.3;}
 .roll-thinking .r-content>*:not(#rTitle){opacity:0;}
 .roll-thinking-poster{width:100%;height:100%;object-fit:cover;border-radius:8px;filter:blur(8px);opacity:0.5;animation:shuffleFade 0.4s ease infinite;}
+/* Animación de barajado */
+@keyframes shuffleFade{0%{opacity:1}40%{opacity:0}60%{opacity:0}100%{opacity:1}}
+@keyframes shuffleBg{0%{transform:scale(1.05)}100%{transform:scale(1.08)}}
+.roll-thinking #rBackdrop{display:block!important;animation:shuffleBg 0.35s ease-in-out infinite alternate;}
+.roll-thinking #rPosterWrap{opacity:0;transition:opacity 0.2s;}
+.roll-thinking #rTitle{opacity:0.3;}
+.roll-thinking .r-content>*:not(#rTitle){opacity:0;}
+.roll-thinking-poster{width:100%;height:100%;object-fit:cover;border-radius:8px;filter:blur(8px);opacity:0.5;animation:shuffleFade 0.4s ease infinite;}
 #resultCard{display:none;border:1px solid var(--border);border-left:3px solid var(--accent);margin-top:0;position:relative;overflow:hidden;animation:slideIn 4s cubic-bezier(0.16,1,0.3,1);background:var(--surface);}#resultCard.show{display:block;}.browse-card.selected{outline:2px solid var(--accent);outline-offset:-2px;}
 #resultCard.show{display:block;}
 @keyframes slideInDown{0%{opacity:0;}60%{opacity:1;}100%{opacity:1;}}@keyframes slideInUp{0%{opacity:0;}60%{opacity:1;}100%{opacity:1;}}@keyframes slideIn{from{opacity:0;}to{opacity:1;}}@keyframes fadeInText{from{opacity:0}to{opacity:1}}
 /* resultCard border handled by border-left */
-#rBackdrop{position:absolute;inset:0;background-size:cover;background-position:center 20%;z-index:0;filter:blur(8px) brightness(0.15);transform:scale(1.1);}
+#rBackdrop{position:absolute;inset:0;background-size:cover;background-position:center 20%;z-index:0;filter:blur(14px) brightness(0.07) saturate(0.6);transform:scale(1.1);}
 .r-inner{display:flex;position:relative;z-index:1;}
 .r-poster-wrap-inner{width:240px;min-width:240px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:16px;background:transparent;}
 .r-poster{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.7);}
@@ -2734,7 +2742,6 @@ function showSuggestionActions(t){
 
 // ── Enriquecer y revelar con animación ───────────────────────────
 async function enrichAndReveal(pick){
-  // 1. Mostrar animación de "pensando" con backdrops borrosos rotando
   // Deshabilitar botón durante la animación
   var rollBtn = document.querySelector(".roll-btn");
   if(rollBtn){rollBtn.disabled=true;rollBtn.textContent="Eligiendo...";}
@@ -2743,52 +2750,90 @@ async function enrichAndReveal(pick){
   var posterWrap = document.getElementById("rPosterWrap");
   var titleEl = document.getElementById("rTitle");
 
-  // Preparar pool de backdrops del usuario para la animación
-  var bgPool = titles
-    .filter(function(t){return t.poster&&t.status==="active"&&t!==pick;})
-    .sort(function(){return Math.random()-0.5;})
-    .slice(0,8);
+  // Pool para animación: buscar stills limpios via /images (sin texto/diseño)
+  var bgPool = [];
+  try{
+    // Tomar 4 títulos al azar con tmdbId para obtener sus stills
+    var candidates = titles
+      .filter(function(t){return t._tmdbId&&t.status==="active"&&t!==pick;})
+      .sort(function(){return Math.random()-0.5;})
+      .slice(0,4);
+    var imgResults = await Promise.all(candidates.map(async function(t){
+      try{
+        var r = await fetch("https://api.themoviedb.org/3/movie/"+t._tmdbId
+          +"/images?api_key="+KEY, {signal:AbortSignal.timeout(4000)});
+        if(!r.ok) return [];
+        var d = await r.json();
+        // Filtrar: excluir los backdrops con vote_average >= 7 (son los oficiales con texto)
+        var stills = (d.backdrops||[])
+          .filter(function(b){ return b.vote_average < 7 && b.file_path; })
+          .slice(0,3)
+          .map(function(b){ return "https://image.tmdb.org/t/p/w780"+b.file_path; });
+        // Si no hay stills limpios, usar backdrops de posición 3+ como fallback
+        if(!stills.length){
+          stills = (d.backdrops||[])
+            .slice(3,6)
+            .map(function(b){ return "https://image.tmdb.org/t/p/w780"+b.file_path; });
+        }
+        return stills;
+      }catch(e){ return []; }
+    }));
+    bgPool = [].concat.apply([], imgResults).filter(Boolean);
+    bgPool.sort(function(){return Math.random()-0.5;});
+  }catch(e){}
+  // Fallback: usar backdrops/pósters guardados si no hubo resultados
+  if(!bgPool.length){
+    bgPool = titles
+      .filter(function(t){return (t.backdrop||t.poster)&&t.status==="active"&&t!==pick;})
+      .sort(function(){return Math.random()-0.5;})
+      .slice(0,8)
+      .map(function(t){
+        return t.backdrop
+          ? "https://image.tmdb.org/t/p/w780"+t.backdrop
+          : "https://image.tmdb.org/t/p/w500"+t.poster;
+      });
+  }
 
   // Mostrar tarjeta en modo "pensando"
   card.classList.add("show","roll-thinking");
   if(backdrop){
     backdrop.style.display="block";
-    backdrop.style.backgroundImage = bgPool.length
-      ? "url(https://image.tmdb.org/t/p/w780"+bgPool[0].poster+")"
-      : "none";
-    backdrop.style.filter = "blur(12px)";
-    backdrop.style.opacity = "0.6";
+    backdrop.style.backgroundImage = bgPool.length ? "url("+bgPool[0]+")" : "none";
+    backdrop.style.filter = "blur(14px) brightness(0.07) saturate(0.6)";
+    backdrop.style.opacity = "1";
   }
   if(posterWrap) posterWrap.innerHTML = '<div class="r-poster-placeholder" style="opacity:0.3;">&#127902;</div>';
   if(titleEl) titleEl.textContent = "Eligiendo...";
+
+  // Scroll inmediato hacia la card para que el usuario vea la animación
+  card.scrollIntoView({behavior:"smooth", block:"center"});
 
   // Rotar backdrops cada 350ms
   var bgIdx = 0;
   var bgTimer = bgPool.length > 1 ? setInterval(function(){
     bgIdx = (bgIdx+1) % bgPool.length;
-    if(backdrop) backdrop.style.backgroundImage =
-      "url(https://image.tmdb.org/t/p/w780"+bgPool[bgIdx].poster+")";
+    if(backdrop) backdrop.style.backgroundImage = "url("+bgPool[bgIdx]+")";
   }, 350) : null;
 
-  // 2. En paralelo: enriquecer metadatos de la película
+  // En paralelo: enriquecer metadatos
   var enrichPromise = enrichPickMetadata(pick);
-
-  // 3. Esperar mínimo 1.8s para que la animación se sienta
+  // Mínimo 1.8s de animación
   var minDelay = new Promise(function(res){setTimeout(res, 1800);});
+  try{ await Promise.all([enrichPromise, minDelay]); }catch(e){}
 
-  try{
-    await Promise.all([enrichPromise, minDelay]);
-  }catch(e){}
-
-  // 4. Detener animación y mostrar resultado real
+  // Detener animación
   if(bgTimer) clearInterval(bgTimer);
   card.classList.remove("roll-thinking");
   if(backdrop){backdrop.style.filter="";backdrop.style.opacity="";}
 
-  // Restaurar botón
+  // Restaurar botón y mostrar resultado
   if(rollBtn){rollBtn.disabled=false;rollBtn.textContent="Sorpr\u00e9ndeme";}
-  // Mostrar resultado final
   showResult(pick);
+
+  // Scroll final centrado en la card ya con el resultado
+  setTimeout(function(){
+    card.scrollIntoView({behavior:"smooth", block:"center"});
+  }, 150);
 }
 
 async function enrichPickMetadata(t){
