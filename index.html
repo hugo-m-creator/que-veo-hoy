@@ -2812,18 +2812,24 @@ function showResult(t){
   var lb=document.getElementById("rListBtn");if(lb){lb.style.borderColor="";lb.style.color="";}
   var card=document.getElementById("resultCard");
   card.classList.remove("show");void card.offsetWidth;card.classList.add("show");
-  // Scroll solo si NO estamos en browse ni en wizard (en browse el anchor maneja el scroll)
+  // Scroll solo si NO estamos en browse ni en wizard
   var browseVisible=document.getElementById("browseMode")&&document.getElementById("browseMode").style.display==="block";
   var wizardVisible=document.getElementById("wizardMode")&&document.getElementById("wizardMode").style.display==="block";
-  if(!browseVisible&&!wizardVisible){
-    setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"nearest"});},60);
-  }
   if(wizardVisible){
-    // En modo Descubrir, hacer scroll al discResult
-    setTimeout(function(){
-      var dr=document.getElementById("discResult");
-      if(dr)dr.scrollIntoView({behavior:"smooth",block:"nearest"});
-    },150);
+    // En Descubrir: mover resultCard dentro del discWrap para que sea visible
+    var discWrap=document.querySelector("#wizardMode .disc-wrap");
+    var discResult=document.getElementById("discResult");
+    if(discWrap&&discResult&&card.parentNode!==discWrap){
+      discWrap.insertBefore(card,discResult);
+    }
+    setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"nearest"});},80);
+  }else if(!browseVisible){
+    // Asegurar que resultCard esté en app (no en wizardMode de sesión anterior)
+    var appEl=document.getElementById("app");
+    if(appEl&&card.parentNode!==appEl&&card.parentNode!==document.getElementById("browseGrid")){
+      appEl.appendChild(card);
+    }
+    setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"nearest"});},60);
   }
   fetchStreamingProviders(t);
 }
@@ -2994,13 +3000,14 @@ function setMode(mode,btn){
   if(mode==="browse"){renderBrowse();preloadServiceCache().then(function(){buildFilterServices();});}
   if(mode==="manage")renderManage();
   if(mode==="stats")renderStats();
-  // Si salimos de browse, devolver resultCard a su contenedor original
+  // Devolver resultCard al app si estaba en browse o en wizard
   var rc=document.getElementById('resultCard');
+  var appEl=document.getElementById('app');
   var grid=document.getElementById('browseGrid');
-  if(rc&&grid&&rc.parentNode===grid){
-    rc.style.gridColumn='';
-    document.getElementById('app').appendChild(rc);
-    rc.classList.remove('show');
+  var discWrap=document.querySelector('#wizardMode .disc-wrap');
+  if(rc&&appEl){
+    if(rc.parentNode===grid){rc.style.gridColumn='';appEl.appendChild(rc);rc.classList.remove('show');}
+    else if(discWrap&&rc.parentNode===discWrap){appEl.appendChild(rc);rc.classList.remove('show');}
   }
 }
 
