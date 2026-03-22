@@ -821,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.69");
+console.log("QVH version: 11.70");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4850,7 +4850,7 @@ function browseLoadMore(){
 // Precargar providers para el filtro de servicio (async, en background)
 async function preloadServiceCache(){
   var toLoad=titles.filter(function(t){
-    return t.status==='active'&&(t._tmdbId||(t.poster));
+    return (t.status==='active'||t.status==='watched')&&(t._tmdbId||(t.poster));
   }).slice(0,200); // limitar para no hacer demasiadas llamadas
   for(var i=0;i<toLoad.length;i+=10){
     var batch=toLoad.slice(i,i+10);
