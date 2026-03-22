@@ -627,7 +627,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   <div id="browseMode" style="display:none;">
     <!-- Search bar -->
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-      <input class="manage-input" type="text" id="browseSearch" placeholder="Buscar t&#237;tulo..." oninput="renderBrowse()" style="flex:1;min-width:180px;max-width:340px;">
+      <input class="manage-input" type="text" id="browseSearch" placeholder="Buscar t&#237;tulo..." oninput="debouncedRenderBrowse()" style="flex:1;min-width:180px;max-width:340px;">
       <div id="browseCount" style="color:var(--muted);font-size:10px;letter-spacing:1px;margin-left:auto;"></div>
     </div>
     <!-- Dropdowns toolbar -->
@@ -752,7 +752,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <div id="listsPanelContent" style="padding:4px 0;"></div>
     </div>
     <div class="manage-toolbar">
-      <input class="manage-input" type="text" id="searchM" placeholder="Buscar..." oninput="renderManage()" style="width:240px;">
+      <input class="manage-input" type="text" id="searchM" placeholder="Buscar..." oninput="debouncedRenderManage()" style="width:240px;">
       <button class="mbtn mbtn-d" onclick="exportCSV()">&#8595; CSV</button>
       <button class="mbtn mbtn-d" onclick="restoreAll()" style="font-size:9px;">&#8635; Restaurar</button>
       <button class="mbtn mbtn-g" onclick="reEnrich()" id="reEnrichBtn">&#9733; Re-enriquecer</button>
@@ -1153,6 +1153,40 @@ window.addEventListener("load",function(){
 });
 
 
+// ── GUARDADO DE CACHÉ CON PROTECCIÓN DE LÍMITE ───────────────────────────────
+function saveEnrichCache(cache){
+  try{
+    var json=JSON.stringify(cache);
+    // ~4.5MB: zona de riesgo antes del límite de 5MB de localStorage
+    if(json.length>4.5*1024*1024){
+      console.warn("QVH: caché cerca del límite ("+Math.round(json.length/1024)+"KB). Reduciendo overviews.");
+      // Primer intento: recortar overviews a 100 chars
+      var slim=cache.map(function(c){return Object.assign({},c,{o:c.o?c.o.substring(0,100):""});});
+      json=JSON.stringify(slim);
+      // Segundo intento: eliminar overviews y backdrops por completo
+      if(json.length>4.5*1024*1024){
+        console.warn("QVH: caché aún grande. Eliminando overviews y backdrops.");
+        slim=cache.map(function(c){return Object.assign({},c,{o:"",b:null});});
+        json=JSON.stringify(slim);
+      }
+      // Último recurso: guardar solo títulos con tmdbId confirmado
+      if(json.length>4.5*1024*1024){
+        console.warn("QVH: guardando solo títulos con TMDB ID confirmado.");
+        slim=cache.filter(function(c){return c.ti;});
+        json=JSON.stringify(slim);
+      }
+    }
+    localStorage.setItem("wq_cC",json);
+  }catch(e){
+    console.error("QVH: no se pudo guardar caché de metadatos:",e);
+    // Intento de emergencia sin overviews ni backdrops
+    try{
+      var emergency=cache.map(function(c){return Object.assign({},c,{o:"",b:null});});
+      localStorage.setItem("wq_cC",JSON.stringify(emergency));
+    }catch(e2){}
+  }
+}
+
 function finishEnrich(fc){
   document.getElementById("setupOverlay").classList.add("hidden");
   document.getElementById("eDot").className="edot ok";
@@ -1460,6 +1494,18 @@ async function startEnrich(){
           }
         }
         var ep=best.media_type==="tv"?"tv":"movie",tid=best.id;
+        // Clasificar nivel de confianza del match
+        var _confidence="low";
+        if(TMDB_OVERRIDES[t.n+"_"+t.y]){
+          _confidence="high"; // override manual siempre es confiable
+        }else if(bestByDir&&best===bestByDir){
+          _confidence="high"; // director confirmado con Letterboxd
+        }else if(t.y){
+          var _bestYear=parseInt((best.release_date||best.first_air_date||"").substring(0,4))||0;
+          if(_bestYear===t.y) _confidence="medium"; // año exacto
+          else if(Math.abs(_bestYear-t.y)<=1) _confidence="medium"; // ±1 año
+        }
+        t._matchConfidence=_confidence;
         // Si CSV marcó is_series=false pero TMDB dice TV, solo usar movie si el año coincide mejor
         if(!t.is_series&&best.media_type==="tv"){
           var mv=res.find(function(x){return x.media_type==="movie";});
@@ -1549,7 +1595,7 @@ async function startEnrich(){
             d:t.director,c:t.country,u:t.u,m:t.m||null,
             ii:t._imdbId||null,ti:t._tmdbId||null,mt:t._mediaType||null};
   });
-  try{localStorage.setItem("wq_cC",JSON.stringify(cache));}catch(e){}
+  saveEnrichCache(cache);
   finishEnrich(false);
 }
 
@@ -3836,7 +3882,7 @@ function renderManage(){
     var div=document.createElement("div");div.className="mitem";
     var h=Math.floor((t.m||0)/60),m2=(t.m||0)%60;
     var dur=t.m>0?(h>0?h+"h"+m2+"m":m2+"m"):'<span style="color:var(--red)">?</span>';
-    var badges=(t.isNew?'<span class="badge badge-n">nuevo</span>':'')+(t.status==="watched"?'<span class="badge badge-w">visto</span>':'')+(t.status==="removed"?'<span class="badge badge-rm">eliminado</span>':'');
+    var badges=(t.isNew?'<span class="badge badge-n">nuevo</span>':'')+(t.status==="watched"?'<span class="badge badge-w">visto</span>':'')+(t.status==="removed"?'<span class="badge badge-rm">eliminado</span>':'')+(t._tmdbId&&t._matchConfidence==="low"?'<span class="badge" title="Match de TMDB sin confirmar — considera revisarlo" style="background:rgba(255,107,53,0.12);color:#ff6b35;border:1px solid rgba(255,107,53,0.3);cursor:help;">?</span>':'');
     var btns='<div class="mitem-btns"><button class="ib ib-e" onclick="openEdit('+t.idx+')" title="Editar">&#9998;</button>';
     if(t.status==="active")btns+='<button class="ib ib-w" onclick="markW('+t.idx+')" title="Vista">&#10003;</button><button class="ib ib-r" onclick="removeT('+t.idx+')" title="Quitar">&#215;</button>';
     else btns+='<button class="ib ib-rs" onclick="restoreT('+t.idx+')" title="Restaurar">&#8635;</button>';
@@ -4589,6 +4635,17 @@ function getBrowseTitles(){
   return pool;
 }
 
+var _browseDebounce=null;
+function debouncedRenderBrowse(){
+  clearTimeout(_browseDebounce);
+  _browseDebounce=setTimeout(renderBrowse,220);
+}
+var _manageDebounce=null;
+function debouncedRenderManage(){
+  clearTimeout(_manageDebounce);
+  _manageDebounce=setTimeout(renderManage,220);
+}
+
 function renderBrowse(){
   browsePage=0;
   // Restaurar resultCard si estaba dentro del grid
@@ -4657,9 +4714,10 @@ async function preloadServiceCache(){
         flatMX.forEach(function(p){if(pids.indexOf(p.provider_id)===-1)pids.push(p.provider_id);});
         flatUS.forEach(function(p){if(ALL_PROVIDERS[p.provider_id]&&pids.indexOf(p.provider_id)===-1)pids.push(p.provider_id);});
         browseServiceCache[key]=pids;
-        try{localStorage.setItem('wq_sc',JSON.stringify(browseServiceCache));}catch(e){}
       }catch(e){}
     }));
+    // Guardar caché de providers una sola vez por batch, no dentro de cada título
+    try{localStorage.setItem('wq_sc',JSON.stringify(browseServiceCache));}catch(e){}
     await new Promise(function(r){setTimeout(r,200);});
   }
 }
@@ -4948,7 +5006,7 @@ async function applyTMDBResult(item){
       var cached=JSON.parse(localStorage.getItem("wq_cC"))||[];
       if(t.idx<cached.length){
         cached[t.idx]={g:t.genres,t:t.type,o:t.overview,p:t.poster,d:t.director,c:t.country,u:t.u};
-        localStorage.setItem("wq_cC",JSON.stringify(cached));
+        saveEnrichCache(cached);
       }
     }catch(e2){}
     saveState();buildGenres();buildCountries();
@@ -5005,7 +5063,7 @@ function saveManualFix(){
     var cached=JSON.parse(localStorage.getItem("wq_cC"))||[];
     if(t.idx<cached.length){
       cached[t.idx].d=t.director;cached[t.idx].c=t.country;cached[t.idx].t=t.type;
-      localStorage.setItem("wq_cC",JSON.stringify(cached));
+      saveEnrichCache(cached);
     }
   }catch(e2){}
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();
