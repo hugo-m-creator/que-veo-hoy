@@ -268,6 +268,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .r-top-btn-green{border-color:rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);}
 .r-top-btn-watched{border-color:var(--green) !important;color:var(--green) !important;}
 .r-top-btn.watched{border-color:var(--green);color:var(--green);background:rgba(77,186,135,0.12);}
+.r-top-btn.remove-btn:hover{border-color:var(--red)!important;color:var(--red)!important;background:rgba(224,82,82,0.1);}
 .r-top-btn.pinned{border-color:var(--blue);color:var(--blue);}
 .list-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);}
 .list-row:last-child{border-bottom:none;}
@@ -570,6 +571,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
             <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar / Quitar de fijados">&#9822; Fijar</button>
             <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Marcar como vista / desmarcar">&#10003; Ya la vi</button>
             <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Agregar a lista">&#9776; Listas</button>
+            <button id="rRemoveBtn" class="r-top-btn" onclick="removeFromResult()" title="Quitar de la lista" style="border-color:rgba(224,82,82,0.4);color:rgba(224,82,82,0.7);display:none;">&#215; Quitar</button>
             <button class="r-top-btn" onclick="editResult()" title="Editar metadatos">&#9998; Editar</button>
           </div>
         </div>
@@ -585,7 +587,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
         <div class="r-actions" style="align-items:center;flex-wrap:wrap;">
           <a id="rLink" href="#" target="_blank" class="r-link">Letterboxd</a>
           <a id="rStremio" href="#" target="_blank" class="r-link" style="border-color:#8458e8;color:#8458e8;">&#9654; Stremio</a>
-          <button id="rRemoveBtn" class="r-btn" onclick="removeFromResult()" title="Quitar de la lista" style="border-color:var(--red);color:var(--red);">&#215; Quitar</button>
           <div id="rRemoveConfirm" style="display:none;background:var(--surface2);border:1px solid var(--red);padding:8px 12px;font-size:10px;letter-spacing:1px;margin-top:4px;">
             <div style="margin-bottom:8px;color:var(--text);">&#191;Seguro que quieres eliminar esta pel&#237;cula?</div>
             <div style="display:flex;gap:8px;">
@@ -2997,6 +2998,12 @@ function showResult(t){
   if(pinBtn){
     if(t.pinned){pinBtn.classList.add("pinned");}else{pinBtn.classList.remove("pinned");}
     pinBtn.title=t.pinned?"Quitar de fijados":"Fijar / Quitar de fijados";
+  }
+  // Mostrar botón Quitar solo si la película está en la lista del usuario
+  var removeBtn=document.getElementById("rRemoveBtn");
+  if(removeBtn){
+    var esDeLista=!t._isSuggestion&&t.idx!==undefined&&titles.find(function(x){return x.idx===t.idx;});
+    removeBtn.style.display=esDeLista?"":"none";
   }
   var ss=document.getElementById("streamSection");if(ss)ss.style.display="none";
   var rc2=document.getElementById("rRemoveConfirm");if(rc2)rc2.style.display="none";
