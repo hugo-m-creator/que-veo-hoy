@@ -45,8 +45,18 @@ input[type=range]{width:100%;-webkit-appearance:none;height:2px;background:var(-
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--accent);border-radius:50%;cursor:pointer;}
 .sval{color:var(--accent);font-size:12px;min-width:90px;text-align:right;}
 #cInfo{color:var(--muted);font-size:10px;letter-spacing:1px;margin-bottom:4px;height:16px;}
-.roll-btn{display:block;width:100%;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;font-style:italic;padding:20px 32px;background:var(--accent);color:#0c0c0e;border:none;cursor:pointer;margin:28px 0 8px;transition:all 0.2s;}
-.roll-btn:hover{background:#ffd84d;transform:translateY(-1px);}
+.roll-btn{display:block;width:100%;font-family:'Playfair Display',serif;font-size:24px;font-weight:700;font-style:italic;padding:22px 32px;background:var(--accent);color:#0c0c0e;border:none;cursor:pointer;margin:28px 0 8px;transition:all 0.18s;border-radius:12px;box-shadow:0 4px 18px rgba(245,200,66,0.25);letter-spacing:0.5px;}
+.roll-btn:hover{background:#ffd84d;transform:translateY(-2px);box-shadow:0 8px 28px rgba(245,200,66,0.35);}
+.roll-btn:active{transform:translateY(1px);box-shadow:0 2px 8px rgba(245,200,66,0.2);}
+.roll-btn:disabled{opacity:0.7;cursor:default;transform:none;}
+/* Animación de barajado */
+@keyframes shuffleFade{0%{opacity:1}40%{opacity:0}60%{opacity:0}100%{opacity:1}}
+@keyframes shuffleBg{0%{transform:scale(1.05)}100%{transform:scale(1.08)}}
+.roll-thinking #rBackdrop{display:block!important;animation:shuffleBg 0.35s ease-in-out infinite alternate;}
+.roll-thinking #rPosterWrap{opacity:0;transition:opacity 0.2s;}
+.roll-thinking #rTitle{opacity:0.3;}
+.roll-thinking .r-content>*:not(#rTitle){opacity:0;}
+.roll-thinking-poster{width:100%;height:100%;object-fit:cover;border-radius:8px;filter:blur(8px);opacity:0.5;animation:shuffleFade 0.4s ease infinite;}
 #resultCard{display:none;border:1px solid var(--border);border-left:3px solid var(--accent);margin-top:0;position:relative;overflow:hidden;animation:slideIn 4s cubic-bezier(0.16,1,0.3,1);background:var(--surface);}#resultCard.show{display:block;}.browse-card.selected{outline:2px solid var(--accent);outline-offset:-2px;}
 #resultCard.show{display:block;}
 @keyframes slideInDown{0%{opacity:0;}60%{opacity:1;}100%{opacity:1;}}@keyframes slideInUp{0%{opacity:0;}60%{opacity:1;}100%{opacity:1;}}@keyframes slideIn{from{opacity:0;}to{opacity:1;}}@keyframes fadeInText{from{opacity:0}to{opacity:1}}
@@ -482,7 +492,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   </button>
 </div>
   <div class="mode-tabs">
-    <button class="mode-tab active" onclick="setMode('filter',this)">Filtros</button>
+    <button class="mode-tab active" onclick="setMode('filter',this)">&#127902; ¿Qué veo hoy?</button>
     <button class="mode-tab" onclick="setMode('wizard',this)">Descubrir</button>
     <button class="mode-tab" onclick="setMode('stats',this)">Estad&#237;sticas</button>
     <button class="mode-tab" onclick="setMode('browse',this)">Mi lista</button>
@@ -2691,8 +2701,7 @@ function rollWithSource(){
     if(!available.length){showToast("Pool vacío. Regenera sugerencias desde tu perfil.");return;}
     if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
     lastPick=available[Math.floor(Math.random()*available.length)];
-    showResult(lastPick);
-    showSuggestionActions(lastPick);
+    enrichAndReveal(lastPick).then(function(){showSuggestionActions(lastPick);});
   }else{
     roll();
   }
@@ -2723,11 +2732,149 @@ function showSuggestionActions(t){
 }
 
 
+// ── Enriquecer y revelar con animación ───────────────────────────
+async function enrichAndReveal(pick){
+  // 1. Mostrar animación de "pensando" con backdrops borrosos rotando
+  // Deshabilitar botón durante la animación
+  var rollBtn = document.querySelector(".roll-btn");
+  if(rollBtn){rollBtn.disabled=true;rollBtn.textContent="Eligiendo...";}
+  var card = document.getElementById("resultCard");
+  var backdrop = document.getElementById("rBackdrop");
+  var posterWrap = document.getElementById("rPosterWrap");
+  var titleEl = document.getElementById("rTitle");
+
+  // Preparar pool de backdrops del usuario para la animación
+  var bgPool = titles
+    .filter(function(t){return t.poster&&t.status==="active"&&t!==pick;})
+    .sort(function(){return Math.random()-0.5;})
+    .slice(0,8);
+
+  // Mostrar tarjeta en modo "pensando"
+  card.classList.add("show","roll-thinking");
+  if(backdrop){
+    backdrop.style.display="block";
+    backdrop.style.backgroundImage = bgPool.length
+      ? "url(https://image.tmdb.org/t/p/w780"+bgPool[0].poster+")"
+      : "none";
+    backdrop.style.filter = "blur(12px)";
+    backdrop.style.opacity = "0.6";
+  }
+  if(posterWrap) posterWrap.innerHTML = '<div class="r-poster-placeholder" style="opacity:0.3;">&#127902;</div>';
+  if(titleEl) titleEl.textContent = "Eligiendo...";
+
+  // Rotar backdrops cada 350ms
+  var bgIdx = 0;
+  var bgTimer = bgPool.length > 1 ? setInterval(function(){
+    bgIdx = (bgIdx+1) % bgPool.length;
+    if(backdrop) backdrop.style.backgroundImage =
+      "url(https://image.tmdb.org/t/p/w780"+bgPool[bgIdx].poster+")";
+  }, 350) : null;
+
+  // 2. En paralelo: enriquecer metadatos de la película
+  var enrichPromise = enrichPickMetadata(pick);
+
+  // 3. Esperar mínimo 1.8s para que la animación se sienta
+  var minDelay = new Promise(function(res){setTimeout(res, 1800);});
+
+  try{
+    await Promise.all([enrichPromise, minDelay]);
+  }catch(e){}
+
+  // 4. Detener animación y mostrar resultado real
+  if(bgTimer) clearInterval(bgTimer);
+  card.classList.remove("roll-thinking");
+  if(backdrop){backdrop.style.filter="";backdrop.style.opacity="";}
+
+  // Restaurar botón
+  if(rollBtn){rollBtn.disabled=false;rollBtn.textContent="Sorpr\u00e9ndeme";}
+  // Mostrar resultado final
+  showResult(pick);
+}
+
+async function enrichPickMetadata(t){
+  if(!t) return;
+  var ep = t._mediaType || (t.is_series?"tv":"movie");
+  var tmdbId = t._tmdbId;
+
+  // Si no tiene tmdbId, buscarlo
+  if(!tmdbId && t.n){
+    try{
+      var q=encodeURIComponent(t.n),yr=t.y?"&year="+t.y:"";
+      var sr=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY
+        +"&query="+q+yr+"&language=en-US",{signal:AbortSignal.timeout(5000)});
+      if(sr.ok){
+        var res=(await sr.json()).results.filter(function(x){
+          return x.media_type==="movie"||x.media_type==="tv";
+        });
+        if(res.length){
+          var best=res[0];
+          if(t.y){var ym=res.find(function(x){
+            return(x.release_date||x.first_air_date||"").startsWith(String(t.y));
+          });if(ym)best=ym;}
+          tmdbId=best.id; ep=best.media_type;
+          t._tmdbId=tmdbId; t._mediaType=ep;
+        }
+      }
+    }catch(e){}
+  }
+
+  if(!tmdbId) return;
+
+  // Obtener detalles completos si faltan
+  var needsDetails = !t.director || !t.country || !t.certification || !t._imdbId;
+  if(needsDetails){
+    try{
+      var dr=await fetch("https://api.themoviedb.org/3/"+ep+"/"+tmdbId
+        +"?api_key="+KEY+"&language=en-US&append_to_response=credits,release_dates",
+        {signal:AbortSignal.timeout(6000)});
+      if(dr.ok){
+        var dd=await dr.json();
+        if(!t.director){
+          var crew=(dd.credits&&dd.credits.crew)||[];
+          var dir=crew.find(function(c){return c.job==="Director";});
+          if(dir) t.director=dir.name;
+        }
+        if(!t.country){
+          var ctry=dd.production_countries||dd.origin_country||[];
+          if(ctry.length) t.country=typeof ctry[0]==="string"?ctry[0]:(ctry[0].iso_3166_1||"");
+        }
+        if(!t._imdbId && dd.imdb_id) t._imdbId=dd.imdb_id;
+        if(!t.certification){
+          var rdates=(dd.release_dates&&dd.release_dates.results)||[];
+          var mxRel=rdates.find(function(r){return r.iso_3166_1==="MX";});
+          var usRel=rdates.find(function(r){return r.iso_3166_1==="US";});
+          var csrc=mxRel||usRel;
+          if(csrc&&csrc.release_dates&&csrc.release_dates.length){
+            var co=csrc.release_dates.find(function(r){return r.certification;});
+            if(co) t.certification=co.certification;
+          }
+        }
+        if(!t.backdrop && dd.backdrop_path) t.backdrop=dd.backdrop_path;
+        if(!t.poster && dd.poster_path) t.poster=dd.poster_path;
+        if(!t.overview && dd.overview) t.overview=dd.overview.substring(0,400);
+      }
+    }catch(e){}
+  }
+
+  // Verificar/construir URL de Letterboxd con la info más completa
+  if(!t.u && t.n){
+    // Intentar con el título original de TMDB si disponible
+    var slug1 = makeLBSlug(t.n);
+    var slug2 = t.y ? slug1+"-"+t.y : null;
+    // Preferir URL sin año (más estable en LB), con año como fallback
+    t.u = "https://letterboxd.com/film/"+slug1+"/";
+  }
+
+  // Guardar cambios
+  if(t.idx !== undefined) saveState();
+}
+
 function roll(){
   var pool=getCandidates();if(!pool.length){alert("Sin titulos. Amplia los filtros.");return;}
   var f=pool.filter(function(t){return t!==lastPick;});if(!f.length)f=pool;
   if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
-  lastPick=f[Math.floor(Math.random()*f.length)];showResult(lastPick);
+  lastPick=f[Math.floor(Math.random()*f.length)];
+  enrichAndReveal(lastPick);
 }
 function showResult(t){
   var prevBtn=document.getElementById("rollPrevBtn");
