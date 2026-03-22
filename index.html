@@ -509,8 +509,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <div class="fgroup" id="watchedFilterGroup">
       <div class="slabel">Estado</div>
       <div class="pills" id="watchedPills">
-        <div class="pill on" data-v="all" onclick="pickWatched(this)">Ambas</div>
-        <div class="pill" data-v="pending" onclick="pickWatched(this)">Por ver</div>
+        <div class="pill" data-v="all" onclick="pickWatched(this)">Ambas</div>
+        <div class="pill on" data-v="pending" onclick="pickWatched(this)">Por ver</div>
         <div class="pill" data-v="watched" onclick="pickWatched(this)">Ya vistas</div>
       </div>
     </div>
@@ -778,6 +778,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
+console.log("QVH version: 11.42");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -2450,22 +2451,16 @@ function applySignalPatterns(pool){
 // ── Señales del usuario ───────────────────────────────────────────
 function dismissSuggestion(tmdbId, directorName, genres){
   signalsNegative.push(tmdbId);
-  // Contar para detectar patrones
   if(!signalsCounts.directors)signalsCounts.directors={};
   if(!signalsCounts.genres)signalsCounts.genres={};
-  if(directorName){
-    signalsCounts.directors[directorName]=(signalsCounts.directors[directorName]||0)+1;
-  }
-  (genres||[]).forEach(function(g){
-    signalsCounts.genres[g]=(signalsCounts.genres[g]||0)+1;
-  });
-  // Quitar del pool
+  if(directorName)signalsCounts.directors[directorName]=(signalsCounts.directors[directorName]||0)+1;
+  (genres||[]).forEach(function(g){signalsCounts.genres[g]=(signalsCounts.genres[g]||0)+1;});
   suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==tmdbId;});
   saveSuggestionPool();saveSignals();
-  // Mostrar siguiente — usar rollWithSource para respetar el modo activo
   document.getElementById("resultCard").classList.remove("show");
   setTimeout(function(){rollWithSource();},300);
 }
+
 
 function acceptSuggestion(t){
   signalsPositive.push(t._tmdbId);
@@ -2688,6 +2683,43 @@ function togglePinResult(){
   showToast(lastPick.pinned?"Fijada: "+lastPick.n:"Desfijada: "+lastPick.n);
 }
 function editResult(){if(!lastPick)return;openFixModal(null,lastPick.idx);}
+
+function showRatingPrompt(t){
+  if(!t)return;
+  var toast=document.createElement("div");
+  toast.className="toast";
+  toast.style.cssText="max-width:320px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);color:var(--text);";
+  var shortName=t.n&&t.n.length>30?t.n.substring(0,28)+"...":t.n||"?";
+  toast.innerHTML='<div style="font-size:11px;color:var(--muted);">'+shortName+' — ¿qué te pareció?</div>'+
+    '<div style="display:flex;gap:8px;">'+
+    '<button id="ratingGood" style="flex:1;padding:8px;border:1px solid var(--green);background:none;color:var(--green);cursor:pointer;font-size:18px;">&#128077;</button>'+
+    '<button id="ratingMeh" style="flex:1;padding:8px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;font-size:18px;">&#128528;</button>'+
+    '<button id="ratingBad" style="flex:1;padding:8px;border:1px solid var(--red);background:none;color:var(--red);cursor:pointer;font-size:18px;">&#128078;</button>'+
+    '</div>';
+  document.body.appendChild(toast);
+  function applyRating(val){
+    if(t._tmdbId){
+      if(val>0){if(signalsPositive.indexOf(t._tmdbId)===-1)signalsPositive.push(t._tmdbId);}
+      else if(val<0){
+        if(signalsNegative.indexOf(t._tmdbId)===-1)signalsNegative.push(t._tmdbId);
+        if(!signalsCounts.genres)signalsCounts.genres={};
+        if(!signalsCounts.directors)signalsCounts.directors={};
+        (t.genres||[]).forEach(function(g){signalsCounts.genres[g]=(signalsCounts.genres[g]||0)+1;});
+        if(t.director)signalsCounts.directors[t.director]=(signalsCounts.directors[t.director]||0)+1;
+      }
+      saveSignals();
+    }
+    if(toast.parentNode)toast.parentNode.removeChild(toast);
+    showToast("Vista guardada: "+(t.n||""));
+  }
+  var g=toast.querySelector("#ratingGood");if(g)g.onclick=function(){applyRating(1);};
+  var m=toast.querySelector("#ratingMeh");if(m)m.onclick=function(){applyRating(0);};
+  var b=toast.querySelector("#ratingBad");if(b)b.onclick=function(){applyRating(-1);};
+  setTimeout(function(){
+    if(toast.parentNode)toast.parentNode.removeChild(toast);
+    showToast("Vista: "+(t.n||""));
+  },8000);
+}
 
 function markWatchedResult(){
   if(!lastPick)return;
@@ -3426,7 +3458,13 @@ function renderManage(){
   if(filtered.length>400){var more=document.createElement("div");more.style.cssText="color:var(--muted);font-size:10px;padding:10px;text-align:center;";more.textContent="Mostrando 400 de "+filtered.length;frag.appendChild(more);}
   list.appendChild(frag);
 }
-function markW(idx){var t=titles.find(function(t){return t.idx===idx;});if(!t)return;t.status="watched";saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();}
+function markW(idx){
+  var t=titles.find(function(tt){return tt.idx===idx;});
+  if(!t)return;
+  t.status="watched";
+  saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();
+  showRatingPrompt(t);
+}
 function removeT(idx){
   if(!confirm("\u00bfEliminar esta pel\u00edcula? Esta acci\u00f3n no se puede deshacer."))return;
   titles=titles.filter(function(t){return t.idx!==idx;});
@@ -4594,7 +4632,7 @@ function saveManualFix(){
 function toggleWatchedResult(){
   if(!lastPick)return;
   var btn=document.getElementById("rWatchedBtn");
-  // Si es una sugerencia del pool, agregarla a titles como vista y terminar
+  // Si es una sugerencia del pool, agregarla a titles como vista
   if(lastPick._isSuggestion){
     var ni=titles.length?Math.max.apply(null,titles.map(function(x){return x.idx;}))+1:0;
     var newT=Object.assign({},lastPick,{
@@ -4607,8 +4645,7 @@ function toggleWatchedResult(){
     titles.push(newT);
     suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==lastPick._tmdbId;});
     saveSuggestionPool();
-    if(lastPick._tmdbId&&signalsPositive.indexOf(lastPick._tmdbId)===-1)
-      signalsPositive.push(lastPick._tmdbId);
+    if(lastPick._tmdbId&&signalsPositive.indexOf(lastPick._tmdbId)===-1)signalsPositive.push(lastPick._tmdbId);
     saveSignals();
     lastPick=newT;
     if(btn){btn.classList.add("watched");btn.title="Desmarcar como vista";}
@@ -4634,6 +4671,7 @@ function toggleWatchedResult(){
   }
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();renderBrowse();
 }
+
 function removeFromResult(){
   var confirm=document.getElementById("rRemoveConfirm");
   if(confirm)confirm.style.display=confirm.style.display==="none"?"block":"none";
@@ -4716,7 +4754,15 @@ function createListFromResult(){
   saveState();buildLists();renderListOptions();
 }
 
-function markWatchedResult(){toggleWatchedResult();}
+function markWatchedResult(){
+  if(!lastPick)return;
+  var t=lastPick;
+  t.status="watched";
+  saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();renderBrowse();
+  document.getElementById("resultCard").classList.remove("show");
+  lastPick=null;
+  showRatingPrompt(t);
+}
 
 // Descripción desde overview de TMDB
 function generateLogline(){
