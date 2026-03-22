@@ -932,7 +932,7 @@ var titles = RAW.map(function(t,i){
           poster:null,backdrop:null,director:"",country:"",status:"active",isNew:false,lists:[],pinned:false};
 });
 
-var activeType="all",activeGenres=[],activeDecades=["all"],activeMood="any",activeCountry="all",activeList="all",excludeList=null,activeWatchedFilter="all";
+var activeType="all",activeGenres=[],activeDecades=["all"],activeMood="any",activeCountry="all",activeList="all",excludeList=null,activeWatchedFilter="pending";
 var maxDur=9999,lastPick=null,lastPickHistory=[],mFilter="all",wStep=0,wAnswers={},editIdx=-1;
 var diaryDates=[];
 var streamCache={};
@@ -2230,7 +2230,7 @@ function saveSurveyFinish(){
 // ══════════════════════════════════════════════════════════════════
 // POOL DE SUGERENCIAS
 // ══════════════════════════════════════════════════════════════════
-var OMDB_KEY = "trilogy";  // OMDb API key
+// OMDB_KEY removida — no se usa actualmente
 
 // Mapeo de respuestas de encuesta a IDs de género TMDB
 var SURVEY_GENRE_MAP = {
@@ -2374,10 +2374,8 @@ async function buildSuggestionPool(){
       _isSuggestion:true
     };
     // Filtro de contenido sensible (solo si el perfil lo requiere)
-    if(needSensitive&&m.imdb_id){
-      var passes=await checkSensitiveContent(m.imdb_id,p);
-      if(!passes)continue;
-    }
+    // filtrado de contenido sensible via TMDB keywords (Fase 2)
+  // doesthedogdie removido — API no pública
     pool.push(entry);
     if(ci%20===0&&cnt)cnt.textContent=(ci+1)+"/"+candidates.length+" procesadas...";
     if(ci%20===0)await sleep(50);
@@ -2420,6 +2418,7 @@ function scoreSuggestion(m,p){
 }
 
 function checkNeedsSensitiveFilter(p){
+  // Fase 2: usar TMDB keywords en lugar de doesthedogdie
   if(!p)return false;
   return p.violence==="Prefiero evitar violencia gráfica"||
     p.violence==="Prefiero evitar cualquier violencia"||
@@ -2428,21 +2427,10 @@ function checkNeedsSensitiveFilter(p){
     (p.topics&&p.topics.length&&p.topics.indexOf("Ninguno en particular")===-1);
 }
 
-async function checkSensitiveContent(imdbId,p){
-  // Solo consultar doesthedogdie si hay temas específicos
-  var topics=p.topics||[];
-  if(!topics.length||topics.indexOf("Ninguno en particular")!==-1)return true;
-  try{
-    var r=await fetch("https://www.doesthedogdie.com/media/"+imdbId,
-      {signal:AbortSignal.timeout(4000),headers:{Accept:"application/json"}});
-    if(!r.ok)return true; // si falla, no descartamos
-    var data=await r.json();
-    // Verificar temas sensibles según el perfil
-    if(topics.indexOf("Violencia contra animales")!==-1&&data.dog===true)return false;
-    if(topics.indexOf("Suicidio o autolesiones")!==-1&&data.suicide===true)return false;
-    if(topics.indexOf("Abuso o violencia infantil")!==-1&&data.abuse===true)return false;
-    return true;
-  }catch(e){return true;}
+async function checkSensitiveContent(tmdbId,p){
+  // Fase 2: implementar con TMDB keywords
+  // Por ahora retorna true (no filtra) hasta implementar keywords
+  return true;
 }
 
 function applySignalPatterns(pool){
@@ -2474,8 +2462,9 @@ function dismissSuggestion(tmdbId, directorName, genres){
   // Quitar del pool
   suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==tmdbId;});
   saveSuggestionPool();saveSignals();
-  // Mostrar siguiente
-  roll();
+  // Mostrar siguiente — usar rollWithSource para respetar el modo activo
+  document.getElementById("resultCard").classList.remove("show");
+  setTimeout(function(){rollWithSource();},300);
 }
 
 function acceptSuggestion(t){
@@ -2702,9 +2691,12 @@ function editResult(){if(!lastPick)return;openFixModal(null,lastPick.idx);}
 
 function markWatchedResult(){
   if(!lastPick)return;
-  lastPick.status="watched";saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();
+  var t=lastPick;
+  t.status="watched";
+  saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();renderBrowse();
   document.getElementById("resultCard").classList.remove("show");
-  showToast("Vista: "+lastPick.n);lastPick=null;
+  lastPick=null;
+  showRatingPrompt(t);
 }
 function showToast(msg){
   var t=document.createElement("div");t.className="toast";t.textContent=msg;
@@ -3577,8 +3569,13 @@ function resetFullUser(){
   signalsCounts={};
   // Resetear filtros
   activeType="all";activeGenres=[];activeDecades=["all"];activeMood="any";
-  activeCountry="all";activeList="all";excludeList=null;activeWatchedFilter="all";
+  activeCountry="all";activeList="all";excludeList=null;activeWatchedFilter="pending";
   maxDur=9999;lastPick=null;
+  lastPickHistory=[];
+  _discoverSkipCount=0;
+  _discAnswers={};_discRestrictions=[];_discStep=0;
+  browseStatus="pending";browseType="all";browseDecade="all";
+  browseGenre="all";browseCountry="all";browseSort="alpha_asc";
   // Volver a la pantalla de inicio limpia
   document.getElementById("setupOverlay").style.display="flex";
   document.getElementById("importCard").style.display="";
@@ -4377,8 +4374,7 @@ function togglePin(e,idx){
 }
 
 
-// ── PRIORIDAD POR ESTRELLAS EN ROLL ──────────────────────────────────────────
-// Sobreescribir roll para que los titulos con estrellas tengan más peso
+// ── PRIORIDAD POR ESTRELLAS (legacy, no conectado a ningún botón) ───────────
 var _origRoll=null;
 function rollWithStars(){
   var pool=getCandidates();if(!pool.length){alert("Sin titulos.");return;}
