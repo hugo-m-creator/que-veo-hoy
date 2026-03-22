@@ -78,7 +78,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 #wizardMode{display:none;}
 /* ── DESCUBRIDOR ─────────────────────────────────────────── */
-.disc-wrap{max-width:720px;margin:0 auto;padding:24px 0;}
+.disc-wrap{max-width:1100px;margin:0 auto;padding:24px 0;}
 .disc-progress{display:flex;gap:8px;margin-bottom:32px;align-items:center;}
 .disc-dot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .25s;flex-shrink:0;}
 .disc-dot.done{background:var(--accent);}
@@ -2816,19 +2816,14 @@ function showResult(t){
   var browseVisible=document.getElementById("browseMode")&&document.getElementById("browseMode").style.display==="block";
   var wizardVisible=document.getElementById("wizardMode")&&document.getElementById("wizardMode").style.display==="block";
   if(wizardVisible){
-    // En Descubrir: mover resultCard dentro del discWrap para que sea visible
-    var discWrap=document.querySelector("#wizardMode .disc-wrap");
-    var discResult=document.getElementById("discResult");
-    if(discWrap&&discResult&&card.parentNode!==discWrap){
-      discWrap.insertBefore(card,discResult);
+    // En Descubrir: el resultCard permanece en #app (ancho completo) — solo hacer scroll
+    var appEl2=document.getElementById("app");
+    var grid2=document.getElementById("browseGrid");
+    if(appEl2&&card.parentNode!==appEl2&&card.parentNode!==grid2){
+      appEl2.appendChild(card);
     }
-    setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"nearest"});},80);
+    setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"start"});},80);
   }else if(!browseVisible){
-    // Asegurar que resultCard esté en app (no en wizardMode de sesión anterior)
-    var appEl=document.getElementById("app");
-    if(appEl&&card.parentNode!==appEl&&card.parentNode!==document.getElementById("browseGrid")){
-      appEl.appendChild(card);
-    }
     setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"nearest"});},60);
   }
   fetchStreamingProviders(t);
@@ -3000,14 +2995,14 @@ function setMode(mode,btn){
   if(mode==="browse"){renderBrowse();preloadServiceCache().then(function(){buildFilterServices();});}
   if(mode==="manage")renderManage();
   if(mode==="stats")renderStats();
-  // Devolver resultCard al app si estaba en browse o en wizard
+  // Devolver resultCard al app si estaba en browse
   var rc=document.getElementById('resultCard');
   var appEl=document.getElementById('app');
   var grid=document.getElementById('browseGrid');
-  var discWrap=document.querySelector('#wizardMode .disc-wrap');
-  if(rc&&appEl){
-    if(rc.parentNode===grid){rc.style.gridColumn='';appEl.appendChild(rc);rc.classList.remove('show');}
-    else if(discWrap&&rc.parentNode===discWrap){appEl.appendChild(rc);rc.classList.remove('show');}
+  if(rc&&appEl&&rc.parentNode===grid){
+    rc.style.gridColumn='';
+    appEl.appendChild(rc);
+    rc.classList.remove('show');
   }
 }
 
