@@ -268,7 +268,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .r-top-btn-green{border-color:rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);}
 .r-top-btn-watched{border-color:var(--green) !important;color:var(--green) !important;}
 .r-top-btn.watched{border-color:var(--green);color:var(--green);background:rgba(77,186,135,0.12);}
-.r-top-btn.remove-btn:hover{border-color:var(--red)!important;color:var(--red)!important;background:rgba(224,82,82,0.1);}
+.r-top-btn-remove{border-color:rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);}
+.r-top-btn-remove:hover{border-color:var(--red)!important;color:var(--red)!important;background:rgba(224,82,82,0.1);}
+.r-top-btn-add{border-color:rgba(255,255,255,0.25);color:rgba(255,255,255,0.7);transition:all 0.15s;}
+.r-top-btn-add:hover{border-color:var(--green)!important;color:var(--green)!important;background:rgba(77,186,135,0.1);}
 .r-top-btn.pinned{border-color:var(--blue);color:var(--blue);}
 .list-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);}
 .list-row:last-child{border-bottom:none;}
@@ -571,7 +574,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
             <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar / Quitar de fijados">&#9822; Fijar</button>
             <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Marcar como vista / desmarcar">&#10003; Ya la vi</button>
             <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Agregar a lista">&#9776; Listas</button>
-            <button id="rRemoveBtn" class="r-top-btn" onclick="removeFromResult()" title="Quitar de la lista" style="border-color:rgba(224,82,82,0.4);color:rgba(224,82,82,0.7);display:none;">&#215; Quitar</button>
+            <button id="rRemoveBtn" class="r-top-btn r-top-btn-remove" onclick="removeFromResult()" title="Quitar de la lista" style="display:none;">&#215; Quitar</button>
             <button class="r-top-btn" onclick="editResult()" title="Editar metadatos">&#9998; Editar</button>
           </div>
         </div>
@@ -2717,27 +2720,8 @@ function rollWithSource(){
 }
 
 function showSuggestionActions(t){
-  // Inyectar botones si la tarjeta está mostrando una sugerencia
-  var ractions=document.querySelector(".r-actions");
-  if(!ractions||!t._isSuggestion)return;
-  // Verificar que no estén ya
-  if(document.getElementById("rSuggAccept"))return;
-  var acceptBtn=document.createElement("button");
-  acceptBtn.id="rSuggAccept";acceptBtn.className="r-btn";
-  acceptBtn.style.cssText="border-color:var(--green);color:var(--green);";
-  acceptBtn.textContent="+ Agregar a mi lista";
-  acceptBtn.onclick=function(){acceptSuggestion(lastPick);};
-  var dismissBtn=document.createElement("button");
-  dismissBtn.id="rSuggDismiss";dismissBtn.className="r-btn";
-  dismissBtn.style.cssText="border-color:var(--muted);color:var(--muted);";
-  dismissBtn.textContent="No me interesa";
-  dismissBtn.onclick=function(){
-    if(!lastPick)return;
-    dismissSuggestion(lastPick._tmdbId,lastPick.director,lastPick.genres);
-    document.getElementById("resultCard").classList.remove("show");
-  };
-  ractions.appendChild(acceptBtn);
-  ractions.appendChild(dismissBtn);
+  // El switch Agregar/Quitar ya lo maneja showResult via rRemoveBtn
+  // Esta función queda como stub para compatibilidad
 }
 
 
@@ -2999,11 +2983,25 @@ function showResult(t){
     if(t.pinned){pinBtn.classList.add("pinned");}else{pinBtn.classList.remove("pinned");}
     pinBtn.title=t.pinned?"Quitar de fijados":"Fijar / Quitar de fijados";
   }
-  // Mostrar botón Quitar solo si la película está en la lista del usuario
+  // Switch Agregar/Quitar en la fila superior
   var removeBtn=document.getElementById("rRemoveBtn");
   if(removeBtn){
     var esDeLista=!t._isSuggestion&&t.idx!==undefined&&titles.find(function(x){return x.idx===t.idx;});
-    removeBtn.style.display=esDeLista?"":"none";
+    if(esDeLista){
+      // Película en lista → mostrar Quitar
+      removeBtn.textContent="\u00d7 Quitar";
+      removeBtn.className="r-top-btn r-top-btn-remove";
+      removeBtn.style.display="";
+      removeBtn.onclick=removeFromResult;
+    } else if(t._isSuggestion){
+      // Sugerencia → mostrar + Lista
+      removeBtn.textContent="+ Lista";
+      removeBtn.className="r-top-btn r-top-btn-add";
+      removeBtn.style.display="";
+      removeBtn.onclick=function(){acceptSuggestion(lastPick);};
+    } else {
+      removeBtn.style.display="none";
+    }
   }
   var ss=document.getElementById("streamSection");if(ss)ss.style.display="none";
   var rc2=document.getElementById("rRemoveConfirm");if(rc2)rc2.style.display="none";
@@ -3531,7 +3529,6 @@ function buildDiscSecondaryCard(t, fromNew, ans){
   // ── Botones del Descubrir ──
   var actHtml = '<div class="disc-actions">';
   if(fromNew){
-    actHtml += '<button class="mbtn" style="border-color:var(--green);color:var(--green);" onclick="discAccept()">+ Agregar a mi lista</button>';
     actHtml += '<button class="mbtn mbtn-d" onclick="discDismiss()">No me interesa</button>';
   } else {
     actHtml += '<button class="mbtn mbtn-d" onclick="discOther()">Ver otra opción</button>';
