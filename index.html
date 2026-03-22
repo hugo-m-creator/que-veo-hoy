@@ -69,7 +69,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 #resultCard.show{display:block;}
 @keyframes slideInDown{0%{opacity:0;}60%{opacity:1;}100%{opacity:1;}}@keyframes slideInUp{0%{opacity:0;}60%{opacity:1;}100%{opacity:1;}}@keyframes slideIn{from{opacity:0;}to{opacity:1;}}@keyframes fadeInText{from{opacity:0}to{opacity:1}}
 /* resultCard border handled by border-left */
-#rBackdrop{position:absolute;inset:0;background-size:cover;background-position:center 20%;z-index:0;filter:blur(14px) brightness(0.07) saturate(0.6);transform:scale(1.1);}
+#rBackdrop{position:absolute;inset:0;background-size:cover;background-position:center 20%;z-index:0;filter:blur(8px) brightness(0.15);transform:scale(1.1);}
 .r-inner{display:flex;position:relative;z-index:1;}
 .r-poster-wrap-inner{width:240px;min-width:240px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:16px;background:transparent;}
 .r-poster{width:100%;height:auto;display:block;border-radius:8px;box-shadow:0 4px 24px rgba(0,0,0,0.7);}
@@ -2824,7 +2824,7 @@ async function enrichAndReveal(pick){
   // Detener animación
   if(bgTimer) clearInterval(bgTimer);
   card.classList.remove("roll-thinking");
-  if(backdrop){backdrop.style.filter="";backdrop.style.opacity="";}
+  if(backdrop){backdrop.style.filter="";backdrop.style.opacity="";backdrop.style.backgroundImage="";}
 
   // Restaurar botón y mostrar resultado
   if(rollBtn){rollBtn.disabled=false;rollBtn.textContent="Sorpr\u00e9ndeme";}
