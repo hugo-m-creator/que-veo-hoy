@@ -821,7 +821,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.72");
+console.log("QVH version: 11.73");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4662,13 +4662,30 @@ function buildBDMenus(){
 // palabra aparece en al menos uno de los campos (título, director, año)
 function matchesSearch(t, q){
   if(!q) return true;
-  var words = q.trim().split(/\s+/);
+  // Normalizar query a minúsculas para comparación case-insensitive
+  var words = q.trim().toLowerCase().split(/\s+/);
   var searchable = [
     t.n ? t.n.toLowerCase() : "",
     t.director ? t.director.toLowerCase() : "",
     t.y ? String(t.y) : ""
   ].join(" ");
   return words.every(function(w){ return searchable.indexOf(w) !== -1; });
+}
+
+// Calcula relevancia de un título para un query — mayor = más relevante
+// Prioriza coincidencia en director sobre coincidencia solo en título
+function searchRelevance(t, q){
+  if(!q) return 0;
+  var words = q.trim().toLowerCase().split(/\s+/);
+  var dirLower = t.director ? t.director.toLowerCase() : "";
+  var titleLower = t.n ? t.n.toLowerCase() : "";
+  var dirMatch = words.every(function(w){ return dirLower.indexOf(w) !== -1; });
+  var titleMatch = words.every(function(w){ return titleLower.indexOf(w) !== -1; });
+  // Director match pesa más que title match
+  if(dirMatch && !titleMatch) return 2;   // solo director
+  if(dirMatch && titleMatch) return 3;    // ambos
+  if(titleMatch) return 1;                // solo título
+  return 0;
 }
 
 function getBrowseTitles(){
@@ -4714,6 +4731,11 @@ function getBrowseTitles(){
   });
   // Sort
   pool.sort(function(a,b){
+    // Con búsqueda activa: priorizar por relevancia (director match > title match)
+    if(q){
+      var ra=searchRelevance(a,q), rb=searchRelevance(b,q);
+      if(ra!==rb)return rb-ra;
+    }
     if(browseSort==='pinned_first'){
       if(a.pinned&&!b.pinned)return -1;if(!a.pinned&&b.pinned)return 1;
       return a.n.localeCompare(b.n);
