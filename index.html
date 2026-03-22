@@ -811,7 +811,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.66");
+console.log("QVH version: 11.67");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1886,6 +1886,32 @@ function saveSuggestionPool(){
 // ══════════════════════════════════════════════════════════════════
 // DEFINICIÓN DE LA ENCUESTA — 7 pantallas, 14 preguntas + refs
 // ══════════════════════════════════════════════════════════════════
+// ── VARIANTES FEMENINAS DE OPCIONES DE ENCUESTA ───────────────────────────────
+// Clave: texto masculino (canónico, guardado en surveyAnswers)
+// Valor: texto femenino (solo para display cuando gender === "Mujer")
+var SURVEY_FEMALE_VARIANTS = {
+  "Veo lo que sea, no soy selectivo":          "Veo lo que sea, no soy selectiva",
+  "Tengo preferencias pero soy abierto":        "Tengo preferencias pero soy abierta",
+  "Soy muy selectivo con lo que veo":           "Soy muy selectiva con lo que veo"
+};
+
+// Devuelve el texto a mostrar según el género actual del usuario
+function surveyOptLabel(text){
+  if(surveyAnswers.gender==="Mujer" && SURVEY_FEMALE_VARIANTS[text])
+    return SURVEY_FEMALE_VARIANTS[text];
+  return text;
+}
+
+// Normaliza un valor guardado (puede ser fem o masc) a la clave canónica masculina
+function surveyOptCanonical(val){
+  // Buscar si este valor es una variante femenina y devolver la clave masculina
+  var keys=Object.keys(SURVEY_FEMALE_VARIANTS);
+  for(var i=0;i<keys.length;i++){
+    if(SURVEY_FEMALE_VARIANTS[keys[i]]===val)return keys[i];
+  }
+  return val;
+}
+
 var SURVEY_STEPS = [
   // 0 — Quién eres
   {
@@ -2084,10 +2110,15 @@ function renderSurveyField(f){
   } else if(f.type==="single"||f.type==="multi"){
     h += '<div class="survey-opts">';
     f.opts.forEach(function(o){
-      var sel = f.type==="single" ? val===o : (Array.isArray(val)&&val.indexOf(o)!==-1);
+      // Comparar contra el valor canónico guardado (masculino) y también la variante femenina
+      var canonical = surveyOptCanonical(val||"");
+      var sel = f.type==="single"
+        ? (val===o || canonical===o)
+        : (Array.isArray(val)&&(val.indexOf(o)!==-1||val.indexOf(surveyOptCanonical(o))!==-1));
+      var label = surveyOptLabel(o);
       h += '<div class="survey-opt'+(sel?" sel":"")+'" data-field="'+f.id+'" data-val="'+
         o.replace(/"/g,"&quot;")+'" data-type="'+f.type+'" onclick="pickSurveyOpt(this)">'+
-        o+'</div>';
+        label+'</div>';
     });
     h += '</div>';
   } else if(f.type==="services"){
@@ -2134,10 +2165,9 @@ function postRenderSurveyStep(step){
 
 function pickSurveyOpt(el){
   var field = el.dataset.field;
-  var val = el.dataset.val;
+  var val = surveyOptCanonical(el.dataset.val); // siempre guardar valor canónico
   var type = el.dataset.type;
   if(type==="single"){
-    // Deseleccionar otros del mismo campo
     document.querySelectorAll('.survey-opt[data-field="'+field+'"]').forEach(function(o){
       o.classList.remove("sel");
     });
@@ -2148,8 +2178,12 @@ function pickSurveyOpt(el){
       var _cMap={"México":"MX","Estados Unidos":"US","España":"ES","Argentina":"AR"};
       renderServicesForCountry(_cMap[val]||val);
     }
+    // Si cambia el género, re-renderizar el paso para actualizar concordancia
+    if(field==="gender"){
+      renderSurveyStep();
+    }
   } else {
-    // Multi: toggle
+    // Multi: toggle — guardar valor canónico
     if(!Array.isArray(surveyAnswers[field])) surveyAnswers[field]=[];
     var idx = surveyAnswers[field].indexOf(val);
     if(idx===-1){
