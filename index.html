@@ -2812,10 +2812,18 @@ function showResult(t){
   var lb=document.getElementById("rListBtn");if(lb){lb.style.borderColor="";lb.style.color="";}
   var card=document.getElementById("resultCard");
   card.classList.remove("show");void card.offsetWidth;card.classList.add("show");
-  // Scroll solo si NO estamos en browse (en browse el anchor maneja el scroll)
+  // Scroll solo si NO estamos en browse ni en wizard (en browse el anchor maneja el scroll)
   var browseVisible=document.getElementById("browseMode")&&document.getElementById("browseMode").style.display==="block";
-  if(!browseVisible){
+  var wizardVisible=document.getElementById("wizardMode")&&document.getElementById("wizardMode").style.display==="block";
+  if(!browseVisible&&!wizardVisible){
     setTimeout(function(){card.scrollIntoView({behavior:"smooth",block:"nearest"});},60);
+  }
+  if(wizardVisible){
+    // En modo Descubrir, hacer scroll al discResult
+    setTimeout(function(){
+      var dr=document.getElementById("discResult");
+      if(dr)dr.scrollIntoView({behavior:"smooth",block:"nearest"});
+    },150);
   }
   fetchStreamingProviders(t);
 }
@@ -3011,6 +3019,7 @@ function startWizard(){
   _discRestrictions = [];
   _discPick = null;
   _discSteps = DISCOVER_STEPS.slice();
+  _discoverActive = false;
   var rc = document.getElementById("resultCard");
   if(rc) rc.classList.remove("show");
   lastPick = null;
@@ -3105,6 +3114,9 @@ function pickDiscOpt(el, isMulti){
   setTimeout(function(){ discNext(); }, 300);
 }
 var _discMultiTimer = null;
+var _discoverActive = false;   // true cuando estamos en modo Descubrir
+var _discoverFromNew = false;
+var _discoverAns = {};
 
 function discNext(){
   _discStep++;
@@ -3191,9 +3203,17 @@ async function runDiscover(){
   if(lastPickHistory.length > 20) lastPickHistory.shift();
   lastPick = pick;
 
-  // Limpiar pregunta y construir tarjeta inline en discResult
+  // Limpiar pregunta
   if(container) container.innerHTML = "";
-  buildDiscResultCard(pick, fromNew, ans);
+
+  // Usar la misma tarjeta estándar de Filtros y Mi Lista
+  _discoverActive = true;
+  _discoverFromNew = fromNew;
+  _discoverAns = ans;
+  showResult(pick);
+
+  // Tarjeta secundaria: badge + botones + palabras clave
+  buildDiscSecondaryCard(pick, fromNew, ans);
 }
 
 async function discoverFromTMDB(timeV, moodV, typeOverride, kidsMode, noViolence, noSexual, noDark){
@@ -3271,43 +3291,14 @@ async function discoverFromTMDB(timeV, moodV, typeOverride, kidsMode, noViolence
 }
 
 // ── Tarjeta secundaria con tags ───────────────────────────────────
-function buildDiscResultCard(t, fromNew, ans){
+function buildDiscSecondaryCard(t, fromNew, ans){
   var result = document.getElementById("discResult");
   if(!result) return;
 
-  // ── Película ──
-  var poster = t.customPoster || getPoster(t) || null;
-  var h = Math.floor((t.m||0)/60), m2 = (t.m||0)%60;
-  var dur = t.m>0 ? (h>0 ? h+"h "+m2+"min" : m2+" min") : "";
-  var genres = (t.genres||[]).map(function(g){return GENRE_MAP[g]||"";}).filter(Boolean).slice(0,3);
+  // ── Badge fuente ──
   var sourceBadge = fromNew
     ? '<span class="disc-source-badge from-new">&#10022; Nueva sugerencia</span>'
     : '<span class="disc-source-badge from-list">&#10003; De tu lista</span>';
-  var posterHtml = poster
-    ? '<img src="'+poster+'" style="width:100px;height:150px;object-fit:cover;flex-shrink:0;" alt="">'
-    : '<div style="width:120px;height:180px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:32px;">&#127902;</div>';
-  var country = t.country ? (COUNTRY_NAMES[t.country]||t.country) : "";
-  var movieHtml =
-    '<div style="display:flex;gap:20px;padding:20px;background:var(--surface);border:1px solid var(--border);margin-bottom:16px;">'+
-    posterHtml +
-    '<div style="flex:1;min-width:0;">'+
-    sourceBadge +
-    '<div style="font-family:Playfair Display,serif;font-size:24px;font-weight:700;color:var(--text);margin:8px 0 6px;line-height:1.2;">'+t.n+'</div>'+
-    '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">'+
-      (t.y||"")+(dur?" · "+dur:"")+(t.certification?' · <span style="font-size:10px;padding:1px 5px;border:1px solid var(--muted);border-radius:2px;">'+t.certification+'</span>':'')+
-      '</div>'+
-    (t.director ? '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Dir. '+t.director+'</div>' : "")+
-    (country ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">&#127758; '+country+'</div>' : "")+
-    (genres.length ? '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">'+
-      genres.map(function(g){return '<span style="font-size:10px;padding:3px 10px;border:1px solid var(--border);color:var(--muted);">'+g+"</span>";}).join("")+"</div>" : "")+
-    (t.overview ? '<div style="font-size:13px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;">'+t.overview+"</div>" : "")+
-    '</div></div>';
-
-  // ── Tags (placeholders) ──
-  var tagsHtml = '<div style="margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Palabras clave</div>';
-  tagsHtml += '<div class="disc-tags" id="discTags">';
-  for(var i=0;i<5;i++) tagsHtml += '<span class="disc-tag loading">···</span>';
-  tagsHtml += '</div></div>';
 
   // ── Por qué ──
   var whyParts = [];
@@ -3326,32 +3317,34 @@ function buildDiscResultCard(t, fromNew, ans){
     if(liked2.some(function(g){return (t.genres||[]).indexOf(g)!==-1;})) whyParts.push("coincide con tus géneros favoritos");
   }
   var whyHtml = whyParts.length
-    ? '<div class="disc-why" style="margin-bottom:14px;">&#128161; Te la sugiero porque '+whyParts.join(", ")+'.</div>'
+    ? '<div class="disc-why" style="margin-bottom:12px;">&#128161; Te la sugiero porque '+whyParts.join(", ")+'.</div>'
     : "";
 
-  // ── Acciones ──
+  // ── Palabras clave ──
+  var tagsHtml = '<div style="margin-bottom:12px;">'+
+    '<div style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Palabras clave</div>'+
+    '<div class="disc-tags" id="discTags">';
+  for(var i=0;i<5;i++) tagsHtml += '<span class="disc-tag loading">···</span>';
+  tagsHtml += '</div></div>';
+
+  // ── Botones del Descubrir ──
   var actHtml = '<div class="disc-actions">';
   if(fromNew){
     actHtml += '<button class="mbtn" style="border-color:var(--green);color:var(--green);" onclick="discAccept()">+ Agregar a mi lista</button>';
     actHtml += '<button class="mbtn mbtn-d" onclick="discDismiss()">No me interesa</button>';
   } else {
     actHtml += '<button class="mbtn mbtn-d" onclick="discOther()">Ver otra opción</button>';
-    actHtml += '<button class="mbtn" style="border-color:var(--green);color:var(--green);" onclick="discMarkWatched()">&#10003; Ya la vi</button>';
   }
   actHtml += '<button class="mbtn mbtn-d" onclick="startWizard()" style="font-size:9px;">&#8635; Nueva búsqueda</button>';
   actHtml += '</div>';
 
-  result.innerHTML = movieHtml + tagsHtml + whyHtml + actHtml;
+  result.innerHTML = sourceBadge + whyHtml + tagsHtml + actHtml;
   generateDiscTags(t);
 }
 
 function discMarkWatched(){
-  if(!lastPick) return;
-  lastPick.status = "watched";
-  saveState(); updateStats(); updateCandidates(); renderBrowse();
-  showToast("Vista: " + lastPick.n);
-  setTimeout(function(){showRatingPrompt(lastPick);}, 300);
-  document.getElementById("discResult").innerHTML = '<div style="color:var(--green);font-size:11px;padding:12px 0;">&#10003; Marcada como vista.</div>';
+  // Usar toggleWatchedResult que es el mismo botón que en Filtros
+  toggleWatchedResult();
 }
 
 async function generateDiscTags(t){
@@ -3424,22 +3417,28 @@ function discAccept(){
   acceptSuggestion(lastPick);
   var result = document.getElementById("discResult");
   if(result) result.innerHTML =
-    '<div style="padding:20px 0;">'+
-    '<div style="color:var(--green);font-size:16px;margin-bottom:16px;">&#10003; Agregada a tu lista: '+name+'</div>'+
-    '<button class="mbtn mbtn-d" onclick="startWizard()" style="font-size:11px;">&#8635; Buscar otra película</button>'+
+    '<div style="padding:12px 0;">'+
+    '<div style="color:var(--green);font-size:14px;margin-bottom:12px;">&#10003; Agregada: '+name+'</div>'+
+    '<button class="mbtn mbtn-d" onclick="startWizard()" style="font-size:11px;">&#8635; Buscar otra</button>'+
     '</div>';
+  _discoverActive = false;
 }
 function discDismiss(){
   if(!lastPick) return;
   _discoverSkipCount++;
   dismissSuggestion(lastPick._tmdbId, lastPick.director, lastPick.genres);
-  document.getElementById("discResult").innerHTML =
-    '<div style="color:var(--muted);font-size:12px;padding:12px 0;">Buscando otra opción...</div>';
+  var dr = document.getElementById("discResult");
+  if(dr) dr.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px 0;">Buscando otra opción...</div>';
+  var rc = document.getElementById("resultCard");
+  if(rc) rc.classList.remove("show");
   setTimeout(function(){ runDiscover(); }, 400);
 }
 function discOther(){
-  // Otra de la lista con mismos filtros
   _discoverSkipCount = 0;
+  var rc = document.getElementById("resultCard");
+  if(rc) rc.classList.remove("show");
+  var dr = document.getElementById("discResult");
+  if(dr) dr.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px 0;">Buscando otra opción...</div>';
   runDiscover();
 }
 
