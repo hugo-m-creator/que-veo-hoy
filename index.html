@@ -332,6 +332,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   background:rgba(100,149,237,.15);border:1px solid var(--blue);color:var(--blue);}
 
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#000;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:10px 18px;z-index:999;animation:slideIn 0.3s ease;}
+.bc-add-badge{position:absolute;top:5px;left:5px;font-size:8px;letter-spacing:1px;
+  padding:2px 6px;background:rgba(77,186,135,0.9);color:#000;font-family:'DM Mono',monospace;
+  text-transform:uppercase;z-index:2;border-radius:2px;}
+.bc-add-badge.is-add{background:rgba(91,141,238,0.85);color:#fff;}
+.browse-card.is-tmdb-result{border-color:rgba(91,141,238,0.3);opacity:0.85;}
+.browse-card.is-tmdb-result:hover{border-color:var(--blue);opacity:1;}
+.browse-tmdb-divider{grid-column:1/-1;display:flex;align-items:center;gap:12px;
+  padding:8px 0;margin:4px 0;}
+.browse-tmdb-divider-line{flex:1;height:1px;background:var(--border);}
+.browse-tmdb-divider-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;}
 ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
 .stream-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
@@ -800,7 +811,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.63");
+console.log("QVH version: 11.64");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1031,32 +1042,22 @@ function makeLBSlug(name){
   return slug;
 }
 
-// ── IDIOMAS CON ESCRITURA LATINA ─────────────────────────────────────────────
-// Para estos idiomas se muestra el título original. Para el resto, título en inglés.
+// Idiomas con escritura latina — mostrar título original, inglés para el resto
 var LATIN_SCRIPT_LANGS={"es":1,"fr":1,"it":1,"pt":1,"de":1,"nl":1,"pl":1,"ro":1,
   "cs":1,"hu":1,"fi":1,"sv":1,"no":1,"da":1,"ca":1,"gl":1,"eu":1,"hr":1,"sk":1,
   "sl":1,"sq":1,"bs":1,"mk":1,"la":1,"eo":1,"cy":1,"ga":1,"af":1,"id":1,"ms":1,
   "tr":1,"az":1,"uz":1,"tl":1,"sw":1,"vi":1,"et":1,"lv":1,"lt":1};
 
-// Asigna t.n (título a mostrar) y t._lbSlug (slug en inglés para Letterboxd)
 function applyTitleFromTMDB(t,det){
   var enTitle=det.title||det.name||"";
   var origTitle=det.original_title||det.original_name||"";
   var lang=det.original_language||"";
-  // Slug para LB: siempre desde el título en inglés de TMDB
   if(enTitle)t._lbSlug=makeLBSlug(enTitle);
-  // Título a mostrar: original si escritura latina, inglés si no
-  if(origTitle&&LATIN_SCRIPT_LANGS[lang]){
-    t.n=origTitle;
-  }else if(enTitle){
-    t.n=enTitle;
-  }
+  if(origTitle&&LATIN_SCRIPT_LANGS[lang])t.n=origTitle;
+  else if(enTitle)t.n=enTitle;
 }
 
-// Construir URL de Letterboxd
-// Prioridad: 1) TMDB ID → letterboxd.com/tmdb/[id]/ (exacto, sin ambigüedad de año)
-//            2) slug en inglés desde TMDB → letterboxd.com/film/[slug]/
-//            3) slug construido desde nombre mostrado (último recurso)
+// URL de Letterboxd: TMDB ID primero (sin ambigüedad de año), luego slug
 async function fetchLBUrl(name,year,lbSlug,tmdbId){
   if(tmdbId)return "https://letterboxd.com/tmdb/"+tmdbId+"/";
   if(!name)return null;
@@ -1072,9 +1073,7 @@ async function fetchLBUrlVerified(name,year,lbSlug,tmdbId){
   if(lbSlug)return "https://letterboxd.com/film/"+lbSlug+"/";
   var slug=makeLBSlug(name);
   if(!slug)return null;
-  var candidates=["https://letterboxd.com/film/"+slug+"/"];
-  if(year)candidates.push("https://letterboxd.com/film/"+slug+"-"+year+"/");
-  return candidates[0];
+  return "https://letterboxd.com/film/"+slug+"/"+(year?"":"")||"https://letterboxd.com/film/"+slug+"-"+(year||""+"/");
 }
 
 
@@ -1175,32 +1174,26 @@ window.addEventListener("load",function(){
 });
 
 
-// ── GUARDADO DE CACHÉ CON PROTECCIÓN DE LÍMITE ───────────────────────────────
 function saveEnrichCache(cache){
   try{
     var json=JSON.stringify(cache);
     if(json.length>4.5*1024*1024){
-      console.warn("QVH: caché cerca del límite ("+Math.round(json.length/1024)+"KB). Reduciendo overviews.");
+      console.warn("QVH: caché cerca del límite ("+Math.round(json.length/1024)+"KB).");
       var slim=cache.map(function(c){return Object.assign({},c,{o:c.o?c.o.substring(0,100):""});});
       json=JSON.stringify(slim);
       if(json.length>4.5*1024*1024){
-        console.warn("QVH: eliminando overviews y backdrops.");
         slim=cache.map(function(c){return Object.assign({},c,{o:"",b:null});});
         json=JSON.stringify(slim);
       }
       if(json.length>4.5*1024*1024){
-        console.warn("QVH: guardando solo títulos con TMDB ID confirmado.");
         slim=cache.filter(function(c){return c.ti;});
         json=JSON.stringify(slim);
       }
     }
     localStorage.setItem("wq_cC",json);
   }catch(e){
-    console.error("QVH: no se pudo guardar caché:",e);
-    try{
-      var emergency=cache.map(function(c){return Object.assign({},c,{o:"",b:null});});
-      localStorage.setItem("wq_cC",JSON.stringify(emergency));
-    }catch(e2){}
+    try{var em=cache.map(function(c){return Object.assign({},c,{o:"",b:null});});
+      localStorage.setItem("wq_cC",JSON.stringify(em));}catch(e2){}
   }
 }
 
@@ -1512,15 +1505,10 @@ async function startEnrich(){
         }
         var ep=best.media_type==="tv"?"tv":"movie",tid=best.id;
         var _confidence="low";
-        if(TMDB_OVERRIDES[t.n+"_"+t.y]){
-          _confidence="high";
-        }else if(bestByDir&&best===bestByDir){
-          _confidence="high";
-        }else if(t.y){
-          var _bestYear=parseInt((best.release_date||best.first_air_date||"").substring(0,4))||0;
-          if(_bestYear===t.y)_confidence="medium";
-          else if(Math.abs(_bestYear-t.y)<=1)_confidence="medium";
-        }
+        if(TMDB_OVERRIDES[t.n+"_"+t.y]){_confidence="high";}
+        else if(bestByDir&&best===bestByDir){_confidence="high";}
+        else if(t.y){var _bY=parseInt((best.release_date||best.first_air_date||"").substring(0,4))||0;
+          if(_bY===t.y)_confidence="medium";else if(Math.abs(_bY-t.y)<=1)_confidence="medium";}
         t._matchConfidence=_confidence;
         // Si CSV marcó is_series=false pero TMDB dice TV, solo usar movie si el año coincide mejor
         if(!t.is_series&&best.media_type==="tv"){
@@ -1568,7 +1556,6 @@ async function startEnrich(){
         // Keywords para filtrado de contenido sensible
         var kws=(det.keywords&&det.keywords.keywords)||(det.keywords&&det.keywords.results)||[];
         t._keywordIds=kws.map(function(k){return k.id;});
-        // Asignar título a mostrar y slug LB en inglés
         applyTitleFromTMDB(t,det);
         if(ep==="tv"){
           var epRt2=det.episode_run_time&&det.episode_run_time[0]||0;
@@ -2944,12 +2931,8 @@ async function enrichPickMetadata(t){
     }catch(e){}
   }
 
-  // Asignar título y slug LB si se obtuvieron detalles
   if(typeof dd!=="undefined"&&dd)applyTitleFromTMDB(t,dd);
-  // Construir URL de Letterboxd usando slug en inglés
-  if(!t.u&&t.n){
-    fetchLBUrl(t.n,t.y,t._lbSlug,t._tmdbId).then(function(url){if(url)t.u=url;});
-  }
+  if(!t.u&&t.n)fetchLBUrl(t.n,t.y,t._lbSlug,t._tmdbId).then(function(url){if(url)t.u=url;});
 
   // Guardar cambios
   if(t.idx !== undefined) saveState();
@@ -3892,7 +3875,7 @@ function renderManage(){
     var div=document.createElement("div");div.className="mitem";
     var h=Math.floor((t.m||0)/60),m2=(t.m||0)%60;
     var dur=t.m>0?(h>0?h+"h"+m2+"m":m2+"m"):'<span style="color:var(--red)">?</span>';
-    var badges=(t.isNew?'<span class="badge badge-n">nuevo</span>':'')+(t.status==="watched"?'<span class="badge badge-w">visto</span>':'')+(t.status==="removed"?'<span class="badge badge-rm">eliminado</span>':'')+(t._tmdbId&&t._matchConfidence==="low"?'<span class="badge" title="Match de TMDB sin confirmar — considera revisarlo" style="background:rgba(255,107,53,0.12);color:#ff6b35;border:1px solid rgba(255,107,53,0.3);cursor:help;">?</span>':'');
+    var badges=(t.isNew?'<span class="badge badge-n">nuevo</span>':'')+(t.status==="watched"?'<span class="badge badge-w">visto</span>':'')+(t.status==="removed"?'<span class="badge badge-rm">eliminado</span>':'')+(t._tmdbId&&t._matchConfidence==="low"?'<span class="badge" title="Match de TMDB sin confirmar" style="background:rgba(255,107,53,0.12);color:#ff6b35;border:1px solid rgba(255,107,53,0.3);cursor:help;">?</span>':'');
     var btns='<div class="mitem-btns"><button class="ib ib-e" onclick="openEdit('+t.idx+')" title="Editar">&#9998;</button>';
     if(t.status==="active")btns+='<button class="ib ib-w" onclick="markW('+t.idx+')" title="Vista">&#10003;</button><button class="ib ib-r" onclick="removeT('+t.idx+')" title="Quitar">&#215;</button>';
     else btns+='<button class="ib ib-rs" onclick="restoreT('+t.idx+')" title="Restaurar">&#8635;</button>';
@@ -4656,9 +4639,11 @@ function debouncedRenderManage(){
   _manageDebounce=setTimeout(renderManage,220);
 }
 
+var _browseLastTMDB=[];  // últimos resultados TMDB para el grid
+var _browseSearchTimer=null;
+
 function renderBrowse(){
   browsePage=0;
-  // Restaurar resultCard si estaba dentro del grid
   var rc=document.getElementById('resultCard');
   var grid=document.getElementById('browseGrid');
   if(rc&&grid&&rc.parentNode===grid){
@@ -4669,13 +4654,101 @@ function renderBrowse(){
   buildBDMenus();
   var pool=getBrowseTitles();
   var countEl=document.getElementById('browseCount');
-  if(countEl)countEl.textContent=pool.length.toLocaleString()+' titulos';
+  if(countEl)countEl.textContent=pool.length.toLocaleString()+' en tu lista';
   var grid=document.getElementById('browseGrid');
   if(!grid)return;
   grid.innerHTML='';
   pool.slice(0,BROWSE_PER_PAGE).forEach(function(t){grid.appendChild(makeBrowseCard(t));});
   var moreBtn=document.getElementById('browseMore');
   if(moreBtn)moreBtn.style.display=pool.length>BROWSE_PER_PAGE?'block':'none';
+  // Búsqueda global en TMDB si hay query
+  var q=(document.getElementById('browseSearch')||{}).value;
+  q=q?(q+'').trim():'';
+  if(q.length>=2){
+    clearTimeout(_browseSearchTimer);
+    _browseSearchTimer=setTimeout(function(){searchBrowseTMDB(q,pool);},350);
+  } else {
+    // Limpiar resultados TMDB si no hay query
+    _browseLastTMDB=[];
+    var divider=document.getElementById('browseTmdbDivider');
+    if(divider)divider.parentNode&&divider.parentNode.removeChild(divider);
+  }
+}
+
+async function searchBrowseTMDB(q,listPool){
+  var grid=document.getElementById('browseGrid');
+  if(!grid)return;
+  // IDs ya en la lista para no duplicar
+  var listTmdbIds=new Set(titles.filter(function(t){return t._tmdbId;}).map(function(t){return t._tmdbId;}));
+  var listNorms=new Set(listPool.map(function(t){return t.n.toLowerCase();}));
+  try{
+    var r=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY
+      +"&query="+encodeURIComponent(q)+"&language=en-US&page=1",
+      {signal:AbortSignal.timeout(5000)});
+    if(!r.ok)return;
+    var results=(await r.json()).results
+      .filter(function(x){return x.media_type==="movie"||x.media_type==="tv";})
+      .filter(function(x){return !listTmdbIds.has(x.id);})
+      .slice(0,8);
+    if(!results.length)return;
+    // Verificar que el query sigue siendo el mismo
+    var currentQ=((document.getElementById('browseSearch')||{}).value||'').trim();
+    if(currentQ.toLowerCase()!==q.toLowerCase())return;
+    _browseLastTMDB=results;
+    // Remover divisor anterior si existe
+    var old=document.getElementById('browseTmdbDivider');
+    if(old&&old.parentNode)old.parentNode.removeChild(old);
+    // Insertar divisor
+    var divider=document.createElement('div');
+    divider.id='browseTmdbDivider';
+    divider.className='browse-tmdb-divider';
+    divider.innerHTML='<div class="browse-tmdb-divider-line"></div>'
+      +'<div class="browse-tmdb-divider-label">Agregar a tu lista</div>'
+      +'<div class="browse-tmdb-divider-line"></div>';
+    grid.appendChild(divider);
+    // Insertar tarjetas TMDB
+    results.forEach(function(item){
+      grid.appendChild(makeBrowseCardTMDB(item));
+    });
+  }catch(e){}
+}
+
+function makeBrowseCardTMDB(item){
+  var div=document.createElement('div');
+  div.className='browse-card is-tmdb-result';
+  var title=item.title||item.name||"";
+  var year=(item.release_date||item.first_air_date||"").substring(0,4);
+  var posterSrc=item.poster_path?"https://image.tmdb.org/t/p/w200"+item.poster_path:null;
+  var isSeries=item.media_type==="tv";
+  div.innerHTML=(posterSrc?'<div class="bc-img-wrap"></div>':'<div class="browse-card-placeholder">&#127902;</div>')
+    +'<div class="bc-add-badge is-add">+ Agregar</div>'
+    +'<div class="browse-card-info">'
+    +'<div class="browse-card-title" title="'+title.replace(/"/g,'&quot;')+'">'+title.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'
+    +'<div class="browse-card-meta">'+(year||'')+(isSeries?' &middot; Serie':'')+'</div>'
+    +'</div>';
+  if(posterSrc){
+    var wrap=div.querySelector('.bc-img-wrap');
+    if(wrap){
+      var img=document.createElement('img');
+      img.src=posterSrc;img.alt=title;img.loading='lazy';
+      img.addEventListener('error',function(){this.parentNode.outerHTML='<div class="browse-card-placeholder">&#127902;</div>';});
+      wrap.appendChild(img);
+    }
+  }
+  // Click en cualquier parte de la tarjeta agrega al watchlist
+  div.addEventListener('click',function(){
+    div.style.opacity='0.5';div.style.pointerEvents='none';
+    autoAddFromSuggestion(title,year,item.media_type,item.id,item.poster_path)
+      .then(function(){
+        div.querySelector('.bc-add-badge').textContent='✓ Agregada';
+        div.querySelector('.bc-add-badge').style.background='rgba(77,186,135,0.9)';
+        div.querySelector('.bc-add-badge').style.color='#000';
+        div.style.opacity='0.6';
+      }).catch(function(){
+        div.style.opacity='1';div.style.pointerEvents='auto';
+      });
+  });
+  return div;
 }
 
 function browseLoadMore(){
@@ -4740,8 +4813,11 @@ function makeBrowseCard(t){
   var posterSrc=t.customPoster||getPoster(t)||null;
   var pinBadge=t.pinned?'<div class="pin-badge" title="Fijada">&#9822;</div>':'';
   var watchedBadge=isWatched?'<div class="watched-badge" title="Vista">&#10003;</div>':'';
+  var inListBadge='';
+  var currentQ=((document.getElementById('browseSearch')||{}).value||'').trim();
+  if(currentQ.length>=2)inListBadge='<div class="bc-add-badge">En tu lista</div>';
   div.innerHTML=(posterSrc?'<div class="bc-img-wrap"></div>':'<div class="browse-card-placeholder">&#127902;</div>')+
-    pinBadge+watchedBadge+
+    pinBadge+watchedBadge+inListBadge+
     '<div class="browse-card-info">'+
     '<div class="browse-card-title" title="'+t.n.replace(/"/g,'&quot;')+'">'+t.n.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'+
     '<div class="browse-card-meta">'+(t.y||'')+(dur?' &middot; '+dur:'')+(t.certification?' &middot; '+t.certification:'')+'</div>'+
@@ -5308,7 +5384,6 @@ async function autoAddFromSuggestion(name,year,mediaType,tmdbId,posterPath){
       _tmdbId:tmdbId,_mediaType:mediaType,_imdbId:d.imdb_id||null};
     applyTitleFromTMDB(newT,d);
     titles.push(newT);saveState();buildGenres();buildDecades();buildCountries();updateStats();updateCandidates();renderManage();
-    // Buscar URL de LB en background usando slug en inglés
     (function(t){fetchLBUrl(t.n,t.y,t._lbSlug,t._tmdbId).then(function(url){if(url){t.u=url;saveState();}});})(newT);
     if(msg){msg.textContent="\u2713 Agregada: "+name;setTimeout(function(){if(msg)msg.style.display="none";},2000);}
     showToast("Agregada: "+name);
