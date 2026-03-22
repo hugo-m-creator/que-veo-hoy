@@ -396,6 +396,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .wt-chip.active{border-color:var(--blue);background:rgba(91,141,238,0.12);color:var(--blue);}
 .wt-chip.solo{border-color:var(--accent);}
 .wt-chip.solo.active{border-color:var(--accent);background:rgba(245,200,66,0.1);color:var(--accent);}
+.import-opt{border:2px solid var(--border);padding:18px 20px;margin-bottom:12px;cursor:pointer;transition:border-color 0.15s;}
+.import-opt:hover,.import-opt.hover-mine{border-color:var(--accent);}
+.import-opt[data-opt="other"]:hover,.import-opt[data-opt="other"].sel{border-color:var(--blue) !important;}
+.import-opt[data-opt="mine"].sel{border-color:var(--accent) !important;}
+.zip-opt{border:2px solid var(--border);padding:16px 18px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s;}
+.zip-opt:hover{border-color:var(--accent);}
+.zip-opt[data-opt="other"]:hover{border-color:var(--blue);}
+.guest-survey-badge{position:fixed;top:0;left:0;right:0;z-index:10001;background:var(--blue);
+  color:#fff;text-align:center;padding:8px 16px;font-size:11px;letter-spacing:1px;}
 .stream-section{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
 .stream-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-bottom:8px;}
 .stream-logos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:20px;}
@@ -830,30 +839,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     <div id="profileSummary" style="font-size:11px;color:var(--muted);">Sin perfil guardado. Responde la encuesta para obtener recomendaciones personalizadas.</div>
   </div>
   <!-- Sección de exportación e importación de perfil -->
+  <!-- Sección unificada: perfiles (export/import propio + guests) -->
   <div id="profileExportSection" style="background:var(--surface);border:1px solid var(--border);padding:20px 24px;margin-bottom:16px;">
-    <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Exportar e importar perfil</div>
-    <div style="font-size:11px;color:var(--muted);line-height:1.8;margin-bottom:16px;">
-      Tu perfil incluye tu watchlist, encuesta, preferencias y señales de aprendizaje.<br>
-      Puedes exportarlo para hacer una copia de seguridad o compartirlo con otro dispositivo.
+    <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Perfiles</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:16px;">
+      Exporta tu perfil para hacer una copia de seguridad o compartirlo. Importa el perfil de alguien m&#225;s para pedir recomendaciones en conjunto.
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-      <button class="mbtn" style="border-color:var(--accent);color:var(--accent);transition:all 0.15s;" onmouseover="this.style.background='var(--accent)';this.style.color='#0c0c0e';" onmouseout="this.style.background='';this.style.color='var(--accent)';" onclick="exportProfile()">&#8593; Exportar perfil</button>
-      <button class="mbtn mbtn-d" onclick="document.getElementById('profileImportFile').click()">&#8595; Importar perfil</button>
-      <input type="file" id="profileImportFile" accept=".qvh,.json" style="display:none" onchange="handleProfileImport(event)">
+      <button class="mbtn" style="border-color:var(--accent);color:var(--accent);transition:all 0.15s;"
+        onmouseover="this.style.background='var(--accent)';this.style.color='#0c0c0e';"
+        onmouseout="this.style.background='';this.style.color='var(--accent)';"
+        onclick="askExportWho()">&#8593; Exportar perfil</button>
+      <button class="mbtn mbtn-d" onclick="askImportWho()">&#8595; Importar perfil</button>
+      <!-- Inputs ocultos — se activan programáticamente después del modal -->
+      <input type="file" id="profileImportFileMine" accept=".qvh,.json" style="display:none" onchange="handleProfileImport(event)">
+      <input type="file" id="profileImportFileGuest" accept=".qvh,.json" style="display:none" onchange="handleGuestImport(event)">
     </div>
     <div id="profileExportMsg" style="font-size:11px;min-height:16px;margin-top:10px;"></div>
-  </div>
-  <!-- Sección perfiles externos -->
-  <div id="guestProfilesSection" style="display:none;" class="guest-profiles-section">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Ver con...</div>
-      <button class="mbtn mbtn-d" style="font-size:9px;"
-        onclick="document.getElementById('guestImportFile').click()">+ Agregar perfil</button>
-      <input type="file" id="guestImportFile" accept=".qvh,.json" style="display:none"
-        onchange="handleGuestImport(event)">
+    <!-- Lista de perfiles externos -->
+    <div id="guestProfilesSection" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Ver con...</div>
+      <div id="guestProfilesList"></div>
+      <div id="guestImportMsg" style="font-size:11px;min-height:16px;margin-top:6px;"></div>
     </div>
-    <div id="guestProfilesList"></div>
-    <div id="guestImportMsg" style="font-size:11px;min-height:16px;margin-top:8px;"></div>
   </div>
   <!-- Diagnóstico de providers — temporal para verificar IDs reales de TMDB -->
   <div id="providerDiagBox" style="background:var(--surface);border:1px solid rgba(255,107,53,0.4);padding:16px 20px;margin-bottom:16px;display:none;">
@@ -873,7 +881,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
         3. Arrastra el ZIP aqu&#237; abajo<br><br>
         <strong>El ZIP actualiza:</strong> pel&#237;culas nuevas en tu watchlist, pel&#237;culas reci&#233;n vistas y tu historial de diary.
       </div>
-      <div class="sync-drop" id="syncDrop" onclick="document.getElementById('syncFile').click()"
+      <div class="sync-drop" id="syncDrop" onclick="askZipOwner(null)"
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="handleDrop(event)">
@@ -943,7 +951,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.81");
+console.log("QVH version: 11.84");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1248,6 +1256,7 @@ window.addEventListener("load",function(){
   loadState();
   loadProfile();
   loadGuestProfiles();
+  initGuestSurveyInterceptor();
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem("wq_cC"));}catch(e){}
   if(cached&&cached.length){
@@ -4275,62 +4284,126 @@ function handleProfileImport(e){
   reader.readAsText(file,"utf-8");
 }
 
-function showProfileImportConfirm(data){
+function showProfileImportConfirm(data, fromLB){
   var p=data.profile;
-  var name=p.displayName?p.displayName+" (@"+p.userHandle+")":"@"+p.userHandle;
+  var displayName=p.displayName||(p.lbUsername?"@"+p.lbUsername:null)||"@"+(p.userHandle||"?");
   var titlesCount=(data.titles||[]).length;
 
-  // Crear modal de confirmación
   var modal=document.createElement("div");
-  modal.style.cssText="position:fixed;inset:0;z-index:600;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;";
-  modal.innerHTML=
-    '<div style="background:var(--surface);border:1px solid var(--border);padding:32px;max-width:460px;width:92%;">'+
-    '<div style="font-family:\'Playfair Display\',serif;font-size:20px;color:var(--accent);margin-bottom:12px;">Importar perfil</div>'+
-    '<div style="font-size:12px;color:var(--text);margin-bottom:6px;">Perfil detectado: <strong>'+name+'</strong></div>'+
-    '<div style="font-size:11px;color:var(--muted);margin-bottom:20px;">'+titlesCount+' películas · exportado el '+data.exported_at+'</div>'+
-    '<div style="font-size:11px;color:var(--muted);margin-bottom:20px;padding:12px;background:var(--surface2);border:1px solid var(--border);">'+
-    '&#9888; Si importas este perfil como <strong style="color:var(--text)">tuyo</strong>, '+
-    'reemplazará tu perfil actual.<br><br>'+
-    'Si es el perfil de <strong style="color:var(--text)">otra persona</strong>, '+
-    'se guardará como perfil secundario para recomendaciones compartidas (próximamente).'+
-    '</div>'+
-    '<div style="display:flex;gap:10px;flex-wrap:wrap;">'+
-    '<button class="mbtn" style="border-color:var(--accent);color:var(--accent);" id="importAsMine">Es mi perfil</button>'+
-    '<button class="mbtn" style="border-color:var(--blue);color:var(--blue);" id="importAsOther">Es de alguien más</button>'+
-    '<button class="mbtn mbtn-d" id="importCancel">Cancelar</button>'+
-    '</div>'+
-    '<div style="font-size:9px;color:var(--muted);margin-top:10px;letter-spacing:.5px;">'+
-    'Esto agrega el perfil como una opción de "Ver con..." en ¿Qué veo hoy? y Descubrir.</div>'+
-    '</div>';
+  modal.style.cssText="position:fixed;inset:0;z-index:600;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px 0;";
 
+  // Construir con createElement para evitar problemas de escape con CSS vars
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--surface);border:1px solid var(--border);padding:28px 32px;max-width:500px;width:92%;margin:auto;";
+
+  // Título
+  var h=document.createElement("div");
+  h.style.cssText="font-family:'Playfair Display',serif;font-size:20px;color:var(--text);margin-bottom:4px;";
+  h.textContent="¿De quién es este perfil?";
+  wrap.appendChild(h);
+
+  // Subtítulo
+  var sub=document.createElement("div");
+  sub.style.cssText="font-size:11px;color:var(--muted);margin-bottom:24px;";
+  sub.textContent=fromLB
+    ? titlesCount+" películas desde Letterboxd"
+    : titlesCount+" películas · exportado el "+(data.exported_at||"");
+  wrap.appendChild(sub);
+
+  // Opción A — Es mi perfil
+  var optMine=document.createElement("div");
+  optMine.className="import-opt";
+  optMine.dataset.opt="mine";
+  optMine.innerHTML=
+    '<div style="display:flex;align-items:center;gap:12px;">'+
+    '<div style="width:38px;height:38px;border-radius:50%;background:rgba(245,200,66,0.12);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">&#128100;</div>'+
+    '<div>'+
+    '<div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:3px;">Es mi perfil</div>'+
+    '<div style="font-size:11px;color:var(--muted);line-height:1.5;">Reemplaza tu perfil actual. Úsalo para restaurar una copia de seguridad o migrar desde otro dispositivo.</div>'+
+    '</div></div>';
+  wrap.appendChild(optMine);
+
+  // Opción B — Es de alguien más
+  var optOther=document.createElement("div");
+  optOther.className="import-opt";
+  optOther.dataset.opt="other";
+  optOther.style.marginBottom="20px";
+  optOther.innerHTML=
+    '<div style="display:flex;align-items:center;gap:12px;">'+
+    '<div style="width:38px;height:38px;border-radius:50%;background:rgba(91,141,238,0.12);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">&#128101;</div>'+
+    '<div>'+
+    '<div style="font-size:13px;color:var(--blue);font-weight:700;margin-bottom:3px;">Es de alguien más</div>'+
+    '<div style="font-size:11px;color:var(--muted);line-height:1.5;">Agrega este perfil como compañero. Aparecerá en "Ver con..." para pedir recomendaciones para los dos.</div>'+
+    '</div></div>';
+  wrap.appendChild(optOther);
+
+  // Botones
+  var btnRow=document.createElement("div");
+  btnRow.style.cssText="display:flex;gap:10px;flex-wrap:wrap;";
+  var btnConfirm=document.createElement("button");
+  btnConfirm.className="mbtn";
+  btnConfirm.id="importConfirmBtn";
+  btnConfirm.disabled=true;
+  btnConfirm.textContent="Confirmar";
+  btnConfirm.style.cssText="border-color:var(--accent);color:var(--accent);opacity:0.4;pointer-events:none;";
+  var btnCancel=document.createElement("button");
+  btnCancel.className="mbtn mbtn-d";
+  btnCancel.textContent="Cancelar";
+  btnRow.appendChild(btnConfirm);
+  btnRow.appendChild(btnCancel);
+  wrap.appendChild(btnRow);
+
+  // Nota al pie
+  var note=document.createElement("div");
+  note.style.cssText="font-size:9px;color:var(--muted);margin-top:10px;letter-spacing:.5px;";
+  note.textContent="El perfil de otra persona nunca modifica tu propia cuenta.";
+  wrap.appendChild(note);
+
+  modal.appendChild(wrap);
   document.body.appendChild(modal);
 
-  modal.querySelector("#importCancel").onclick=function(){document.body.removeChild(modal);};
-  modal.querySelector("#importAsMine").onclick=function(){
+  // Lógica de selección
+  var selectedOpt=null;
+  function selectOpt(opt){
+    selectedOpt=opt;
+    optMine.style.borderColor=opt==="mine"?"var(--accent)":"var(--border)";
+    optOther.style.borderColor=opt==="other"?"var(--blue)":"var(--border)";
+    btnConfirm.disabled=false;
+    btnConfirm.style.cssText="border-color:"+(opt==="mine"?"var(--accent);color:var(--accent)":"var(--blue);color:var(--blue)")+";opacity:1;pointer-events:auto;";
+  }
+  optMine.onclick=function(){selectOpt("mine");};
+  optOther.onclick=function(){selectOpt("other");};
+  btnCancel.onclick=function(){document.body.removeChild(modal);};
+
+  btnConfirm.onclick=function(){
+    if(!selectedOpt)return;
     document.body.removeChild(modal);
-    applyProfileImport(data, false);
-  };
-  modal.querySelector("#importAsOther").onclick=function(){
-    document.body.removeChild(modal);
-    // Agregar como perfil externo
-    var handle = p.userHandle;
-    var existing = guestProfiles.findIndex(function(g){ return g.userHandle===handle; });
-    var entry = {
-      userHandle: handle,
-      displayName: p.displayName||handle,
-      profile: p,
-      titles: data.titles||[],
-      signals: data.signals||{}
-    };
-    if(existing!==-1) guestProfiles[existing]=entry;
-    else guestProfiles.push(entry);
-    saveGuestProfiles();
-    renderGuestProfiles();
-    renderWatchTogetherToggle();
-    // Ir a Mi perfil para mostrar el perfil importado
-    var manageTab=document.querySelector('.mode-tab[onclick*="manage"]');
-    if(manageTab) setMode("manage",manageTab);
-    showToast("Perfil de @"+handle+" agregado ✓");
+    if(selectedOpt==="mine"){
+      applyProfileImport(data, false);
+    } else {
+      var handle=p.userHandle||(p.lbUsername?"lb_"+p.lbUsername:"lb_"+Date.now());
+      var existing=guestProfiles.findIndex(function(g){return g.userHandle===handle;});
+      var entry={
+        userHandle:handle,
+        displayName:p.displayName||p.lbUsername||handle,
+        profile:p,
+        titles:data.titles||[],
+        signals:data.signals||{},
+        fromLB:!!fromLB,
+        needsSurvey:!p.attitude
+      };
+      if(existing!==-1)guestProfiles[existing]=entry;
+      else guestProfiles.push(entry);
+      saveGuestProfiles();
+      renderGuestProfiles();
+      renderWatchTogetherToggle();
+      var manageTab=document.querySelector('.mode-tab[onclick*="manage"]');
+      if(manageTab)setMode("manage",manageTab);
+      showToast("Perfil de "+(entry.displayName)+" agregado ✓");
+      if(entry.needsSurvey){
+        setTimeout(function(){showGuestSurveyPrompt(entry);},600);
+      }
+    }
   };
 }
 
@@ -4554,6 +4627,244 @@ function getCandidatesShared(){
   });
 }
 
+
+// ── ENCUESTA DE GUEST ─────────────────────────────────────────────────────────
+// La encuesta del guest se guarda en su propio objeto dentro de guestProfiles
+// NUNCA afecta userProfile ni surveyAnswers del usuario principal
+
+function showGuestSurveyPrompt(guestEntry){
+  var name=guestEntry.displayName||"@"+guestEntry.userHandle;
+  var modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;z-index:700;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--surface);border:1px solid var(--blue);padding:28px 32px;max-width:440px;width:92%;";
+
+  var h=document.createElement("div");
+  h.style.cssText="font-size:18px;color:var(--blue);margin-bottom:8px;";
+  h.textContent="Mejorar recomendaciones";
+  wrap.appendChild(h);
+
+  var who=document.createElement("div");
+  who.style.cssText="font-size:12px;color:var(--text);margin-bottom:6px;";
+  who.innerHTML="Para <strong>"+name+"</strong>";
+  wrap.appendChild(who);
+
+  var desc=document.createElement("div");
+  desc.style.cssText="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:20px;";
+  desc.textContent="Detectamos sus gustos a partir de su lista de Letterboxd, pero completar una encuesta mejora las recomendaciones compartidas.";
+  var span=document.createElement("span");
+  span.style.color="var(--blue)";
+  span.textContent="Esta encuesta es solo para "+name+" \u2014 no afecta tu perfil.";
+  desc.appendChild(document.createElement("br"));
+  desc.appendChild(document.createElement("br"));
+  desc.appendChild(span);
+  wrap.appendChild(desc);
+
+  var btnRow=document.createElement("div");
+  btnRow.style.cssText="display:flex;gap:10px;flex-wrap:wrap;";
+  var btnStart=document.createElement("button");
+  btnStart.className="mbtn";
+  btnStart.style.cssText="border-color:var(--blue);color:var(--blue);";
+  btnStart.textContent="Completar encuesta";
+  var btnSkip=document.createElement("button");
+  btnSkip.className="mbtn mbtn-d";
+  btnSkip.textContent="Ahora no";
+  btnRow.appendChild(btnStart);
+  btnRow.appendChild(btnSkip);
+  wrap.appendChild(btnRow);
+  modal.appendChild(wrap);
+  document.body.appendChild(modal);
+
+  btnSkip.onclick=function(){document.body.removeChild(modal);};
+  btnStart.onclick=function(){
+    document.body.removeChild(modal);
+    openGuestSurvey(guestEntry);
+  };
+}
+
+function openGuestSurvey(guestEntry){
+  window._surveyTargetGuest=guestEntry;
+  openSurvey(false);
+  setTimeout(function(){
+    var overlay=document.getElementById("surveyOverlay");
+    if(!overlay)return;
+    var existing=document.getElementById("guestSurveyBadge");
+    if(existing)return;
+    var badge=document.createElement("div");
+    badge.id="guestSurveyBadge";
+    badge.className="guest-survey-badge";
+    var name=guestEntry.displayName||"@"+guestEntry.userHandle;
+    badge.innerHTML="&#128101; Encuesta para <strong>"+name+"</strong> — no afecta tu perfil";
+    document.body.insertBefore(badge,overlay);
+  },100);
+}
+
+function initGuestSurveyInterceptor(){
+  var origFinish=saveSurveyFinish;
+  saveSurveyFinish=function(){
+    var badge=document.getElementById("guestSurveyBadge");
+    if(badge&&badge.parentNode)badge.parentNode.removeChild(badge);
+    if(window._surveyTargetGuest){
+      var guest=window._surveyTargetGuest;
+      window._surveyTargetGuest=null;
+      var answers=Object.assign({},surveyAnswers);
+      answers.refs=_surveyRefs;
+      if(answers.birthYear)answers.birthYear=parseInt(answers.birthYear);
+      var idx=guestProfiles.findIndex(function(g){return g.userHandle===guest.userHandle;});
+      if(idx!==-1){
+        guestProfiles[idx].profile=Object.assign(guestProfiles[idx].profile||{},answers);
+        guestProfiles[idx].needsSurvey=false;
+        saveGuestProfiles();
+        renderGuestProfiles();
+      }
+      closeSurvey();
+      showToast("Encuesta de "+(guest.displayName||"@"+guest.userHandle)+" guardada ✓");
+      surveyAnswers={};_surveyRefs=[];
+    } else {
+      origFinish();
+    }
+  };
+}
+
+
+// ── FLUJO: preguntar primero, abrir archivo después ───────────────────────────
+
+function askImportWho(){
+  var modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;z-index:600;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--surface);border:1px solid var(--border);padding:28px 32px;max-width:460px;width:92%;";
+
+  var h=document.createElement("div");
+  h.style.cssText="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;";
+  h.textContent="Importar perfil";
+  wrap.appendChild(h);
+
+  var title=document.createElement("div");
+  title.style.cssText="font-size:19px;color:var(--text);margin-bottom:6px;";
+  title.textContent="¿De quién es el perfil?";
+  wrap.appendChild(title);
+
+  var sub=document.createElement("div");
+  sub.style.cssText="font-size:11px;color:var(--muted);margin-bottom:22px;";
+  sub.textContent="Selecciona primero, luego elige el archivo .qvh.";
+  wrap.appendChild(sub);
+
+  var optMine=document.createElement("div");
+  optMine.className="import-opt";
+  optMine.dataset.opt="mine";
+  optMine.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="width:36px;height:36px;border-radius:50%;background:rgba(245,200,66,0.12);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">&#128100;</div><div><div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:2px;">Es mi perfil</div><div style="font-size:11px;color:var(--muted);">Reemplaza tu perfil y watchlist actuales.</div></div></div>';
+
+  var optOther=document.createElement("div");
+  optOther.className="import-opt";
+  optOther.dataset.opt="other";
+  optOther.style.marginBottom="20px";
+  optOther.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="width:36px;height:36px;border-radius:50%;background:rgba(91,141,238,0.12);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">&#128101;</div><div><div style="font-size:13px;color:var(--blue);font-weight:700;margin-bottom:2px;">Es de alguien más</div><div style="font-size:11px;color:var(--muted);">Se agrega como compañero en "Ver con..." sin tocar tu cuenta.</div></div></div>';
+
+  var btnCancel=document.createElement("button");
+  btnCancel.className="mbtn mbtn-d";
+  btnCancel.textContent="Cancelar";
+
+  wrap.appendChild(optMine);
+  wrap.appendChild(optOther);
+  wrap.appendChild(btnCancel);
+  modal.appendChild(wrap);
+  document.body.appendChild(modal);
+
+  // Hover
+  [optMine, optOther].forEach(function(el){
+    el.onmouseenter=function(){this.style.borderColor=this.dataset.opt==="mine"?"var(--accent)":"var(--blue)";};
+    el.onmouseleave=function(){this.style.borderColor="var(--border)";};
+  });
+
+  optMine.onclick=function(){
+    document.body.removeChild(modal);
+    document.getElementById("profileImportFileMine").click();
+  };
+  optOther.onclick=function(){
+    document.body.removeChild(modal);
+    document.getElementById("profileImportFileGuest").click();
+  };
+  btnCancel.onclick=function(){document.body.removeChild(modal);};
+}
+
+function askExportWho(){
+  // Si no hay guests, exportar directo
+  if(!guestProfiles||!guestProfiles.length){exportProfile();return;}
+
+  var modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;z-index:600;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--surface);border:1px solid var(--border);padding:28px 32px;max-width:460px;width:92%;";
+
+  var h=document.createElement("div");
+  h.style.cssText="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;";
+  h.textContent="Exportar perfil";
+  wrap.appendChild(h);
+
+  var title=document.createElement("div");
+  title.style.cssText="font-size:19px;color:var(--text);margin-bottom:20px;";
+  title.textContent="¿Qué perfil quieres exportar?";
+  wrap.appendChild(title);
+
+  // Opción propia
+  var optMine=document.createElement("div");
+  optMine.className="import-opt";
+  optMine.style.marginBottom="8px";
+  var myName=(userProfile&&(userProfile.displayName||userProfile.userHandle))||"Tu perfil";
+  optMine.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="width:36px;height:36px;border-radius:50%;background:rgba(245,200,66,0.12);border:1px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">&#128100;</div><div><div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:2px;">'+myName+'</div><div style="font-size:11px;color:var(--muted);">Tu watchlist, encuesta y preferencias.</div></div></div>';
+  optMine.onclick=function(){document.body.removeChild(modal);exportProfile();};
+  wrap.appendChild(optMine);
+
+  // Opciones de guests
+  guestProfiles.forEach(function(g){
+    var opt=document.createElement("div");
+    opt.className="import-opt";
+    opt.style.marginBottom="8px";
+    var gName=g.displayName||"@"+g.userHandle;
+    opt.innerHTML='<div style="display:flex;align-items:center;gap:12px;"><div style="width:36px;height:36px;border-radius:50%;background:rgba(91,141,238,0.12);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">&#128101;</div><div><div style="font-size:13px;color:var(--blue);font-weight:700;margin-bottom:2px;">'+gName+'</div><div style="font-size:11px;color:var(--muted);">@'+g.userHandle+'</div></div></div>';
+    opt.onclick=(function(guest){return function(){document.body.removeChild(modal);exportGuestProfile(guest);};})(g);
+    opt.onmouseenter=function(){this.style.borderColor="var(--blue)";};
+    opt.onmouseleave=function(){this.style.borderColor="var(--border)";};
+    wrap.appendChild(opt);
+  });
+
+  var btnCancel=document.createElement("button");
+  btnCancel.className="mbtn mbtn-d";
+  btnCancel.style.marginTop="10px";
+  btnCancel.textContent="Cancelar";
+  btnCancel.onclick=function(){document.body.removeChild(modal);};
+  wrap.appendChild(btnCancel);
+  modal.appendChild(wrap);
+  document.body.appendChild(modal);
+
+  optMine.onmouseenter=function(){this.style.borderColor="var(--accent)";};
+  optMine.onmouseleave=function(){this.style.borderColor="var(--border)";};
+}
+
+function exportGuestProfile(guest){
+  var exportData={
+    qvh_version:"1.0",
+    exported_at:new Date().toISOString().slice(0,10),
+    profile:guest.profile||{userHandle:guest.userHandle,displayName:guest.displayName},
+    titles:guest.titles||[],
+    signals:guest.signals||{},
+    suggestion_pool:[]
+  };
+  var json=JSON.stringify(exportData,null,2);
+  var blob=new Blob([json],{type:"application/json;charset=utf-8;"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="qvh-"+guest.userHandle+"-"+exportData.exported_at+".qvh";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  var msg=document.getElementById("profileExportMsg");
+  if(msg){msg.innerHTML='<span style="color:var(--green)">&#10003; Perfil de '+( guest.displayName||"@"+guest.userHandle)+' exportado.</span>';
+    setTimeout(function(){msg.innerHTML="";},4000);}
+}
+
+// Preguntar también antes del ZIP de Letterboxd si el usuario ya tiene perfil
+// (askZipOwner ya existe — aquí solo nos aseguramos de que syncFile también pregunte)
 function renderProfileSummary(){
   var el=document.getElementById("profileSummary");
   if(!el)return;
@@ -4905,8 +5216,75 @@ function exportCSV(){
 }
 
 // ── LETTERBOXD SYNC ───────────────────────────────────────────────────────────
-function handleDrop(e){e.preventDefault();document.getElementById("syncDrop").classList.remove("drag-over");var file=e.dataTransfer.files[0];if(file)processZip(file);}
-function handleFileSelect(e){var file=e.target.files[0];if(file)processZip(file);e.target.value="";}
+function handleDrop(e){e.preventDefault();document.getElementById("syncDrop").classList.remove("drag-over");var file=e.dataTransfer.files[0];if(file)askZipOwner(file);}
+function handleFileSelect(e){var file=e.target.files[0];if(file)askZipOwner(file);e.target.value="";}
+
+var _pendingZipFile=null;
+function askZipOwner(file){
+  // Sin perfil aún: asumir que es propio — abrir selector directamente
+  if(!userProfile||!userProfile.userHandle){
+    if(!file){document.getElementById("syncFile").click();return;}
+    processZip(file,false);return;
+  }
+  _pendingZipFile=file;
+  var modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;z-index:600;background:rgba(12,12,14,0.95);display:flex;align-items:center;justify-content:center;";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--surface);border:1px solid var(--border);padding:28px 32px;max-width:460px;width:92%;";
+
+  var h=document.createElement("div");
+  h.style.cssText="font-size:18px;color:var(--text);margin-bottom:6px;";
+  h.textContent="¿De quién es este ZIP?";
+  wrap.appendChild(h);
+
+  var sub=document.createElement("div");
+  sub.style.cssText="font-size:11px;color:var(--muted);margin-bottom:22px;";
+  sub.textContent="Letterboxd exporta una lista. ¿Es tu propia lista o la de alguien más?";
+  wrap.appendChild(sub);
+
+  var optMine=document.createElement("div");
+  optMine.className="zip-opt";
+  optMine.innerHTML='<div style="display:flex;align-items:center;gap:10px;"><div style="font-size:22px;">&#128100;</div><div><div style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:2px;">Es mi lista</div><div style="font-size:11px;color:var(--muted);">Actualiza tu watchlist y películas vistas.</div></div></div>';
+
+  var optOther=document.createElement("div");
+  optOther.className="zip-opt";
+  optOther.style.marginBottom="20px";
+  optOther.innerHTML='<div style="display:flex;align-items:center;gap:10px;"><div style="font-size:22px;">&#128101;</div><div><div style="font-size:13px;color:var(--blue);font-weight:700;margin-bottom:2px;">Es de alguien más</div><div style="font-size:11px;color:var(--muted);">Agrega su lista como compañero para recomendaciones compartidas.</div></div></div>';
+
+  var btnCancel=document.createElement("button");
+  btnCancel.className="mbtn mbtn-d";
+  btnCancel.textContent="Cancelar";
+
+  wrap.appendChild(optMine);
+  wrap.appendChild(optOther);
+  wrap.appendChild(btnCancel);
+  modal.appendChild(wrap);
+  document.body.appendChild(modal);
+
+  optMine.onmouseenter=function(){this.style.borderColor="var(--accent)";};
+  optMine.onmouseleave=function(){this.style.borderColor="var(--border)";};
+  optOther.onmouseenter=function(){this.style.borderColor="var(--blue)";};
+  optOther.onmouseleave=function(){this.style.borderColor="var(--border)";};
+  optMine.onclick=function(){
+    document.body.removeChild(modal);
+    if(_pendingZipFile){processZip(_pendingZipFile,false);}
+    else{
+      var inp=document.getElementById("syncFile");
+      inp.onchange=function(e){var f=e.target.files[0];if(f)processZip(f,false);inp.value="";inp.onchange=handleFileSelect;};
+      inp.click();
+    }
+  };
+  optOther.onclick=function(){
+    document.body.removeChild(modal);
+    if(_pendingZipFile){processZip(_pendingZipFile,true);}
+    else{
+      var inp=document.getElementById("syncFile");
+      inp.onchange=function(e){var f=e.target.files[0];if(f)processZip(f,true);inp.value="";inp.onchange=handleFileSelect;};
+      inp.click();
+    }
+  };
+  btnCancel.onclick=function(){document.body.removeChild(modal);};
+}
 function parseCSVText(text){
   var lines=text.split("\n").map(function(l){return l.replace(/\r/g,"");}).filter(function(l){return l.trim();});
   if(!lines.length)return[];
@@ -4925,7 +5303,7 @@ function parseCSVLine(line){
   }
   result.push(cur);return result;
 }
-async function processZip(file){
+async function processZip(file, isGuest){
   var result=document.getElementById("syncResult");
   result.className="sync-result show";
   result.innerHTML='<span style="color:var(--muted)">Leyendo ZIP...</span>';
@@ -5010,6 +5388,28 @@ async function processZip(file){
     }
 
     saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();
+
+    // Si era ZIP de otra persona, mostrar modal de confirmación de guest
+    if(isGuest){
+      var lbUser=file.name?file.name.replace(/\.zip$/i,"").replace(/^letterboxd-/i,""):"lb_guest";
+      var lbHandle="lb_"+lbUser.replace(/[^a-z0-9]/gi,"_").toLowerCase().substring(0,20);
+      var guestTitles=titles.filter(function(t){return t.isNew;});
+      // Revertir: quitar los títulos del guest de la lista principal
+      titles=titles.filter(function(t){return !t.isNew;});
+      // Limpiar flags isNew de títulos propios que ya los tenían
+      titles.forEach(function(t){delete t.isNew;});
+      saveState();updateStats();updateCandidates();renderManage();
+      var guestData={
+        qvh_version:"1.0",
+        exported_at:new Date().toISOString().slice(0,10),
+        profile:{userHandle:lbHandle,lbUsername:lbUser,displayName:lbUser},
+        titles:guestTitles,
+        signals:{}
+      };
+      showProfileImportConfirm(guestData,true);
+      result.innerHTML='<span style="color:var(--blue)">&#8594; Confirmando a quién pertenece esta lista...</span>';
+      return;
+    }
 
     var needsEnrich=titles.filter(function(t){return t.isNew&&(!t._tmdbId||!t.genres||!t.genres.length);});
     if(needsEnrich.length){
