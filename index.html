@@ -610,6 +610,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   /* Ocultar enrichStatus largo en móvil */
   #enrichStatus span:not(#eDot){display:none;}
 
+  /* Footer de botones pegado al fondo de la pantalla */
+  #extCardActions{
+    position:fixed;
+    bottom:0;left:0;right:0;
+    z-index:401; /* encima del card que es 400 */
+    background:var(--surface);
+    border-top:1px solid var(--border);
+  }
+  #cardFooterBtns{display:flex;flex-direction:column;}
+  /* Cuando hay card activo, el contenido del card tiene padding-bottom para no quedar tapado */
+  #resultCard.show .r-content{padding-bottom:140px;}
+
   /* ── SETUP OVERLAY — compacto en móvil ── */
   #setupOverlay{padding:12px 0 80px 0;align-items:flex-start;}
   .setup-card{padding:24px 20px;width:94%;}
@@ -649,12 +661,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 }
 .dismiss-ext-btn:hover{background:rgba(224,82,82,0.08);}
 #extCardActions{display:none;}
-@media(max-width:640px){
-  #extCardActions{display:none;} /* se muestra via JS */
-}
-@media(min-width:641px){
-  #extCardActions{display:none !important;}
-}
 </style>
 </head>
 <body style="background:#07070a;">
@@ -877,11 +883,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     </div>
     <button id="rollPrevBtn" onclick="rollPrev()" style="display:none;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:10px 18px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer;margin-bottom:8px;">&#8592; Anterior</button>
     <button class="roll-btn" onclick="rollWithSource()">Sorpr&#233;ndeme</button>
-    <!-- Botones externos — visibles debajo del card en móvil -->
-    <div id="extCardActions" style="display:none;">
-      <button class="roll-btn" style="font-size:16px;padding:14px 24px;margin-bottom:8px;" onclick="closeResultCard();setTimeout(rollWithSource,200);">Sorpr&#233;ndeme</button>
-      <button id="dismissExtBtn" class="dismiss-ext-btn" onclick="dismissFromResult()">&#215; No me interesa</button>
-    </div>
+    <!-- extCardActions movido al interior del card -->
 
 
   <div id="resultCard">
@@ -933,6 +935,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
           </div>
         </div>
       </div>
+    </div>
+  </div>
+  <!-- Footer fijo dentro del card — solo en móvil -->
+  <div id="extCardActions" style="display:none;">
+    <div id="cardFooterBtns">
+      <button class="roll-btn" style="font-size:16px;padding:14px 24px;margin-bottom:8px;border-radius:0;"
+        onclick="closeResultCard();setTimeout(rollWithSource,200);">Sorpr&#233;ndeme</button>
+      <button id="dismissExtBtn" class="dismiss-ext-btn" onclick="dismissFromResult()"
+        style="border-radius:0;margin:0;">&#215; No me interesa</button>
     </div>
   </div>
   </div>
@@ -1198,7 +1209,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.102");
+console.log("QVH version: 11.103");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
