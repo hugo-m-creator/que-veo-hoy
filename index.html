@@ -3728,20 +3728,39 @@ async function enrichAndReveal(pick){
     var el=document.getElementById(id);
     if(el)el.innerHTML="";
   });
-  // Limpiar hero móvil — devolver elementos al DOM antes de eliminar
+  // Limpiar hero móvil — solo devolver póster al r-inner y eliminar heroDiv
+  // badge/title/meta NO se mueven — showResult los reubicar correctamente
   var heroDiv=document.getElementById("rHeroMob");
   if(heroDiv){
     var rInner=document.querySelector("#resultCard .r-inner");
-    var rContent=document.querySelector("#resultCard .r-content");
     var pw=document.getElementById("rPosterWrap");
-    var badgeEl=document.getElementById("rBadge");
-    var titleEl=document.getElementById("rTitle");
-    var metaEl=document.getElementById("rMeta");
-    if(rInner&&pw&&!rInner.contains(pw))rInner.insertBefore(pw,rInner.firstChild);
-    var btnRow=rContent?rContent.querySelector("div"):null;
-    if(rContent&&badgeEl){badgeEl.style.cssText="";if(!rContent.contains(badgeEl))rContent.insertBefore(badgeEl,btnRow);}
-    if(rContent&&titleEl){titleEl.style.cssText="";if(!rContent.contains(titleEl))rContent.insertBefore(titleEl,badgeEl&&rContent.contains(badgeEl)?badgeEl.nextSibling:btnRow);}
-    if(rContent&&metaEl){metaEl.style.cssText="";if(!rContent.contains(metaEl))rContent.insertBefore(metaEl,titleEl&&rContent.contains(titleEl)?titleEl.nextSibling:btnRow);}
+    // Devolver póster al inicio del r-inner
+    if(rInner&&pw&&heroDiv.contains(pw)){
+      rInner.insertBefore(pw,rInner.firstChild);
+    }
+    // Devolver badge/title/meta a sus contenedores originales antes de eliminar
+    var heroInfo=document.getElementById("rHeroInfo");
+    if(heroInfo){
+      var rContent=document.querySelector("#resultCard .r-content");
+      var firstDiv=rContent?rContent.querySelector("div"):null; // div de badge+botones
+      var badgeEl=document.getElementById("rBadge");
+      var titleEl=document.getElementById("rTitle");
+      var metaEl=document.getElementById("rMeta");
+      // El badge va dentro del primer div del r-content (junto a los botones)
+      if(firstDiv&&badgeEl&&!firstDiv.contains(badgeEl)){
+        badgeEl.style.cssText="";
+        firstDiv.insertBefore(badgeEl,firstDiv.firstChild);
+      }
+      // Title y meta van directamente en r-content
+      if(rContent&&titleEl&&!rContent.contains(titleEl)){
+        titleEl.style.cssText="";
+        rContent.insertBefore(titleEl,firstDiv?firstDiv.nextSibling:null);
+      }
+      if(rContent&&metaEl&&!rContent.contains(metaEl)){
+        metaEl.style.cssText="";
+        rContent.insertBefore(metaEl,titleEl&&rContent.contains(titleEl)?titleEl.nextSibling:(firstDiv?firstDiv.nextSibling:null));
+      }
+    }
     heroDiv.parentNode&&heroDiv.parentNode.removeChild(heroDiv);
   }
 
@@ -3995,6 +4014,11 @@ function showResult(t){
       if(rContent && titleEl2){titleEl2.style.cssText="";if(!rContent.contains(titleEl2))rContent.insertBefore(titleEl2,badgeEl?badgeEl.nextSibling:btnRow);}
       if(rContent && metaEl2){metaEl2.style.cssText="";if(!rContent.contains(metaEl2))rContent.insertBefore(metaEl2,titleEl2?titleEl2.nextSibling:btnRow);}
 
+      // Devolver badge al primer div del r-content
+      var firstDiv2=rContent?rContent.querySelector("div"):null;
+      if(firstDiv2&&badgeEl&&!firstDiv2.contains(badgeEl)){badgeEl.style.cssText="";firstDiv2.insertBefore(badgeEl,firstDiv2.firstChild);}
+      if(rContent&&titleEl2&&!rContent.contains(titleEl2)){titleEl2.style.cssText="";rContent.insertBefore(titleEl2,firstDiv2?firstDiv2.nextSibling:null);}
+      if(rContent&&metaEl2&&!rContent.contains(metaEl2)){metaEl2.style.cssText="";rContent.insertBefore(metaEl2,titleEl2&&rContent.contains(titleEl2)?titleEl2.nextSibling:(firstDiv2?firstDiv2.nextSibling:null));}
       heroDiv.parentNode && heroDiv.parentNode.removeChild(heroDiv);
     }
   }
