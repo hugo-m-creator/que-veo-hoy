@@ -2,19 +2,21 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#07070a">
 <title>Que veo hoy</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>:root{--bg:#07070a;--surface:#0e0e14;--surface2:#14141f;--border:#1e1e2e;--accent:#f5c842;--accent2:#e8553e;--text:#d4cfec;--muted:#7a7696;--green:#4dba87;--red:#e05252;--blue:#5b8dee;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;overflow-x:hidden;}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:0.35;}
-#setupOverlay{position:fixed;inset:0;z-index:9999;background:rgba(12,12,14,0.97);display:flex;align-items:center;justify-content:center;}
+html{background:var(--bg);}body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:0.35;}@media(max-width:640px){body::before{opacity:0.45;}}
+#mobileTabBar{display:none;}
+#setupOverlay{position:fixed;inset:0;z-index:9999;background:rgba(12,12,14,0.97);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;}
 .enrich-bar{position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--surface2);border-top:1px solid var(--border);padding:8px 20px;display:none;align-items:center;gap:14px;font-size:10px;letter-spacing:1px;color:var(--muted);}
 .enrich-bar-track{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
 .enrich-bar-fill{height:3px;background:var(--accent);transition:width 0.4s ease;border-radius:2px;}
-.setup-card{background:var(--surface);border:1px solid var(--border);padding:40px;max-width:480px;width:90%;}
+.setup-card{background:var(--surface);border:1px solid var(--border);padding:40px;max-width:480px;width:90%;margin:auto;}
 .setup-card h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent);margin-bottom:10px;}
 .setup-card p{color:var(--muted);font-size:11px;line-height:1.9;margin-bottom:20px;}
 .setup-card p strong{color:var(--text);}
@@ -415,6 +417,172 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .stream-logo span{font-size:8px;color:rgba(255,255,255,0.65);max-width:42px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .stream-none{color:rgba(255,255,255,0.5);font-size:10px;font-style:italic;}
 .stream-loading{color:var(--muted);font-size:10px;animation:blink 1s infinite;}
+
+/* ── RESPONSIVE MÓVIL ─────────────────────────────────────────────── */
+@media (max-width: 640px){
+
+  /* Layout general */
+  body{font-size:14px;}
+  #app{padding:16px 14px 80px 14px;} /* padding-bottom para tab bar */
+
+  /* Título principal — más compacto en móvil */
+  .site-title{font-size:clamp(32px,11vw,56px);margin-bottom:4px;}
+  .site-sub{font-size:10px;}
+
+  /* ── NAVEGACIÓN: ocultar tabs horizontales, mostrar tab bar inferior ── */
+  .mode-tabs{display:none !important;}
+
+  /* Tab bar inferior */
+  #mobileTabBar{
+    display:flex;
+    position:fixed;bottom:0;left:0;right:0;z-index:500;
+    background:var(--surface);border-top:1px solid var(--border);
+    height:60px;
+  }
+  .mob-tab{
+    flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;border:none;background:transparent;
+    color:var(--muted);cursor:pointer;padding:6px 2px;
+    font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.5px;
+    text-transform:uppercase;transition:color 0.15s;
+  }
+  .mob-tab .mob-icon{font-size:18px;line-height:1;}
+  .mob-tab.active{color:var(--accent);}
+  .mob-tab:hover{color:var(--text);}
+
+  /* ── ¿QUÉ VEO HOY? — filtros y resultado ── */
+  .fgroup{margin-bottom:12px;}
+  .slabel{font-size:9px;}
+  .pill{padding:7px 12px;font-size:9px;}
+  .roll-btn{font-size:20px;padding:18px 24px;margin:20px 0 6px;}
+
+  /* resultCard en móvil — pantalla completa */
+  #resultCard{
+    position:fixed;inset:0;z-index:400;
+    border:none;border-radius:0;
+    overflow-y:auto;margin:0;
+    animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+  @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .r-inner{flex-direction:column;}
+  .r-poster-wrap-inner{width:100%;max-width:100%;height:260px;flex-shrink:0;}
+  .r-poster-wrap-inner img{width:100%;height:100%;object-fit:cover;object-position:top;}
+  .r-content{padding:16px 16px 80px 16px;}
+  .r-title{font-size:clamp(20px,5vw,32px);}
+  .r-actions{gap:8px;flex-wrap:wrap;}
+  .r-top-btn{font-size:9px;padding:6px 10px;}
+
+  /* ── MI LISTA — grid 2 columnas ── */
+  .browse-grid{grid-template-columns:repeat(2,1fr) !important;gap:10px;}
+  #browseSearch{font-size:14px;padding:10px 12px;}
+  .browse-card-title{font-size:11px;}
+  .browse-card-meta{font-size:10px;}
+
+  /* Filtros de Mi lista — scroll horizontal */
+  #browseFilters{
+    overflow-x:auto;
+    white-space:nowrap;
+    padding-bottom:4px;
+    display:flex;
+    gap:6px;
+    -webkit-overflow-scrolling:touch;
+  }
+  #browseFilters .pill-row{flex-shrink:0;}
+
+  /* ── ENCUESTA — optimizada para touch ── */
+  .survey-card{
+    padding:24px 20px;
+    max-width:100%;
+    border:none;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  #surveyOverlay{padding:0;align-items:flex-start;}
+  .survey-q{font-size:18px;margin-bottom:8px;}
+  .survey-hint{font-size:12px;margin-bottom:16px;}
+  .survey-opts{gap:10px;margin-bottom:20px;}
+  .survey-opt{
+    font-size:12px;
+    padding:12px 16px;
+    flex:1;
+    min-width:calc(50% - 5px);
+    text-align:center;
+  }
+  /* Opciones de una sola línea — ancho completo */
+  .survey-opts.single-col .survey-opt{min-width:100%;}
+  .survey-nav{
+    margin-top:auto;
+    padding-top:20px;
+    gap:12px;
+  }
+  .survey-back{padding:12px 20px;font-size:11px;}
+  .survey-next{padding:12px 28px;font-size:11px;}
+  .survey-progress{margin-bottom:20px;}
+  .survey-dot{height:4px;}
+
+  /* Input de año de nacimiento */
+  #sf_birthYear{font-size:16px;padding:12px;} /* 16px evita zoom en iOS */
+
+  /* Búsqueda de películas de referencia */
+  .survey-ref-search input{font-size:16px;padding:12px;}
+  .survey-ref-results{max-height:240px;}
+  .survey-ref-item{padding:10px 12px;}
+  .survey-ref-item img{width:36px;height:54px;}
+
+  /* ── MI PERFIL — layout apilado ── */
+  .profile-identity{padding:16px;}
+  .profile-edit-form{padding-top:14px;}
+  .profile-field input{font-size:16px;padding:10px 12px;} /* 16px evita zoom iOS */
+
+  /* Botones de acción en Mi perfil */
+  #profileExportSection .mbtn{width:100%;justify-content:center;padding:12px;}
+
+  /* ── WIZARD DESCUBRIR ── */
+  .disc-wrap{padding:0;}
+  .disc-q{font-size:20px;}
+  .disc-step{padding:0;}
+
+  /* ── ESTADÍSTICAS ── */
+  .stat-grid{grid-template-columns:repeat(2,1fr) !important;}
+  .stat-card{padding:16px;}
+  .stat-card-val{font-size:26px;}
+
+  /* ── MANAGE / MI PERFIL — secciones ── */
+  .sync-box{padding:16px 18px;}
+  .manage-toolbar{flex-wrap:wrap;gap:6px;}
+
+  /* Ocultar enrichStatus largo en móvil */
+  #enrichStatus span:not(#eDot){display:none;}
+
+  /* ── SETUP OVERLAY — compacto en móvil ── */
+  #setupOverlay{padding:12px 0 80px 0;align-items:flex-start;}
+  .setup-card{padding:24px 20px;width:94%;}
+  .setup-card h2{font-size:20px;margin-bottom:6px;}
+  .setup-card p{font-size:11px;margin-bottom:14px;}
+  /* Compactar separadores */
+  .setup-card [style*="margin-bottom:14px"]{margin-bottom:10px !important;}
+  /* Input URL más grande para touch */
+  #lbUrlInput{font-size:16px;padding:10px 12px;}
+  /* Botón encuesta ancho completo ya está — OK */
+  /* Drop zone más compacta */
+  .sync-drop{padding:16px 12px;}
+  .sync-drop-label{font-size:11px;}
+}
+
+/* Tablet — ajustes intermedios */
+@media (min-width:641px) and (max-width:1024px){
+  #mobileTabBar{display:none;}
+  .browse-grid{grid-template-columns:repeat(3,1fr) !important;}
+  .survey-card{padding:28px 32px;}
+  .survey-opt{font-size:11px;padding:10px 14px;}
+}
+
+/* Desktop — tab bar oculta */
+@media (min-width:641px){
+  #mobileTabBar{display:none;}
+}
+
 </style>
 </head>
 <body>
@@ -952,7 +1120,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.87");
+console.log("QVH version: 11.91");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4946,6 +5114,23 @@ function migrateRefsToTitles(){
   }
 }
 
+
+// ── SINCRONIZACIÓN TAB BAR MÓVIL ──────────────────────────────────────────────
+function syncMobTab(activeEl){
+  document.querySelectorAll('.mob-tab').forEach(function(t){ t.classList.remove('active'); });
+  if(activeEl) activeEl.classList.add('active');
+}
+
+// Extender setMode para sincronizar la tab bar móvil
+var _origSetMode = setMode;
+setMode = function(mode, btn){
+  _origSetMode(mode, btn);
+  // Sincronizar tab bar móvil
+  document.querySelectorAll('.mob-tab').forEach(function(t){
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+};
+
 function renderProfileSummary(){
   var el=document.getElementById("profileSummary");
   if(!el)return;
@@ -6978,5 +7163,30 @@ function addTitle(){var n=(document.getElementById("addN")||{}).value;if(n){var 
   <div class="enrich-bar-track"><div class="enrich-bar-fill" id="enrichBarFill" style="width:0%"></div></div>
   <span id="enrichBarCount" style="white-space:nowrap;"></span>
 </div>
+
+<!-- Tab bar móvil inferior — visible solo en pantallas pequeñas -->
+<div id="mobileTabBar">
+  <button class="mob-tab active" onclick="setMode('filter',this);syncMobTab(this)" data-mode="filter">
+    <span class="mob-icon">&#127902;</span>
+    <span>Hoy</span>
+  </button>
+  <button class="mob-tab" onclick="setMode('wizard',this);syncMobTab(this)" data-mode="wizard">
+    <span class="mob-icon">&#127366;</span>
+    <span>Descubrir</span>
+  </button>
+  <button class="mob-tab" onclick="setMode('stats',this);syncMobTab(this)" data-mode="stats">
+    <span class="mob-icon">&#9783;</span>
+    <span>Stats</span>
+  </button>
+  <button class="mob-tab" onclick="setMode('browse',this);syncMobTab(this)" data-mode="browse">
+    <span class="mob-icon">&#9776;</span>
+    <span>Mi lista</span>
+  </button>
+  <button class="mob-tab" onclick="setMode('manage',this);syncMobTab(this)" data-mode="manage">
+    <span class="mob-icon">&#128100;</span>
+    <span>Perfil</span>
+  </button>
+</div>
+
 </body>
 </html>
