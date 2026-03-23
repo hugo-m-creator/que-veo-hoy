@@ -649,27 +649,36 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #enrichStatus span:not(#eDot){display:none;}
   /* ── RESULTCARD REDISEÑADO — layout tipo Letterboxd ── */
 
-  /* Backdrop — visible y limpio en móvil */
+  /* Backdrop — parallax real: fixed, se mueve con background-position */
   #rBackdrop{
     display:block !important;
-    width:100%;
-    height:240px;
+    position:fixed !important;
+    top:0;left:0;right:0;
+    height:260px;
     background-size:cover;
     background-position:center 30%;
-    flex-shrink:0;
-    position:sticky;
-    top:0;
-    z-index:1;
-    /* Resetear filtros del CSS base */
+    z-index:401;
     filter:none !important;
     transform:none !important;
   }
   #rBackdrop::after{
     content:'';
     position:absolute;
-    bottom:0;left:0;right:0;
-    height:160px;
-    background:linear-gradient(to bottom, transparent 0%, rgba(7,7,10,0.7) 60%, var(--bg) 100%);
+    inset:0;
+    background:linear-gradient(
+      to bottom,
+      rgba(7,7,10,0.1) 0%,
+      rgba(7,7,10,0.4) 50%,
+      var(--bg) 100%
+    );
+    pointer-events:none;
+  }
+  /* El contenido empieza debajo del backdrop */
+  #resultCard .r-inner{
+    padding-top:200px;
+    position:relative;
+    z-index:402;
+    background:var(--bg);
   }
   /* El r-inner necesita z-index mayor para estar sobre el backdrop sticky */
   #resultCard .r-inner{
@@ -1529,7 +1538,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.131");
+console.log("QVH version: 11.132");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3863,7 +3872,7 @@ function hideExtCardActions(){
 
 // Observer para ocultar extCardActions cuando el card se cierra
 
-// Parallax sutil en el backdrop del card en móvil
+// Parallax: backdrop fixed, background-position se mueve lento
 function initCardParallax(){
   var card = document.getElementById('resultCard');
   var backdrop = document.getElementById('rBackdrop');
@@ -3871,9 +3880,8 @@ function initCardParallax(){
   card.addEventListener('scroll', function(){
     if(window.innerWidth > 640) return;
     var scrollY = card.scrollTop;
-    // Mover el backdrop más lento que el scroll — efecto parallax
-    var offset = 30 + scrollY * 0.3; // empieza en 30%, se mueve lento
-    backdrop.style.backgroundPosition = 'center ' + offset + '%';
+    var yPos = 30 + scrollY * 0.12;
+    backdrop.style.backgroundPosition = 'center ' + Math.min(yPos, 55) + '%';
   }, {passive:true});
 }
 
@@ -3924,10 +3932,10 @@ function showResult(t){
     // Mostrar backdrop
     if(t.backdrop){
       var bdSrc = t.backdrop.startsWith("http") ? t.backdrop : TMDB_IMG+"w780"+t.backdrop;
-      backdrop.setAttribute("style","display:block !important;width:100%;height:240px;background-image:url('"+bdSrc+"');background-size:cover;background-position:center 30%;position:sticky;top:0;z-index:1;flex-shrink:0;filter:none;transform:none;");
+      backdrop.setAttribute("style","background-image:url('"+bdSrc+"');");
     } else if(t.poster){
       var pFB = t.poster.startsWith("http") ? t.poster : TMDB_IMG+"w500"+t.poster;
-      backdrop.setAttribute("style","display:block !important;width:100%;height:240px;background-image:url('"+pFB+"');background-size:cover;background-position:center top;position:sticky;top:0;z-index:1;flex-shrink:0;filter:blur(14px) brightness(0.5);transform:none;");
+      backdrop.setAttribute("style","background-image:url('"+pFB+"');filter:blur(20px) brightness(0.4) saturate(0.6);");
     } else {
       backdrop.setAttribute("style","display:none;");
     }
@@ -3940,7 +3948,7 @@ function showResult(t){
     if(!heroDiv && rInner && rContent){
       heroDiv = document.createElement("div");
       heroDiv.id = "rHeroMob";
-      heroDiv.style.cssText = "display:flex;flex-direction:row;gap:14px;padding:0 14px;margin-top:-60px;position:relative;z-index:2;align-items:flex-end;";
+      heroDiv.style.cssText = "display:flex;flex-direction:row;gap:14px;padding:0 14px;margin-top:-80px;position:relative;z-index:402;align-items:flex-end;";
       var heroInfo = document.createElement("div");
       heroInfo.id = "rHeroInfo";
       heroInfo.style.cssText = "flex:1;min-width:0;padding-bottom:6px;";
