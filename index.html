@@ -793,10 +793,84 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   .survey-opt{font-size:11px;padding:10px 14px;}
 }
 
-/* Desktop — tab bar oculta */
+/* Desktop — restaurar card original, ocultar elementos móvil */
 @media (min-width:641px){
   #mobileTabBar{display:none;}
   .r-close-btn{display:none;}
+  #extCardActions{display:none !important;}
+  #cardInlineActions{display:none !important;}
+
+  /* Resetear resultCard al layout original de desktop */
+  #resultCard{
+    min-height:unset;
+    overflow:hidden;
+  }
+  /* Backdrop en desktop — solo fondo blur oscuro como antes */
+  #rBackdrop{
+    position:absolute !important;
+    inset:0 !important;
+    width:auto !important;
+    height:auto !important;
+    background-size:cover !important;
+    background-position:center 20% !important;
+    filter:blur(8px) brightness(0.35) saturate(0.8) !important;
+    transform:scale(1.1) !important;
+    top:0 !important;
+    z-index:0 !important;
+    flex-shrink:unset !important;
+  }
+  #rBackdrop::after{display:none !important;}
+
+  /* Hero — oculto en desktop */
+  #rHero{display:none !important;}
+
+  /* r-inner — horizontal en desktop */
+  #resultCard .r-inner{
+    flex-direction:row !important;
+    position:relative;
+    z-index:1;
+  }
+
+  /* Póster en desktop — tamaño original */
+  #rPosterWrap{
+    width:200px !important;
+    min-width:200px !important;
+    height:auto !important;
+    padding:16px !important;
+    background:transparent !important;
+  }
+  #rPosterWrap img{
+    width:100% !important;
+    height:auto !important;
+    object-fit:contain !important;
+    border-radius:8px !important;
+    box-shadow:0 4px 24px rgba(0,0,0,0.7) !important;
+  }
+
+  /* r-content en desktop — layout original */
+  .r-content{
+    padding:24px 28px !important;
+    gap:8px !important;
+  }
+
+  /* Fila de botones de acción en desktop — horizontal normal */
+  .r-top-row{
+    overflow-x:visible !important;
+    flex-wrap:wrap !important;
+    border-bottom:none !important;
+    padding-bottom:0 !important;
+    margin-bottom:0 !important;
+    gap:6px !important;
+  }
+
+  /* Mostrar título y meta en desktop (están en elementos separados) */
+  #rTitleDesktop{display:block !important;}
+  #rMetaDesktop{display:flex !important;}
+  #rBadgeDesktop{display:block !important;}
+  /* Ocultar los del hero en desktop */
+  #rTitle{display:none;}
+  #rMeta{display:none;}
+  #rBadge{display:none;}
 }
 
 .dismiss-ext-btn{
@@ -1530,7 +1604,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.122");
+console.log("QVH version: 11.123");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
