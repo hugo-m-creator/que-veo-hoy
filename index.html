@@ -452,235 +452,147 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   .mob-tab.active{color:var(--accent);}
   .mob-tab:hover{color:var(--text);}
 
-  /* ── RESULTCARD MÓVIL — botones y cierre ── */
-  /* Botones con texto corto en móvil */
-  /* Botón cerrar — solo en móvil */
-  .r-close-btn{
-    border-color:rgba(255,255,255,0.4) !important;
-    font-size:12px !important;
-    padding:6px 8px !important;
-  }
-  /* Scroll horizontal en fila de botones */
-  .r-content>div:first-child{
-    overflow-x:auto;display:flex;flex-wrap:nowrap;
-    gap:5px;padding-bottom:4px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;
-  }
-  .r-content>div:first-child::-webkit-scrollbar{display:none;}
-  .r-top-btn{font-size:8px;padding:5px 7px;white-space:nowrap;flex-shrink:0;}
+  /* ── RESULTCARD REDISEÑADO — layout tipo Letterboxd ── */
 
-  /* ── ¿QUÉ VEO HOY? — filtros compactos ── */
-  .fgroup{margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
-  .slabel{font-size:8px;letter-spacing:1.5px;white-space:nowrap;min-width:48px;flex-shrink:0;}
-  .pills{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:2px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;}
-  .pills::-webkit-scrollbar{display:none;}
-  .pill{padding:5px 10px;font-size:9px;white-space:nowrap;flex-shrink:0;}
-  .roll-btn{font-size:18px;padding:14px 24px;margin:10px 0 4px;}
-  #filterMode .fgroup+.fgroup{border-top:none;}
-  /* Toggle 'Ver con' compacto */
-  .watch-together-wrap{margin-bottom:8px;margin-top:0;}
-  .watch-together-label{margin-bottom:4px;}
-  /* Pool status y toggle de source */
-  #poolStatus{font-size:9px;}
-  #srcToggleBtn{font-size:8px;padding:4px 8px;}
-
-  /* resultCard en móvil — pantalla completa */
-  #resultCard{
-    position:fixed;inset:0;z-index:400;
-    border:none;border-radius:0;
-    overflow-y:scroll !important; /* scroll en lugar de auto — más estable en iOS */
-    overflow-x:hidden;
-    margin:0;
-    animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain; /* evita que el scroll se propague al body */
-    touch-action:pan-y; /* permite scroll vertical, bloquea interferencias */
-  }
-  /* Bloquear scroll del body cuando el card está abierto */
-  body.card-open{
-    overflow:hidden !important;
-    position:fixed;
+  /* Backdrop — visible y limpio en móvil */
+  #rBackdrop{
+    display:block !important;
     width:100%;
-    left:0;right:0;
+    height:240px;
+    background-size:cover;
+    background-position:center 30%;
+    flex-shrink:0;
+    position:sticky;
+    top:0;
+    z-index:1;
+    /* Resetear filtros del CSS base */
+    filter:none !important;
+    transform:none !important;
   }
-  @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
-  /* Botones de acción — scroll horizontal, nunca se parten */
-  .r-content>div:first-child{
-    overflow-x:auto;
-    display:flex;
-    flex-wrap:nowrap;
-    gap:6px;
-    padding-bottom:4px;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-  }
-  .r-content>div:first-child::-webkit-scrollbar{display:none;}
-  .r-top-btn{
-    font-size:8px;padding:6px 8px;
-    white-space:nowrap;flex-shrink:0;
-  }
-  .r-actions{gap:8px;flex-wrap:wrap;}
-
-  /* ── MI LISTA — grid 2 columnas ── */
-  #browseGrid{grid-template-columns:repeat(4,1fr) !important;gap:5px !important;}
-  .browse-grid{grid-template-columns:repeat(4,1fr) !important;gap:5px !important;}
-  #browseSearch{font-size:14px;padding:10px 12px;}
-  /* Tarjetas más compactas en 4 columnas */
-  .browse-card{border-radius:4px;}
-  .browse-card-info{padding:4px 5px 5px;}
-  .browse-card-title{font-size:8px;line-height:1.2;max-height:2.4em;overflow:hidden;}
-  .browse-card-meta{font-size:7px;margin-top:1px;}
-  /* Badge de estado más pequeño */
-  .bc-add-badge{font-size:7px;padding:2px 4px;top:3px;left:3px;}
-
-  /* Filtros de Mi lista — scroll horizontal */
-  #browseFilters{
-    overflow-x:auto;
-    white-space:nowrap;
-    padding-bottom:4px;
-    display:flex;
-    gap:6px;
-    -webkit-overflow-scrolling:touch;
-  }
-  #browseFilters .pill-row{flex-shrink:0;}
-
-  /* ── ENCUESTA — optimizada para touch ── */
-  .survey-card{
-    padding:24px 20px;
-    max-width:100%;
-    border:none;
-    min-height:100dvh;
-    display:flex;
-    flex-direction:column;
-  }
-  #surveyOverlay{padding:0;align-items:flex-start;}
-  .survey-q{font-size:18px;margin-bottom:8px;}
-  .survey-hint{font-size:12px;margin-bottom:16px;}
-  .survey-opts{gap:10px;margin-bottom:20px;}
-  .survey-opt{
-    font-size:12px;
-    padding:12px 16px;
-    flex:1;
-    min-width:calc(50% - 5px);
-    text-align:center;
-  }
-  /* Opciones de una sola línea — ancho completo */
-  .survey-opts.single-col .survey-opt{min-width:100%;}
-  .survey-nav{
-    margin-top:auto;
-    padding-top:20px;
-    gap:12px;
-  }
-  .survey-back{padding:12px 20px;font-size:11px;}
-  .survey-next{padding:12px 28px;font-size:11px;}
-  .survey-progress{margin-bottom:20px;}
-  .survey-dot{height:4px;}
-
-  /* Input de año de nacimiento */
-  #sf_birthYear{font-size:16px;padding:12px;} /* 16px evita zoom en iOS */
-
-  /* Búsqueda de películas de referencia */
-  .survey-ref-search input{font-size:16px;padding:12px;}
-  .survey-ref-results{max-height:240px;}
-  .survey-ref-item{padding:10px 12px;}
-  .survey-ref-item img{width:36px;height:54px;}
-
-  /* ── MI PERFIL — layout apilado ── */
-  .profile-identity{padding:16px;}
-  .profile-edit-form{padding-top:14px;}
-  .profile-field input{font-size:16px;padding:10px 12px;} /* 16px evita zoom iOS */
-
-  /* Botones de acción en Mi perfil */
-  #profileExportSection .mbtn{width:100%;justify-content:center;padding:12px;}
-
-  /* ── WIZARD DESCUBRIR ── */
-  .disc-wrap{padding:0;}
-  .disc-q{font-size:20px;}
-  .disc-step{padding:0;}
-
-  /* ── ESTADÍSTICAS ── */
-  .stat-grid{grid-template-columns:repeat(2,1fr) !important;}
-  .stat-card{padding:16px;}
-  .stat-card-val{font-size:26px;}
-
-  /* ── MANAGE / MI PERFIL — secciones ── */
-  .sync-box{padding:16px 18px;}
-  .manage-toolbar{flex-wrap:wrap;gap:6px;}
-
-  /* Ocultar enrichStatus largo en móvil */
-  #enrichStatus span:not(#eDot){display:none;}
-
-  /* ── RESULTCARD MÓVIL — layout Letterboxd ── */
-
-  /* Card fullscreen con scroll */
-  #resultCard{min-height:100dvh;}
-
-  /* Backdrop sticky arriba — gestionado por inline style en JS */
-  /* Gradiente al fondo del backdrop */
   #rBackdrop::after{
     content:'';
     position:absolute;
     bottom:0;left:0;right:0;
-    height:100px;
-    background:linear-gradient(to bottom,transparent 0%,var(--bg) 100%);
-    pointer-events:none;
+    height:160px;
+    background:linear-gradient(to bottom, transparent 0%, rgba(7,7,10,0.7) 60%, var(--bg) 100%);
+  }
+  /* El r-inner necesita z-index mayor para estar sobre el backdrop sticky */
+  #resultCard .r-inner{
+    position:relative;
+    z-index:2;
   }
 
-  /* r-inner en columna */
-  .r-inner{flex-direction:column !important;}
-  #resultCard .r-inner{position:relative;z-index:2;}
-
-  /* Póster — sale de debajo del backdrop, alineado a la izquierda */
-  .r-poster-wrap-inner{
-    width:100% !important;
-    min-width:unset !important;
-    height:auto !important;
-    padding:0 14px !important;
-    margin-top:-70px !important;
-    display:flex !important;
-    justify-content:flex-start !important;
-    align-items:flex-end !important;
+  /* Layout principal: póster izquierda + info derecha */
+  .r-inner{
+    flex-direction:column !important;
+    position:relative;
+  }
+  .r-hero{
+    display:flex;
+    flex-direction:row;
+    gap:14px;
+    padding:0 14px;
+    margin-top:-60px; /* sube sobre el backdrop */
+    position:relative;
+    z-index:2;
+    align-items:flex-end;
+  }
+  /* Póster vertical a la izquierda */
+  #rPosterWrap{
+    width:90px !important;
+    min-width:90px !important;
+    height:135px !important;
+    flex-shrink:0;
+    padding:0 !important;
     background:transparent !important;
   }
-  .r-poster-wrap-inner img{
+  #rPosterWrap img{
     width:90px !important;
     height:135px !important;
     object-fit:cover !important;
-    border-radius:5px !important;
-    box-shadow:0 6px 24px rgba(0,0,0,0.9) !important;
-    display:block !important;
+    border-radius:4px !important;
+    box-shadow:0 4px 20px rgba(0,0,0,0.8) !important;
+    display:block;
+  }
+  /* Info a la derecha del póster */
+  .r-hero-info{
+    flex:1;
+    min-width:0;
+    padding-bottom:6px;
+  }
+  .r-hero-info .r-badge{
+    font-size:8px;
+    margin-bottom:4px;
+  }
+  .r-hero-info .r-title{
+    font-size:clamp(16px,5vw,22px) !important;
+    line-height:1.15;
+    margin-bottom:4px;
+  }
+  .r-hero-info .r-meta{
+    font-size:10px;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-bottom:0;
   }
 
-  /* r-content */
-  .r-content{padding:10px 14px 20px 14px !important;gap:8px !important;}
-
-  /* Fila badge + botones — scroll horizontal */
-  .r-content>div:first-child{
-    overflow-x:auto !important;display:flex !important;
-    flex-wrap:nowrap !important;gap:5px !important;
-    padding-bottom:8px !important;margin-bottom:2px !important;
-    border-bottom:1px solid var(--border) !important;
-    -webkit-overflow-scrolling:touch !important;scrollbar-width:none !important;
+  /* Contenido debajo del hero */
+  .r-content{
+    padding:12px 14px 20px 14px !important;
+    gap:10px !important;
   }
-  .r-content>div:first-child::-webkit-scrollbar{display:none;}
-  .r-top-btn{font-size:8px !important;padding:5px 7px !important;white-space:nowrap !important;flex-shrink:0 !important;}
 
-  /* Título y meta */
-  #rTitle{font-size:clamp(18px,5vw,26px) !important;line-height:1.15 !important;}
-  #rMeta{font-size:10px !important;flex-wrap:wrap !important;gap:6px !important;}
+  /* Fila de botones de acción (top-btns) */
+  .r-top-row{
+    overflow-x:auto;
+    display:flex;
+    flex-wrap:nowrap;
+    gap:5px;
+    padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    border-bottom:1px solid var(--border);
+    padding-bottom:10px;
+    margin-bottom:2px;
+  }
+  .r-top-row::-webkit-scrollbar{display:none;}
+
+  /* Géneros */
+  .r-genres{margin:0;}
 
   /* Descripción */
-  .r-overview{font-size:12px !important;line-height:1.7 !important;}
+  .r-overview{font-size:12px;line-height:1.7;color:rgba(255,255,255,0.8);}
 
-  /* Padding bottom para botones */
-  #resultCard.show .r-content{padding-bottom:120px !important;}
+  /* Acciones Letterboxd/Stremio/Streaming */
+  .r-actions{
+    display:flex !important;
+    flex-wrap:wrap !important;
+    gap:8px !important;
+    align-items:center !important;
+  }
 
-  /* cardInlineActions */
-  #cardInlineActions{padding-top:16px;border-top:1px solid var(--border);}
+  /* Botones inline al fondo */
+  #cardInlineActions{
+    margin-top:4px;
+    padding-top:16px;
+    border-top:1px solid var(--border);
+    padding-bottom:20px;
+  }
+
+
+  /* Botones inline dentro del card — solo móvil */
+  #cardInlineActions{display:none;}
   #cardInlineActions .roll-btn{border-radius:8px;width:100%;}
   #cardQuickActions{display:flex;gap:8px;}
-  #cardQuickActions .dismiss-ext-btn{flex:1;margin:0;}
+  #cardQuickActions .dismiss-ext-btn{
+    flex:1;margin:0;border-top:1px solid var(--red);
+    border-left:1px solid var(--red);border-right:1px solid var(--red);
+    border-bottom:1px solid var(--red);
+  }
+  /* Padding bottom para que los botones inline no se corten */
+  #resultCard.show .r-content{padding-bottom:120px !important;}
+  /* Asegurar que el card tiene suficiente alto para hacer scroll */
+  #resultCard{min-height:100dvh;}
 
   /* ── SETUP OVERLAY — compacto en móvil ── */
   #setupOverlay{padding:12px 0 80px 0;align-items:flex-start;}
@@ -1098,30 +1010,50 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 
 
   <div id="resultCard">
+    <!-- BACKDROP hero — solo en móvil -->
     <div id="rBackdrop" style="display:none;"></div>
+
     <div class="r-inner">
-      <div id="rPosterWrap" class="r-poster-wrap-inner"></div>
-      <div class="r-content">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+      <!-- HERO: póster izquierda + título/info derecha — solo en móvil -->
+      <div class="r-hero" id="rHero" style="display:none;">
+        <div id="rPosterWrap" class="r-poster-wrap-inner"></div>
+        <div class="r-hero-info">
           <div class="r-badge" id="rBadge"></div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar">&#9822; Fijar</button>
-            <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Ya la vi">&#10003; Vista</button>
-            <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Listas">&#9776; Lista</button>
-            <button id="rRemoveBtn" class="r-top-btn r-top-btn-remove" onclick="removeFromResult()" title="Quitar" style="display:none;">&#215; Quitar</button>
-            <button class="r-top-btn" onclick="editResult()" title="Editar">&#9998; Editar</button>
-            <button class="r-top-btn r-close-btn" onclick="closeResultCard()" title="Cerrar">&#10005;</button>
-          </div>
+          <div class="r-title" id="rTitle"></div>
+          <div class="r-meta" id="rMeta"></div>
         </div>
-        <div class="r-title" id="rTitle"></div>
-        <div class="r-meta" id="rMeta"></div>
+      </div>
+
+      <!-- DESKTOP: póster y badge en su lugar original -->
+      <div id="rPosterWrapDesktop" class="r-poster-wrap-inner" style="display:none;"></div>
+
+      <div class="r-content">
+        <!-- Fila de botones de acción -->
+        <div class="r-top-row">
+          <div class="r-badge" id="rBadgeDesktop" style="display:none;"></div>
+          <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar">&#9822; Fijar</button>
+          <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Ya la vi">&#10003; Vista</button>
+          <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Listas">&#9776; Lista</button>
+          <button id="rRemoveBtn" class="r-top-btn r-top-btn-remove" onclick="removeFromResult()" title="Quitar" style="display:none;">&#215; Quitar</button>
+          <button class="r-top-btn" onclick="editResult()" title="Editar">&#9998; Editar</button>
+          <button class="r-top-btn r-close-btn" onclick="closeResultCard()" title="Cerrar">&#10005;</button>
+        </div>
+
+        <!-- Título y meta — solo desktop (en móvil van en el hero) -->
+        <div id="rTitleDesktop" class="r-title" style="display:none;"></div>
+        <div id="rMetaDesktop" class="r-meta" style="display:none;"></div>
+
         <div class="r-genres" id="rGenres"></div>
         <div id="rLists" style="display:none;margin-bottom:10px;"></div>
+
+        <!-- Descripción -->
         <div class="r-overview" id="rOverview"></div>
         <div id="rLoglineWrap" style="display:block;margin-top:-8px;margin-bottom:12px;min-height:52px;">
           <div id="rLogline" style="color:rgba(255,255,255,0.9);font-size:12px;line-height:1.8;"></div>
         </div>
         <button id="rLoglineBtn" onclick="generateLogline()" class="r-logline-btn">&#10024; Ver descripci&#243;n</button>
+
+        <!-- Letterboxd, Stremio, streaming -->
         <div class="r-actions" style="align-items:center;flex-wrap:wrap;">
           <a id="rLink" href="#" target="_blank" class="r-link">Letterboxd</a>
           <a id="rStremio" href="#" target="_blank" class="r-link" style="border-color:#8458e8;color:#8458e8;">&#9654; Stremio</a>
@@ -1144,8 +1076,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
             <div id="streamLogos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
           </div>
         </div>
+
         <!-- Botones de acción — solo móvil -->
-        <div id="cardInlineActions" style="display:none;padding-bottom:20px;">
+        <div id="cardInlineActions" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);padding-bottom:20px;">
           <button id="cardRollAgainBtn" class="roll-btn" style="font-size:16px;padding:14px 24px;margin-bottom:10px;"
             onclick="closeResultCard();setTimeout(rollWithSource,200);">Sorpr&#233;ndeme</button>
           <div id="cardQuickActions" style="display:flex;gap:8px;margin-bottom:10px;">
@@ -1422,7 +1355,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.125");
+console.log("QVH version: 11.127");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3782,39 +3715,59 @@ function showResult(t){
   var types={movie:"Película",short:"Cortometraje",tv:"Serie",doc:"Documental"};
   var badgeText=(types[t.type]||(t.m>0&&t.m<45?"Cortometraje":"Película"))+(t.y?" · "+t.y:"");
   var isMob=window.innerWidth<=640;
-  var TMDB_IMG="https://image.tmdb.org/t/p/";
 
-  // Badge, título, meta — mismos elementos en móvil y desktop
+  // Badge — en móvil va en el hero, en desktop en su lugar original
   var badge=document.getElementById("rBadge");
+  var badgeD=document.getElementById("rBadgeDesktop");
   if(badge)badge.textContent=badgeText;
+  if(badgeD){badgeD.textContent=badgeText;badgeD.style.display=isMob?"none":"block";}
+
+  // Título — en móvil va en el hero
   var titleEl=document.getElementById("rTitle");
+  var titleD=document.getElementById("rTitleDesktop");
   if(titleEl)titleEl.textContent=t.n;
+  if(titleD){titleD.textContent=t.n;titleD.style.display=isMob?"none":"block";}
 
   var h=Math.floor((t.m||0)/60),m=(t.m||0)%60,dur=t.m>0?(h>0?h+"h "+m+"min":m+" min"):"";
   var meta="";
+  if(t.y&&!isMob)meta+="<div><span>"+t.y+"</span></div>";
   if(dur)meta+="<div><span>"+dur+"</span></div>";
   if(t.director)meta+="<div>Dir. <span>"+t.director+"</span></div>";
   if(t.country)meta+="<div><span>"+(COUNTRY_NAMES[t.country]||t.country)+"</span></div>";
   if(t.certification)meta+='<div><span style="font-size:9px;padding:1px 5px;border:1px solid var(--muted);border-radius:2px;letter-spacing:.5px;">'+t.certification+"</span></div>";
-  var metaEl=document.getElementById("rMeta");
-  if(metaEl)metaEl.innerHTML=meta;
 
-  // Backdrop — solo en móvil, inline style para no luchar con CSS base
+  // Meta — en móvil va en el hero
+  var metaEl=document.getElementById("rMeta");
+  var metaD=document.getElementById("rMetaDesktop");
+  if(metaEl)metaEl.innerHTML=meta;
+  if(metaD){metaD.innerHTML=meta;metaD.style.display=isMob?"none":"block";}
+
+  // Hero y backdrop — solo en móvil
+  var hero=document.getElementById("rHero");
   var backdrop=document.getElementById("rBackdrop");
-  if(backdrop){
-    if(isMob){
-      if(t.backdrop){
-        var bdSrc=t.backdrop.startsWith("http")?t.backdrop:TMDB_IMG+"w780"+t.backdrop;
-        backdrop.setAttribute("style","display:block;position:sticky;top:0;width:100%;height:220px;z-index:1;flex-shrink:0;background-image:url('"+bdSrc+"');background-size:cover;background-position:center 30%;filter:none;transform:none;");
-      } else if(t.poster){
-        var pSrc=t.poster.startsWith("http")?t.poster:TMDB_IMG+"w500"+t.poster;
-        backdrop.setAttribute("style","display:block;position:sticky;top:0;width:100%;height:220px;z-index:1;flex-shrink:0;background-image:url('"+pSrc+"');background-size:cover;background-position:center top;filter:blur(14px) brightness(0.45);transform:none;");
-      } else {
-        backdrop.setAttribute("style","display:none;");
-      }
-    } else {
-      backdrop.setAttribute("style","display:none;");
+  if(isMob){
+    if(hero)hero.style.display="flex";
+    var TMDB_IMG="https://image.tmdb.org/t/p/";
+    if(backdrop&&t.backdrop){
+      var bdSrc=t.backdrop.startsWith("http")?t.backdrop:TMDB_IMG+"w780"+t.backdrop;
+      backdrop.style.backgroundImage="url('"+bdSrc+"')";
+      backdrop.style.filter="";
+      backdrop.style.display="block";
+    } else if(backdrop&&t.poster){
+      var pSrc=t.poster.startsWith("http")?t.poster:TMDB_IMG+"w500"+t.poster;
+      backdrop.style.backgroundImage="url('"+pSrc+"')";
+      backdrop.style.backgroundSize="cover";
+      backdrop.style.backgroundPosition="center top";
+      backdrop.style.filter="blur(12px) brightness(0.5) saturate(0.8)";
+      backdrop.style.display="block";
+    } else if(backdrop){
+      backdrop.style.display="none";
     }
+  } else {
+    if(hero)hero.style.display="none";
+    if(backdrop)backdrop.style.display="none";
+    var bdFilter=backdrop;
+    if(bdFilter)bdFilter.style.filter="none";
   }
 
   // Póster
