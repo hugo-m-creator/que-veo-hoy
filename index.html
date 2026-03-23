@@ -489,11 +489,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #resultCard{
     position:fixed;inset:0;z-index:400;
     border:none;border-radius:0;
-    overflow-y:auto !important;
+    overflow-y:scroll !important; /* scroll en lugar de auto — más estable en iOS */
     overflow-x:hidden;
     margin:0;
     animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
     -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain; /* evita que el scroll se propague al body */
+    touch-action:pan-y; /* permite scroll vertical, bloquea interferencias */
+  }
+  /* Bloquear scroll del body cuando el card está abierto */
+  body.card-open{
+    overflow:hidden !important;
+    position:fixed;
+    width:100%;
   }
   @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
   .r-inner{flex-direction:column;}
@@ -1363,7 +1371,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.115");
+console.log("QVH version: 11.116");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3443,6 +3451,8 @@ function rollWithSource(){
 function closeResultCard(){
   var card = document.getElementById("resultCard");
   if(card) card.classList.remove("show");
+  // Restaurar scroll del body
+  document.body.classList.remove('card-open');
   // Ocultar botones inline al cerrar (aunque se ocultan solos con el card)
   var inlineGroup=document.getElementById("cardInlineActions");
   if(inlineGroup)inlineGroup.style.display="none";
@@ -7021,11 +7031,17 @@ function showBrowseResult(idx){
     if(Math.abs(diff)>0.5)window.scrollBy({top:diff,behavior:'smooth'});
   }
 
+  rc.scrollTop=0; // resetear scroll al inicio cuando se abre
   rc.style.animation='none';
   void rc.offsetWidth;
   rc.style.animation='slideIn 0.2s cubic-bezier(0.16,1,0.3,1)';
 
   showResult(t);
+
+  // Bloquear scroll del body en móvil cuando el card está abierto
+  if(window.innerWidth <= 640){
+    document.body.classList.add('card-open');
+  }
 
   // Solo hacer scroll en desktop — en móvil el card es fullscreen y no necesita scroll
   if(window.innerWidth > 640){
