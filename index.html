@@ -951,7 +951,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.84");
+console.log("QVH version: 11.85");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1257,6 +1257,7 @@ window.addEventListener("load",function(){
   loadProfile();
   loadGuestProfiles();
   initGuestSurveyInterceptor();
+  setTimeout(migrateRefsToTitles, 500); // migrar refs existentes
   var cached=null;
   try{cached=JSON.parse(localStorage.getItem("wq_cC"));}catch(e){}
   if(cached&&cached.length){
@@ -2530,15 +2531,41 @@ function saveSurveyFinish(){
       },300);
     },400);
   }
-  // Procesar películas de referencia: agregar a signalsPositive y extraer preferencias
+  // Procesar películas de referencia
   if(userProfile.refs&&userProfile.refs.length){
     userProfile.refs.forEach(function(ref){
+      // 1. Agregar a signalsPositive para scoring
       if(ref.tmdbId&&signalsPositive.indexOf(ref.tmdbId)===-1){
         signalsPositive.push(ref.tmdbId);
       }
+      // 2. Agregar a titles como película vista si no existe ya
+      var alreadyIn=titles.find(function(t){
+        return t._tmdbId===ref.tmdbId||(t.n&&t.n.toLowerCase()===ref.title.toLowerCase()&&t.y===ref.year);
+      });
+      if(!alreadyIn){
+        var newIdx=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx||0;}))+1:0;
+        var newTitle={
+          idx:newIdx,
+          n:ref.title,
+          y:ref.year||null,
+          status:"watched",        // marcada como vista
+          _tmdbId:ref.tmdbId||null,
+          poster:ref.poster||null,
+          m:ref.runtime||0,
+          genres:[],
+          director:"",
+          u:"",
+          fromRef:true             // flag para identificar que vino de las refs
+        };
+        titles.push(newTitle);
+      }
     });
     saveSignals();
-    // Enriquecer refs en background para obtener géneros y director
+    saveState();
+    updateStats();
+    updateCandidates();
+    buildGenres();buildDecades();buildCountries();
+    // Enriquecer refs en background para completar metadata
     setTimeout(function(){enrichRefs(userProfile.refs);},1000);
   }
   // Si no hay títulos, generar pool
@@ -4865,6 +4892,45 @@ function exportGuestProfile(guest){
 
 // Preguntar también antes del ZIP de Letterboxd si el usuario ya tiene perfil
 // (askZipOwner ya existe — aquí solo nos aseguramos de que syncFile también pregunte)
+
+// ── MIGRAR REFS EXISTENTES A TITLES ──────────────────────────────────────────
+// Para usuarios que ya tenían refs antes del fix — se llama una sola vez al cargar
+function migrateRefsToTitles(){
+  if(!userProfile||!userProfile.refs||!userProfile.refs.length) return;
+  var changed=false;
+  userProfile.refs.forEach(function(ref){
+    var alreadyIn=titles.find(function(t){
+      return (t._tmdbId&&t._tmdbId===ref.tmdbId)||(t.n&&t.n.toLowerCase()===(ref.title||"").toLowerCase()&&t.y===ref.year);
+    });
+    if(!alreadyIn){
+      var newIdx=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx||0;}))+1:0;
+      titles.push({
+        idx:newIdx,
+        n:ref.title,
+        y:ref.year||null,
+        status:"watched",
+        _tmdbId:ref.tmdbId||null,
+        poster:ref.poster||null,
+        m:ref.runtime||0,
+        genres:[],
+        director:"",
+        u:"",
+        fromRef:true
+      });
+      changed=true;
+    }
+  });
+  if(changed){
+    saveState();
+    updateStats();
+    updateCandidates();
+    buildGenres();buildDecades();buildCountries();
+    // Enriquecer en background
+    setTimeout(function(){enrichRefs(userProfile.refs);},1500);
+    console.log("QVH: migradas "+userProfile.refs.length+" refs a titles");
+  }
+}
+
 function renderProfileSummary(){
   var el=document.getElementById("profileSummary");
   if(!el)return;
