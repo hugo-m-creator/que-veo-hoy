@@ -629,22 +629,30 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #enrichStatus span:not(#eDot){display:none;}
   /* ── RESULTCARD REDISEÑADO — layout tipo Letterboxd ── */
 
-  /* Backdrop hero arriba */
+  /* Backdrop — fijo en la parte superior, parallax con background-attachment */
   #rBackdrop{
     display:block !important;
     width:100%;
-    height:220px;
+    height:240px;
     background-size:cover;
-    background-position:center top;
+    background-position:center 30%;
+    background-attachment:scroll; /* parallax via JS al scrollear el card */
     flex-shrink:0;
-    position:relative;
+    position:sticky; /* se queda arriba mientras el usuario scrollea */
+    top:0;
+    z-index:1;
   }
   #rBackdrop::after{
     content:'';
     position:absolute;
     bottom:0;left:0;right:0;
-    height:120px;
-    background:linear-gradient(to bottom, transparent, var(--bg));
+    height:160px;
+    background:linear-gradient(to bottom, transparent 0%, rgba(7,7,10,0.7) 60%, var(--bg) 100%);
+  }
+  /* El r-inner necesita z-index mayor para estar sobre el backdrop sticky */
+  #resultCard .r-inner{
+    position:relative;
+    z-index:2;
   }
 
   /* Layout principal: póster izquierda + info derecha */
@@ -755,7 +763,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     border-bottom:1px solid var(--red);
   }
   /* Padding bottom para que los botones inline no se corten */
-  #resultCard.show .r-content{padding-bottom:100px;} /* espacio para tab bar + scroll */
+  #resultCard.show .r-content{padding-bottom:120px;} /* espacio para tab bar + botones */
 
   /* ── SETUP OVERLAY — compacto en móvil ── */
   #setupOverlay{padding:12px 0 80px 0;align-items:flex-start;}
@@ -1517,7 +1525,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.119");
+console.log("QVH version: 11.120");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3833,6 +3841,21 @@ function hideExtCardActions(){
 }
 
 // Observer para ocultar extCardActions cuando el card se cierra
+
+// Parallax sutil en el backdrop del card en móvil
+function initCardParallax(){
+  var card = document.getElementById('resultCard');
+  var backdrop = document.getElementById('rBackdrop');
+  if(!card || !backdrop) return;
+  card.addEventListener('scroll', function(){
+    if(window.innerWidth > 640) return;
+    var scrollY = card.scrollTop;
+    // Mover el backdrop más lento que el scroll — efecto parallax
+    var offset = 30 + scrollY * 0.3; // empieza en 30%, se mueve lento
+    backdrop.style.backgroundPosition = 'center ' + offset + '%';
+  }, {passive:true});
+}
+
 function initResultCardObserver(){
   var card=document.getElementById("resultCard");
   if(!card)return;
@@ -3886,14 +3909,18 @@ function showResult(t){
   var backdrop=document.getElementById("rBackdrop");
   if(isMob){
     if(hero)hero.style.display="flex";
+    var TMDB_IMG="https://image.tmdb.org/t/p/";
     if(backdrop&&t.backdrop){
-      backdrop.style.backgroundImage="url('"+t.backdrop+"')";
+      var bdSrc=t.backdrop.startsWith("http")?t.backdrop:TMDB_IMG+"w780"+t.backdrop;
+      backdrop.style.backgroundImage="url('"+bdSrc+"')";
+      backdrop.style.filter="";
       backdrop.style.display="block";
     } else if(backdrop&&t.poster){
-      // Fallback: usar poster como backdrop con blur
-      backdrop.style.backgroundImage="url('"+t.poster+"')";
+      var pSrc=t.poster.startsWith("http")?t.poster:TMDB_IMG+"w500"+t.poster;
+      backdrop.style.backgroundImage="url('"+pSrc+"')";
       backdrop.style.backgroundSize="cover";
-      backdrop.style.filter="blur(8px) brightness(0.6)";
+      backdrop.style.backgroundPosition="center top";
+      backdrop.style.filter="blur(12px) brightness(0.5) saturate(0.8)";
       backdrop.style.display="block";
     } else if(backdrop){
       backdrop.style.display="none";
