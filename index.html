@@ -452,21 +452,201 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   .mob-tab.active{color:var(--accent);}
   .mob-tab:hover{color:var(--text);}
 
-  /* ── RESULTCARD — pantalla completa en móvil ── */
+  /* ── RESULTCARD MÓVIL — botones y cierre ── */
+  /* Botones con texto corto en móvil */
+  /* Botón cerrar — solo en móvil */
+  .r-close-btn{
+    border-color:rgba(255,255,255,0.4) !important;
+    font-size:12px !important;
+    padding:6px 8px !important;
+  }
+  /* Scroll horizontal en fila de botones */
+  .r-content>div:first-child{
+    overflow-x:auto;display:flex;flex-wrap:nowrap;
+    gap:5px;padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .r-content>div:first-child::-webkit-scrollbar{display:none;}
+  .r-top-btn{font-size:8px;padding:5px 7px;white-space:nowrap;flex-shrink:0;}
+
+  /* ── ¿QUÉ VEO HOY? — filtros compactos ── */
+  .fgroup{margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+  .slabel{font-size:8px;letter-spacing:1.5px;white-space:nowrap;min-width:48px;flex-shrink:0;}
+  .pills{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{padding:5px 10px;font-size:9px;white-space:nowrap;flex-shrink:0;}
+  .roll-btn{font-size:18px;padding:14px 24px;margin:10px 0 4px;}
+  #filterMode .fgroup+.fgroup{border-top:none;}
+  /* Toggle 'Ver con' compacto */
+  .watch-together-wrap{margin-bottom:8px;margin-top:0;}
+  .watch-together-label{margin-bottom:4px;}
+  /* Pool status y toggle de source */
+  #poolStatus{font-size:9px;}
+  #srcToggleBtn{font-size:8px;padding:4px 8px;}
+
+  /* resultCard en móvil — pantalla completa */
   #resultCard{
     position:fixed;inset:0;z-index:400;
     border:none;border-radius:0;
-    overflow-y:scroll !important;
+    overflow-y:scroll !important; /* scroll en lugar de auto — más estable en iOS */
     overflow-x:hidden;
     margin:0;
     animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
     -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain;
-    touch-action:pan-y;
+    overscroll-behavior:contain; /* evita que el scroll se propague al body */
+    touch-action:pan-y; /* permite scroll vertical, bloquea interferencias */
   }
-  body.card-open{overflow:hidden !important;position:fixed;width:100%;left:0;right:0;}
+  /* Bloquear scroll del body cuando el card está abierto */
+  body.card-open{
+    overflow:hidden !important;
+    position:fixed;
+    width:100%;
+    left:0;right:0;
+  }
+  /* resultCard en móvil — pantalla completa */
+  #resultCard{
+    position:fixed;inset:0;z-index:400;
+    border:none;border-radius:0;
+    overflow-y:scroll !important; /* scroll en lugar de auto — más estable en iOS */
+    overflow-x:hidden;
+    margin:0;
+    animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain; /* evita que el scroll se propague al body */
+    touch-action:pan-y; /* permite scroll vertical, bloquea interferencias */
+  }
+  /* Bloquear scroll del body cuando el card está abierto */
+  body.card-open{
+    overflow:hidden !important;
+    position:fixed;
+    width:100%;
+    left:0;right:0;
+  }
   @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .r-inner{flex-direction:column;}
+  .r-poster-wrap-inner{
+    width:100%;max-width:100%;flex-shrink:0;
+    display:flex;justify-content:center;
+    background:var(--surface2);
+    padding:16px 16px 0 16px;
+  }
+  .r-poster-wrap-inner img{
+    width:auto;
+    max-width:160px;
+    height:auto;
+    object-fit:contain;
+    border-radius:6px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.6);
+  }
+  .r-content{padding:12px 14px 20px 14px;gap:6px;}
+  .r-title{font-size:clamp(18px,5vw,28px);}
+  .r-meta{font-size:11px;}
+  /* Botones de acción — scroll horizontal, nunca se parten */
+  .r-content>div:first-child{
+    overflow-x:auto;
+    display:flex;
+    flex-wrap:nowrap;
+    gap:6px;
+    padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .r-content>div:first-child::-webkit-scrollbar{display:none;}
+  .r-top-btn{
+    font-size:8px;padding:6px 8px;
+    white-space:nowrap;flex-shrink:0;
+  }
+  .r-actions{gap:8px;flex-wrap:wrap;}
 
+  /* ── MI LISTA — grid 2 columnas ── */
+  #browseGrid{grid-template-columns:repeat(4,1fr) !important;gap:5px !important;}
+  .browse-grid{grid-template-columns:repeat(4,1fr) !important;gap:5px !important;}
+  #browseSearch{font-size:14px;padding:10px 12px;}
+  /* Tarjetas más compactas en 4 columnas */
+  .browse-card{border-radius:4px;}
+  .browse-card-info{padding:4px 5px 5px;}
+  .browse-card-title{font-size:8px;line-height:1.2;max-height:2.4em;overflow:hidden;}
+  .browse-card-meta{font-size:7px;margin-top:1px;}
+  /* Badge de estado más pequeño */
+  .bc-add-badge{font-size:7px;padding:2px 4px;top:3px;left:3px;}
+
+  /* Filtros de Mi lista — scroll horizontal */
+  #browseFilters{
+    overflow-x:auto;
+    white-space:nowrap;
+    padding-bottom:4px;
+    display:flex;
+    gap:6px;
+    -webkit-overflow-scrolling:touch;
+  }
+  #browseFilters .pill-row{flex-shrink:0;}
+
+  /* ── ENCUESTA — optimizada para touch ── */
+  .survey-card{
+    padding:24px 20px;
+    max-width:100%;
+    border:none;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  #surveyOverlay{padding:0;align-items:flex-start;}
+  .survey-q{font-size:18px;margin-bottom:8px;}
+  .survey-hint{font-size:12px;margin-bottom:16px;}
+  .survey-opts{gap:10px;margin-bottom:20px;}
+  .survey-opt{
+    font-size:12px;
+    padding:12px 16px;
+    flex:1;
+    min-width:calc(50% - 5px);
+    text-align:center;
+  }
+  /* Opciones de una sola línea — ancho completo */
+  .survey-opts.single-col .survey-opt{min-width:100%;}
+  .survey-nav{
+    margin-top:auto;
+    padding-top:20px;
+    gap:12px;
+  }
+  .survey-back{padding:12px 20px;font-size:11px;}
+  .survey-next{padding:12px 28px;font-size:11px;}
+  .survey-progress{margin-bottom:20px;}
+  .survey-dot{height:4px;}
+
+  /* Input de año de nacimiento */
+  #sf_birthYear{font-size:16px;padding:12px;} /* 16px evita zoom en iOS */
+
+  /* Búsqueda de películas de referencia */
+  .survey-ref-search input{font-size:16px;padding:12px;}
+  .survey-ref-results{max-height:240px;}
+  .survey-ref-item{padding:10px 12px;}
+  .survey-ref-item img{width:36px;height:54px;}
+
+  /* ── MI PERFIL — layout apilado ── */
+  .profile-identity{padding:16px;}
+  .profile-edit-form{padding-top:14px;}
+  .profile-field input{font-size:16px;padding:10px 12px;} /* 16px evita zoom iOS */
+
+  /* Botones de acción en Mi perfil */
+  #profileExportSection .mbtn{width:100%;justify-content:center;padding:12px;}
+
+  /* ── WIZARD DESCUBRIR ── */
+  .disc-wrap{padding:0;}
+  .disc-q{font-size:20px;}
+  .disc-step{padding:0;}
+
+  /* ── ESTADÍSTICAS ── */
+  .stat-grid{grid-template-columns:repeat(2,1fr) !important;}
+  .stat-card{padding:16px;}
+  .stat-card-val{font-size:26px;}
+
+  /* ── MANAGE / MI PERFIL — secciones ── */
+  .sync-box{padding:16px 18px;}
+  .manage-toolbar{flex-wrap:wrap;gap:6px;}
+
+  /* Ocultar enrichStatus largo en móvil */
+  #enrichStatus span:not(#eDot){display:none;}
   /* ── RESULTCARD REDISEÑADO — layout tipo Letterboxd ── */
 
   /* Backdrop — visible y limpio en móvil */
@@ -1025,50 +1205,30 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 
 
   <div id="resultCard">
-    <!-- BACKDROP hero — solo en móvil -->
     <div id="rBackdrop" style="display:none;"></div>
-
     <div class="r-inner">
-      <!-- HERO: póster izquierda + título/info derecha — solo en móvil -->
-      <div class="r-hero" id="rHero" style="display:none;">
-        <div id="rPosterWrap" class="r-poster-wrap-inner"></div>
-        <div class="r-hero-info">
-          <div class="r-badge" id="rBadge"></div>
-          <div class="r-title" id="rTitle"></div>
-          <div class="r-meta" id="rMeta"></div>
-        </div>
-      </div>
-
-      <!-- DESKTOP: póster y badge en su lugar original -->
-      <div id="rPosterWrapDesktop" class="r-poster-wrap-inner" style="display:none;"></div>
-
+      <div id="rPosterWrap" class="r-poster-wrap-inner"></div>
       <div class="r-content">
-        <!-- Fila de botones de acción -->
-        <div class="r-top-row">
-          <div class="r-badge" id="rBadgeDesktop" style="display:none;"></div>
-          <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar">&#9822; Fijar</button>
-          <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Ya la vi">&#10003; Vista</button>
-          <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Listas">&#9776; Lista</button>
-          <button id="rRemoveBtn" class="r-top-btn r-top-btn-remove" onclick="removeFromResult()" title="Quitar" style="display:none;">&#215; Quitar</button>
-          <button class="r-top-btn" onclick="editResult()" title="Editar">&#9998; Editar</button>
-          <button class="r-top-btn r-close-btn" onclick="closeResultCard()" title="Cerrar">&#10005;</button>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+          <div class="r-badge" id="rBadge"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <button id="rPinBtn" class="r-top-btn" onclick="togglePinResult()" title="Fijar">&#9822; Fijar</button>
+            <button id="rWatchedBtn" class="r-top-btn" onclick="toggleWatchedResult()" title="Ya la vi">&#10003; Vista</button>
+            <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Listas">&#9776; Lista</button>
+            <button id="rRemoveBtn" class="r-top-btn r-top-btn-remove" onclick="removeFromResult()" title="Quitar" style="display:none;">&#215; Quitar</button>
+            <button class="r-top-btn" onclick="editResult()" title="Editar">&#9998; Editar</button>
+            <button class="r-top-btn r-close-btn" onclick="closeResultCard()" title="Cerrar">&#10005;</button>
+          </div>
         </div>
-
-        <!-- Título y meta — solo desktop (en móvil van en el hero) -->
-        <div id="rTitleDesktop" class="r-title" style="display:none;"></div>
-        <div id="rMetaDesktop" class="r-meta" style="display:none;"></div>
-
+        <div class="r-title" id="rTitle"></div>
+        <div class="r-meta" id="rMeta"></div>
         <div class="r-genres" id="rGenres"></div>
         <div id="rLists" style="display:none;margin-bottom:10px;"></div>
-
-        <!-- Descripción -->
         <div class="r-overview" id="rOverview"></div>
         <div id="rLoglineWrap" style="display:block;margin-top:-8px;margin-bottom:12px;min-height:52px;">
           <div id="rLogline" style="color:rgba(255,255,255,0.9);font-size:12px;line-height:1.8;"></div>
         </div>
         <button id="rLoglineBtn" onclick="generateLogline()" class="r-logline-btn">&#10024; Ver descripci&#243;n</button>
-
-        <!-- Letterboxd, Stremio, streaming -->
         <div class="r-actions" style="align-items:center;flex-wrap:wrap;">
           <a id="rLink" href="#" target="_blank" class="r-link">Letterboxd</a>
           <a id="rStremio" href="#" target="_blank" class="r-link" style="border-color:#8458e8;color:#8458e8;">&#9654; Stremio</a>
@@ -1091,9 +1251,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
             <div id="streamLogos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
           </div>
         </div>
-
         <!-- Botones de acción — solo móvil -->
-        <div id="cardInlineActions" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);padding-bottom:20px;">
+        <div id="cardInlineActions" style="display:none;padding-bottom:20px;">
           <button id="cardRollAgainBtn" class="roll-btn" style="font-size:16px;padding:14px 24px;margin-bottom:10px;"
             onclick="closeResultCard();setTimeout(rollWithSource,200);">Sorpr&#233;ndeme</button>
           <div id="cardQuickActions" style="display:flex;gap:8px;margin-bottom:10px;">
@@ -1370,7 +1529,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.129");
+console.log("QVH version: 11.131");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3565,10 +3724,19 @@ async function enrichAndReveal(pick){
   if(posterWrap) posterWrap.innerHTML = '<div class="r-poster-placeholder" style="opacity:0.3;">&#127902;</div>';
   if(titleEl) titleEl.textContent = "Eligiendo...";
   // Limpiar campos para que no queden datos anteriores visibles
-  ["rBadge","rMeta","rGenres","rOverview","rLogline"].forEach(function(id){
+  ["rBadge","rMeta","rGenres","rOverview","rLogline","rTitle"].forEach(function(id){
     var el=document.getElementById(id);
     if(el)el.innerHTML="";
   });
+  // Limpiar hero móvil
+  var heroDiv=document.getElementById("rHeroMob");
+  if(heroDiv){
+    var rInner=document.querySelector("#resultCard .r-inner");
+    var rContent=document.querySelector("#resultCard .r-content");
+    var pw=document.getElementById("rPosterWrap");
+    if(rInner&&pw&&!rInner.contains(pw))rInner.insertBefore(pw,rInner.firstChild);
+    heroDiv.parentNode&&heroDiv.parentNode.removeChild(heroDiv);
+  }
 
   // Scroll inmediato hacia la card para que el usuario vea la animación
   if(window.innerWidth>640)card.scrollIntoView({behavior:"smooth", block:"center"});
@@ -3730,59 +3898,118 @@ function showResult(t){
   var types={movie:"Película",short:"Cortometraje",tv:"Serie",doc:"Documental"};
   var badgeText=(types[t.type]||(t.m>0&&t.m<45?"Cortometraje":"Película"))+(t.y?" · "+t.y:"");
   var isMob=window.innerWidth<=640;
+  var TMDB_IMG="https://image.tmdb.org/t/p/";
 
-  // Badge — en móvil va en el hero, en desktop en su lugar original
+  // Badge, título, meta — mismos elementos en móvil y desktop
   var badge=document.getElementById("rBadge");
-  var badgeD=document.getElementById("rBadgeDesktop");
   if(badge)badge.textContent=badgeText;
-  if(badgeD){badgeD.textContent=badgeText;badgeD.style.display=isMob?"none":"block";}
-
-  // Título — en móvil va en el hero
   var titleEl=document.getElementById("rTitle");
-  var titleD=document.getElementById("rTitleDesktop");
   if(titleEl)titleEl.textContent=t.n;
-  if(titleD){titleD.textContent=t.n;titleD.style.display=isMob?"none":"block";}
 
   var h=Math.floor((t.m||0)/60),m=(t.m||0)%60,dur=t.m>0?(h>0?h+"h "+m+"min":m+" min"):"";
   var meta="";
-  if(t.y&&!isMob)meta+="<div><span>"+t.y+"</span></div>";
   if(dur)meta+="<div><span>"+dur+"</span></div>";
   if(t.director)meta+="<div>Dir. <span>"+t.director+"</span></div>";
   if(t.country)meta+="<div><span>"+(COUNTRY_NAMES[t.country]||t.country)+"</span></div>";
   if(t.certification)meta+='<div><span style="font-size:9px;padding:1px 5px;border:1px solid var(--muted);border-radius:2px;letter-spacing:.5px;">'+t.certification+"</span></div>";
-
-  // Meta — en móvil va en el hero
   var metaEl=document.getElementById("rMeta");
-  var metaD=document.getElementById("rMetaDesktop");
   if(metaEl)metaEl.innerHTML=meta;
-  if(metaD){metaD.innerHTML=meta;metaD.style.display=isMob?"none":"block";}
 
-  // Hero y backdrop — solo en móvil
-  var hero=document.getElementById("rHero");
-  var backdrop=document.getElementById("rBackdrop");
-  if(isMob){
-    if(hero)hero.style.display="flex";
-    var TMDB_IMG="https://image.tmdb.org/t/p/";
-    if(backdrop&&t.backdrop){
-      var bdSrc=t.backdrop.startsWith("http")?t.backdrop:TMDB_IMG+"w780"+t.backdrop;
-      backdrop.style.backgroundImage="url('"+bdSrc+"')";
-      backdrop.style.filter="";
-      backdrop.style.display="block";
-    } else if(backdrop&&t.poster){
-      var pSrc=t.poster.startsWith("http")?t.poster:TMDB_IMG+"w500"+t.poster;
-      backdrop.style.backgroundImage="url('"+pSrc+"')";
-      backdrop.style.backgroundSize="cover";
-      backdrop.style.backgroundPosition="center top";
-      backdrop.style.filter="blur(12px) brightness(0.5) saturate(0.8)";
-      backdrop.style.display="block";
-    } else if(backdrop){
-      backdrop.style.display="none";
+  // ── BACKDROP Y HERO MÓVIL ─────────────────────────────────────────
+  var isMob = window.innerWidth <= 640;
+  var TMDB_IMG = "https://image.tmdb.org/t/p/";
+  var backdrop = document.getElementById("rBackdrop");
+
+  if(isMob && backdrop){
+    // Mostrar backdrop
+    if(t.backdrop){
+      var bdSrc = t.backdrop.startsWith("http") ? t.backdrop : TMDB_IMG+"w780"+t.backdrop;
+      backdrop.setAttribute("style","display:block !important;width:100%;height:240px;background-image:url('"+bdSrc+"');background-size:cover;background-position:center 30%;position:sticky;top:0;z-index:1;flex-shrink:0;filter:none;transform:none;");
+    } else if(t.poster){
+      var pFB = t.poster.startsWith("http") ? t.poster : TMDB_IMG+"w500"+t.poster;
+      backdrop.setAttribute("style","display:block !important;width:100%;height:240px;background-image:url('"+pFB+"');background-size:cover;background-position:center top;position:sticky;top:0;z-index:1;flex-shrink:0;filter:blur(14px) brightness(0.5);transform:none;");
+    } else {
+      backdrop.setAttribute("style","display:none;");
     }
-  } else {
-    if(hero)hero.style.display="none";
-    if(backdrop)backdrop.style.display="none";
-    var bdFilter=backdrop;
-    if(bdFilter)bdFilter.style.filter="none";
+
+    // Reorganizar en hero si no existe
+    var rInner   = document.querySelector("#resultCard .r-inner");
+    var rContent = document.querySelector("#resultCard .r-content");
+    var heroDiv  = document.getElementById("rHeroMob");
+
+    if(!heroDiv && rInner && rContent){
+      heroDiv = document.createElement("div");
+      heroDiv.id = "rHeroMob";
+      heroDiv.style.cssText = "display:flex;flex-direction:row;gap:14px;padding:0 14px;margin-top:-60px;position:relative;z-index:2;align-items:flex-end;";
+      var heroInfo = document.createElement("div");
+      heroInfo.id = "rHeroInfo";
+      heroInfo.style.cssText = "flex:1;min-width:0;padding-bottom:6px;";
+      heroDiv.appendChild(heroInfo);
+      rInner.insertBefore(heroDiv, rContent);
+    }
+
+    // Mover póster al hero
+    var pw = document.getElementById("rPosterWrap");
+    heroDiv = document.getElementById("rHeroMob");
+    if(heroDiv && pw && !heroDiv.contains(pw)){
+      heroDiv.insertBefore(pw, heroDiv.firstChild);
+    }
+
+    // Mover badge, title, meta al heroInfo
+    var heroInfo = document.getElementById("rHeroInfo");
+    var badgeEl  = document.getElementById("rBadge");
+    var titleEl2 = document.getElementById("rTitle");
+    var metaEl2  = document.getElementById("rMeta");
+    if(heroInfo){
+      if(badgeEl){badgeEl.style.cssText="font-size:8px;margin-bottom:4px;";if(!heroInfo.contains(badgeEl))heroInfo.appendChild(badgeEl);}
+      if(titleEl2){titleEl2.style.cssText="font-size:clamp(16px,5vw,22px);line-height:1.15;margin-bottom:4px;";if(!heroInfo.contains(titleEl2))heroInfo.appendChild(titleEl2);}
+      if(metaEl2){metaEl2.style.cssText="font-size:10px;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:0;";if(!heroInfo.contains(metaEl2))heroInfo.appendChild(metaEl2);}
+    }
+  } else if(backdrop){
+    // Desktop: ocultar backdrop
+    backdrop.setAttribute("style","display:none;");
+
+    // Restaurar elementos al layout original si venían del hero
+    var heroDiv = document.getElementById("rHeroMob");
+    if(heroDiv){
+      var rInner   = document.querySelector("#resultCard .r-inner");
+      var rContent = document.querySelector("#resultCard .r-content");
+      var pw       = document.getElementById("rPosterWrap");
+      var badgeEl  = document.getElementById("rBadge");
+      var titleEl2 = document.getElementById("rTitle");
+      var metaEl2  = document.getElementById("rMeta");
+
+      // Devolver póster al inicio del r-inner
+      if(rInner && pw && !rInner.contains(pw)) rInner.insertBefore(pw, rInner.firstChild);
+
+      // Devolver badge/title/meta al r-content (antes de la fila de botones)
+      var btnRow = rContent ? rContent.querySelector("div") : null;
+      if(rContent && badgeEl){badgeEl.style.cssText="";if(!rContent.contains(badgeEl))rContent.insertBefore(badgeEl,btnRow);}
+      if(rContent && titleEl2){titleEl2.style.cssText="";if(!rContent.contains(titleEl2))rContent.insertBefore(titleEl2,badgeEl?badgeEl.nextSibling:btnRow);}
+      if(rContent && metaEl2){metaEl2.style.cssText="";if(!rContent.contains(metaEl2))rContent.insertBefore(metaEl2,titleEl2?titleEl2.nextSibling:btnRow);}
+
+      heroDiv.parentNode && heroDiv.parentNode.removeChild(heroDiv);
+    }
+  }
+  // ── FIN BACKDROP Y HERO MÓVIL ────────────────────────────────────
+
+
+  // Backdrop — solo en móvil, inline style para no luchar con CSS base
+  var backdrop=document.getElementById("rBackdrop");
+  if(backdrop){
+    if(isMob){
+      if(t.backdrop){
+        var bdSrc=t.backdrop.startsWith("http")?t.backdrop:TMDB_IMG+"w780"+t.backdrop;
+        backdrop.setAttribute("style","display:block;background-image:url('"+bdSrc+"');background-size:cover;background-position:center 30%;");
+      } else if(t.poster){
+        var pSrc=t.poster.startsWith("http")?t.poster:TMDB_IMG+"w500"+t.poster;
+        backdrop.setAttribute("style","display:block;background-image:url('"+pSrc+"');background-size:cover;background-position:center top;filter:blur(14px) brightness(0.45);");
+      } else {
+        backdrop.setAttribute("style","display:none;");
+      }
+    } else {
+      backdrop.setAttribute("style","display:none;");
+    }
   }
 
   // Póster
