@@ -1376,7 +1376,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.111");
+console.log("QVH version: 11.112");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3665,10 +3665,18 @@ async function enrichPickMetadata(t){
 
 function roll(){
   var pool=getCandidates();if(!pool.length){alert("Sin titulos. Amplia los filtros.");return;}
-  var f=pool.filter(function(t){return t!==lastPick;});if(!f.length)f=pool;
+  // Excluir lastPick Y los últimos vistos para dar variedad
+  var excluded=new Set(lastPickHistory.concat(lastPick?[lastPick]:[]));
+  var f=pool.filter(function(t){return !excluded.has(t);});
+  if(!f.length)f=pool.filter(function(t){return t!==lastPick;});
+  if(!f.length)f=pool;
   if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
+  // Aleatorio real — no siempre el primero
   lastPick=f[Math.floor(Math.random()*f.length)];
-  enrichAndReveal(lastPick);
+  enrichAndReveal(lastPick).then(function(){
+    // Mostrar Sorpréndeme en móvil también para modo "desde mi lista"
+    showSuggestionActions(lastPick);
+  });
 }
 function showResult(t){
   var prevBtn=document.getElementById("rollPrevBtn");
