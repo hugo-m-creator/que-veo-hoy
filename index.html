@@ -610,17 +610,28 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   /* Ocultar enrichStatus largo en móvil */
   #enrichStatus span:not(#eDot){display:none;}
 
-  /* Footer de botones pegado al fondo de la pantalla */
+  /* Footer de botones pegado al fondo, encima de la tab bar */
   #extCardActions{
     position:fixed;
-    bottom:0;left:0;right:0;
-    z-index:401; /* encima del card que es 400 */
+    bottom:54px; /* altura de la tab bar */
+    left:0;right:0;
+    z-index:501; /* encima de todo incluyendo tab bar */
     background:var(--surface);
     border-top:1px solid var(--border);
   }
   #cardFooterBtns{display:flex;flex-direction:column;}
-  /* Cuando hay card activo, el contenido del card tiene padding-bottom para no quedar tapado */
-  #resultCard.show .r-content{padding-bottom:140px;}
+  #cardFooterBtns .roll-btn{
+    border-radius:0;
+    margin:0;
+  }
+  #cardFooterBtns .dismiss-ext-btn{
+    margin:0;
+    border-top:none;
+    border-left:none;
+    border-right:none;
+  }
+  /* Padding bottom del card para no tapar el contenido */
+  #resultCard.show .r-content{padding-bottom:180px;}
 
   /* ── SETUP OVERLAY — compacto en móvil ── */
   #setupOverlay{padding:12px 0 80px 0;align-items:flex-start;}
@@ -882,7 +893,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <span id="poolStatus" style="font-size:10px;color:var(--muted);"></span>
     </div>
     <button id="rollPrevBtn" onclick="rollPrev()" style="display:none;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:10px 18px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer;margin-bottom:8px;">&#8592; Anterior</button>
-    <button class="roll-btn" onclick="rollWithSource()">Sorpr&#233;ndeme</button>
+    <button id="mainRollBtn" class="roll-btn" onclick="rollWithSource()">Sorpr&#233;ndeme</button>
     <!-- extCardActions movido al interior del card -->
 
 
@@ -1209,7 +1220,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.104");
+console.log("QVH version: 11.106");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3309,8 +3320,11 @@ function showSuggestionActions(t){
 
 // ── Enriquecer y revelar con animación ───────────────────────────
 async function enrichAndReveal(pick){
+  // Ocultar footer de botones hasta que el resultado esté listo
+  var extGroup=document.getElementById("extCardActions");
+  if(extGroup)extGroup.style.display="none";
   // Deshabilitar botón durante la animación
-  var rollBtn = document.querySelector(".roll-btn");
+  var rollBtn = document.getElementById("mainRollBtn")||document.querySelector(".roll-btn:not(#cardFooterBtns .roll-btn)");
   if(rollBtn){rollBtn.disabled=true;rollBtn.textContent="Eligiendo...";}
   var card = document.getElementById("resultCard");
   var backdrop = document.getElementById("rBackdrop");
