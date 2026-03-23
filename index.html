@@ -529,7 +529,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   .r-actions{gap:8px;flex-wrap:wrap;}
 
   /* ── MI LISTA — grid 2 columnas ── */
-  .browse-grid{grid-template-columns:repeat(4,1fr) !important;gap:5px;}
+  #browseGrid{grid-template-columns:repeat(4,1fr) !important;gap:5px !important;}
+  .browse-grid{grid-template-columns:repeat(4,1fr) !important;gap:5px !important;}
   #browseSearch{font-size:14px;padding:10px 12px;}
   /* Tarjetas más compactas en 4 columnas */
   .browse-card{border-radius:4px;}
@@ -1376,7 +1377,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.112");
+console.log("QVH version: 11.113");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3678,6 +3679,27 @@ function roll(){
     showSuggestionActions(lastPick);
   });
 }
+function hideExtCardActions(){
+  var extGroup=document.getElementById("extCardActions");
+  if(extGroup)extGroup.style.display="none";
+}
+
+// Observer para ocultar extCardActions cuando el card se cierra
+function initResultCardObserver(){
+  var card=document.getElementById("resultCard");
+  if(!card)return;
+  var obs=new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      if(m.attributeName==="class"){
+        if(!card.classList.contains("show")){
+          hideExtCardActions();
+        }
+      }
+    });
+  });
+  obs.observe(card,{attributes:true,attributeFilter:["class"]});
+}
+
 function showResult(t){
   var prevBtn=document.getElementById("rollPrevBtn");
   if(prevBtn)prevBtn.style.display=lastPickHistory.length?"inline-block":"none";
