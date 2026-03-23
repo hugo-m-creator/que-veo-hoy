@@ -652,6 +652,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
             <button id="rListBtn" class="r-top-btn" onclick="toggleListPanel()" title="Agregar a lista">&#9776; Listas</button>
             <button id="rRemoveBtn" class="r-top-btn r-top-btn-remove" onclick="removeFromResult()" title="Quitar de la lista" style="display:none;">&#215; Quitar</button>
             <button class="r-top-btn" onclick="editResult()" title="Editar metadatos">&#9998; Editar</button>
+            <button id="rDismissBtn" class="r-top-btn r-top-btn-remove" onclick="dismissFromResult()" style="display:none;" title="No quiero ver esta película">&#215; No me interesa</button>
           </div>
         </div>
         <div class="r-title" id="rTitle"></div>
@@ -951,7 +952,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.85");
+console.log("QVH version: 11.87");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3006,15 +3007,29 @@ function rollWithSource(){
     if(!available.length){showToast("Pool vacío. Regenera sugerencias desde tu perfil.");return;}
     if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
     lastPick=available[Math.floor(Math.random()*available.length)];
+    if(lastPick)lastPick._fromPool=true;
     enrichAndReveal(lastPick).then(function(){showSuggestionActions(lastPick);});
   }else{
     roll();
   }
 }
 
+
+function dismissFromResult(){
+  if(!lastPick||!lastPick._tmdbId)return;
+  var t=lastPick;
+  dismissSuggestion(t._tmdbId, t.director||"", t.genres||[]);
+  // dismissSuggestion ya cierra el card y lanza rollWithSource
+}
+
 function showSuggestionActions(t){
-  // El switch Agregar/Quitar ya lo maneja showResult via rRemoveBtn
-  // Esta función queda como stub para compatibilidad
+  // Mostrar "No me interesa" solo cuando viene de sugerencias externas (pool TMDB)
+  // No tiene sentido en películas que ya están en la lista propia
+  var dismissBtn=document.getElementById("rDismissBtn");
+  if(!dismissBtn)return;
+  var isFromPool=t&&t._fromPool;
+  var isInOwnList=t&&titles.find(function(x){return x._tmdbId===t._tmdbId&&x.status!=="removed";});
+  dismissBtn.style.display=(isFromPool&&!isInOwnList)?"inline-block":"none";
 }
 
 
