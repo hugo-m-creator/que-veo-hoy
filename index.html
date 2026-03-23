@@ -452,6 +452,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   .mob-tab.active{color:var(--accent);}
   .mob-tab:hover{color:var(--text);}
 
+  /* ── RESULTCARD — pantalla completa en móvil ── */
+  #resultCard{
+    position:fixed;inset:0;z-index:400;
+    border:none;border-radius:0;
+    overflow-y:scroll !important;
+    overflow-x:hidden;
+    margin:0;
+    animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    touch-action:pan-y;
+  }
+  body.card-open{overflow:hidden !important;position:fixed;width:100%;left:0;right:0;}
+  @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+
   /* ── RESULTCARD REDISEÑADO — layout tipo Letterboxd ── */
 
   /* Backdrop — visible y limpio en móvil */
@@ -1355,7 +1370,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.128");
+console.log("QVH version: 11.129");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
