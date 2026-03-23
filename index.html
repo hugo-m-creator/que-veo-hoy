@@ -617,28 +617,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   /* Ocultar enrichStatus largo en móvil */
   #enrichStatus span:not(#eDot){display:none;}
 
-  /* Footer de botones pegado al fondo, encima de la tab bar */
-  #extCardActions{
-    position:fixed;
-    bottom:54px; /* altura de la tab bar */
-    left:0;right:0;
-    z-index:501; /* encima de todo incluyendo tab bar */
-    background:var(--surface);
-    border-top:1px solid var(--border);
-  }
-  #cardFooterBtns{display:flex;flex-direction:column;}
-  #cardFooterBtns .roll-btn{
-    border-radius:0;
-    margin:0;
-  }
-  #cardFooterBtns .dismiss-ext-btn{
-    margin:0;
-    border-top:none;
-    border-left:none;
-    border-right:none;
-  }
-  /* Padding bottom del card para no tapar el contenido */
-  #resultCard.show .r-content{padding-bottom:180px;}
+  /* Botones inline dentro del card — solo móvil */
+  #cardInlineActions{display:none;}
+  #cardInlineActions .roll-btn{border-radius:8px;width:100%;}
+  #cardInlineActions .dismiss-ext-btn{width:100%;margin-top:0;}
+  /* Padding bottom para que los botones inline no se corten */
+  #resultCard.show .r-content{padding-bottom:20px;}
 
   /* ── SETUP OVERLAY — compacto en móvil ── */
   #setupOverlay{padding:12px 0 80px 0;align-items:flex-start;}
@@ -1102,18 +1086,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
             <div id="streamLogos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
           </div>
         </div>
+        <!-- Botones de acción dentro del card — solo en móvil -->
+        <div id="cardInlineActions" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <button id="cardRollAgainBtn" class="roll-btn" style="font-size:16px;padding:14px 24px;margin-bottom:10px;"
+            onclick="closeResultCard();setTimeout(rollWithSource,200);">Sorpr&#233;ndeme</button>
+          <button id="dismissInlineBtn" class="dismiss-ext-btn" onclick="dismissFromResult()"
+            style="display:none;">&#215; No me interesa</button>
+        </div>
       </div>
     </div>
   </div>
-  <!-- Footer fijo dentro del card — solo en móvil -->
-  <div id="extCardActions" style="display:none;">
-    <div id="cardFooterBtns">
-      <button class="roll-btn" style="font-size:16px;padding:14px 24px;margin-bottom:8px;border-radius:0;"
-        onclick="closeResultCard();setTimeout(rollWithSource,200);">Sorpr&#233;ndeme</button>
-      <button id="dismissExtBtn" class="dismiss-ext-btn" onclick="dismissFromResult()"
-        style="border-radius:0;margin:0;">&#215; No me interesa</button>
-    </div>
-  </div>
+  <!-- extCardActions eliminado — botones movidos al interior del card -->
   </div>
 
   <div id="wizardMode">
@@ -1377,7 +1360,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.113");
+console.log("QVH version: 11.114");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3457,17 +3440,14 @@ function rollWithSource(){
 function closeResultCard(){
   var card = document.getElementById("resultCard");
   if(card) card.classList.remove("show");
-  // Siempre ocultar los botones externos al cerrar el card
-  var extGroup=document.getElementById("extCardActions");
-  if(extGroup){extGroup.style.display="none";}
+  // Ocultar botones inline al cerrar (aunque se ocultan solos con el card)
+  var inlineGroup=document.getElementById("cardInlineActions");
+  if(inlineGroup)inlineGroup.style.display="none";
   lastPick = null;
 }
 
 function dismissFromResult(){
   if(!lastPick||!lastPick._tmdbId)return;
-  // Ocultar grupo externo completo — dismissSuggestion lanzará nueva recomendación
-  var extGroup=document.getElementById("extCardActions");
-  if(extGroup)extGroup.style.display="none";
   var t=lastPick;
   dismissSuggestion(t._tmdbId, t.director||"", t.genres||[]);
 }
@@ -3478,16 +3458,14 @@ function showSuggestionActions(t){
   var showDismiss=(isFromPool&&!isInOwnList);
   var isMobile=window.innerWidth<=640;
 
-  // En móvil: mostrar el grupo siempre (contiene el Sorpréndeme)
-  // Solo ocultar "No me interesa" si ya está en la lista
-  var extGroup=document.getElementById("extCardActions");
-  if(extGroup)extGroup.style.display=isMobile?"block":"none";
+  // Botones inline dentro del card (móvil)
+  var inlineGroup=document.getElementById("cardInlineActions");
+  if(inlineGroup)inlineGroup.style.display=isMobile?"block":"none";
 
-  // "No me interesa" — solo si viene del pool Y no está en la lista
-  var extBtn=document.getElementById("dismissExtBtn");
-  if(extBtn)extBtn.style.display=(isMobile&&showDismiss)?"block":"none";
+  var dismissInline=document.getElementById("dismissInlineBtn");
+  if(dismissInline)dismissInline.style.display=(isMobile&&showDismiss)?"block":"none";
 
-  // Desktop: botón dismiss interno
+  // Desktop: botón dismiss dentro de la fila de top-btns
   var intBtn=document.getElementById("rDismissBtn");
   if(intBtn)intBtn.style.display=(!isMobile&&showDismiss)?"inline-block":"none";
 }
@@ -3495,10 +3473,10 @@ function showSuggestionActions(t){
 
 // ── Enriquecer y revelar con animación ───────────────────────────
 async function enrichAndReveal(pick){
-  // Ocultar footer de botones hasta que el resultado esté listo
-  var extGroup=document.getElementById("extCardActions");
-  if(extGroup)extGroup.style.display="none";
-  // Deshabilitar SOLO el botón principal, no el del footer
+  // Ocultar botones inline hasta que el resultado esté listo
+  var inlineGroup=document.getElementById("cardInlineActions");
+  if(inlineGroup)inlineGroup.style.display="none";
+  // Deshabilitar SOLO el botón principal
   var rollBtn = document.getElementById("mainRollBtn");
   if(rollBtn){rollBtn.disabled=true;rollBtn.textContent="Eligiendo...";}
   var card = document.getElementById("resultCard");
