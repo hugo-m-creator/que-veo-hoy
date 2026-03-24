@@ -1578,7 +1578,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.164");
+console.log("QVH version: 11.165");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -4345,10 +4345,10 @@ function showResult(t){
     // Mostrar backdrop
     if(t.backdrop){
       var bdSrc = t.backdrop.startsWith("http") ? t.backdrop : TMDB_IMG+"w780"+t.backdrop;
-      backdrop.setAttribute("style","background-image:url('"+bdSrc+"');");
+      backdrop.setAttribute("style","height:200px;background-image:url('"+bdSrc+"');");
     } else if(t.poster){
       var pFB = t.poster.startsWith("http") ? t.poster : TMDB_IMG+"w500"+t.poster;
-      backdrop.setAttribute("style","background-image:url('"+pFB+"');filter:blur(20px) brightness(0.4) saturate(0.6);");
+      backdrop.setAttribute("style","height:200px;background-image:url('"+pFB+"');filter:blur(20px) brightness(0.4) saturate(0.6);");
     } else {
       backdrop.setAttribute("style","display:none;");
     }
@@ -4361,6 +4361,7 @@ function showResult(t){
     if(!heroDiv && rInner && rContent){
       heroDiv = document.createElement("div");
       heroDiv.id = "rHeroMob";
+      heroDiv.className = "r-hero";
       heroDiv.style.cssText = "display:flex;flex-direction:row;gap:14px;padding:0 14px;margin-top:-170px;position:relative;z-index:2;align-items:flex-end;";
       var heroInfo = document.createElement("div");
       heroInfo.id = "rHeroInfo";
