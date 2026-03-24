@@ -413,6 +413,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .stream-logos{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-height:20px;}
 .stream-logo{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .stream-logo img{width:28px;height:28px;border-radius:5px;border:1px solid var(--border);transition:transform 0.15s;}
+.stream-logo-link{text-decoration:none;cursor:pointer;}
 .stream-logo-link:hover img{transform:scale(1.1);}
 .stream-logo-link:hover span{color:#fff;}
 .stream-logo span{font-size:8px;color:rgba(255,255,255,0.65);max-width:42px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -1547,7 +1548,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.145");
+console.log("QVH version: 11.146");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4553,11 +4554,22 @@ function renderProviders(providers,container){
   });
   filtered.forEach(function(p){
     var info=ALL_PROVIDERS[p.provider_id]||{name:p.provider_name,region:"MX"};
-    var div=document.createElement("div");div.className="stream-logo";
+    var link=p._link||null;
     var reg=info.region==="US"?' <span style="font-size:7px;color:var(--accent);vertical-align:super">US</span>':"";
-    div.innerHTML='<img src="'+TMDB_LOGO+p.logo_path+'" alt="'+info.name+'" onerror="this.style.display=\'none\'">'
+    var inner='<img src="'+TMDB_LOGO+p.logo_path+'" alt="'+info.name+'" onerror="this.style.display=\'none\'">'
       +'<span>'+info.name+reg+'</span>';
-    container.appendChild(div);
+    if(link){
+      var a=document.createElement("a");
+      a.className="stream-logo stream-logo-link";
+      a.href=link;a.target="_blank";a.rel="noopener noreferrer";
+      a.title="Ver en "+info.name;
+      a.innerHTML=inner;
+      container.appendChild(a);
+    } else {
+      var div=document.createElement("div");div.className="stream-logo";
+      div.innerHTML=inner;
+      container.appendChild(div);
+    }
   });
 }
 
