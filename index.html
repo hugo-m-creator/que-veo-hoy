@@ -1578,7 +1578,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.165");
+console.log("QVH version: 11.166");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -4263,13 +4263,15 @@ function initCardParallax(){
     if(window.innerWidth > 640) return;
     touchStartY = e.touches[0].clientY;
     isTouchingTop = card.scrollTop <= 0;
+    console.log('[RB] touchstart scrollTop='+card.scrollTop+' isTouchingTop='+isTouchingTop);
   }, {passive:true});
 
   card.addEventListener('touchmove', function(e){
     if(window.innerWidth > 640) return;
     if(!isTouchingTop) return;
     var touchY = e.touches[0].clientY;
-    var delta = touchY - touchStartY; // positivo = arrastra hacia abajo (overscroll hacia arriba)
+    var delta = touchY - touchStartY;
+    console.log('[RB] touchmove delta='+Math.round(delta)+' scrollTop='+card.scrollTop);
     if(delta <= 0) return;
     var stretch = delta * 0.5;
     var newHeight = baseHeight + stretch;
@@ -4286,6 +4288,7 @@ function initCardParallax(){
     if(animFrame) cancelAnimationFrame(animFrame);
     backdrop.style.height = baseHeight + 'px';
     backdrop.style.transition = 'height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    console.log('[RB] touchend — backdrop restaurado a '+baseHeight+'px');
   }, {passive:true});
 }
 
