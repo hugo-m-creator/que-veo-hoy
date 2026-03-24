@@ -1547,7 +1547,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.144");
+console.log("QVH version: 11.145");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4129,6 +4129,14 @@ function initResultCardObserver(){
       if(m.attributeName==="class"){
         if(!card.classList.contains("show")){
           hideExtCardActions();
+          // Siempre limpiar body.card-open cuando el card se cierra,
+          // independientemente de cómo se cerró
+          if(document.body.classList.contains("card-open")){
+            var savedScrollY=parseInt(document.body.dataset.scrollY||"0");
+            document.body.classList.remove("card-open");
+            document.body.style.top="";
+            if(savedScrollY>0)window.scrollTo(0,savedScrollY);
+          }
         }
       }
     });
