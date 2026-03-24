@@ -708,10 +708,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     flex-direction:row;
     gap:14px;
     padding:0 14px;
-    margin-top:-170px; /* póster casi toca la parte superior del backdrop */
+    margin-top:-170px;
     position:relative;
     z-index:2;
     align-items:flex-end;
+  }
+  /* Gradiente justo debajo del badge/título/meta */
+  .r-hero::after{
+    content:'';
+    position:absolute;
+    bottom:-40px; /* empieza 2px antes del final del hero */
+    left:0;right:0;
+    height:42px;
+    background:linear-gradient(to bottom,
+      transparent 0%,
+      var(--bg) 100%
+    );
+    z-index:0;
+    pointer-events:none;
   }
   /* Póster vertical a la izquierda — más grande para aprovechar el espacio */
   #rPosterWrap{
@@ -1566,7 +1580,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.158");
+console.log("QVH version: 11.159");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
