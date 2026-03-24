@@ -683,17 +683,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #resultCard .r-inner{
     position:relative;
     z-index:2;
+    background:var(--bg); /* fondo sólido — tapa el backdrop completamente */
   }
-  /* Gradiente de transición en la zona del hero */
+  /* Gradiente de transición en la parte superior del r-inner */
   #resultCard .r-inner::before{
     content:'';
     position:absolute;
-    top:-80px;
+    top:-100px; /* sube para solapar el final del backdrop */
     left:0;right:0;
-    height:120px;
+    height:110px;
     background:linear-gradient(to bottom,
       transparent 0%,
-      rgba(7,7,10,0.6) 40%,
       var(--bg) 100%
     );
     z-index:0;
@@ -701,12 +701,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   }
   /* Hero y contenido sobre el pseudo-gradiente */
   .r-hero{position:relative;z-index:1;}
-  /* r-content: fondo sólido desde el inicio — tapa el backdrop al scrollear */
-  #resultCard .r-content{
-    background:var(--bg);
-    position:relative;
-    z-index:1;
-  }
+  #resultCard .r-content{position:relative;z-index:1;}
 
   /* Layout principal: póster izquierda + info derecha */
   .r-inner{
@@ -1576,7 +1571,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.149");
+console.log("QVH version: 11.150");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
