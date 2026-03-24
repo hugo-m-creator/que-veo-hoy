@@ -1548,7 +1548,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.146");
+console.log("QVH version: 11.147");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -1592,6 +1592,33 @@ var ALL_PROVIDERS = {
   "337_AR": {name:"Disney+ (AR)",        region:"AR", tmdbId:337},
   "119_AR": {name:"Prime Video (AR)",    region:"AR", tmdbId:119},
 };
+
+
+// URL de búsqueda directa por servicio — provider_id TMDB → función(título, año)
+var STREAMING_SEARCH_URLS = {
+  8:    function(n){return "https://www.netflix.com/search?q="+encodeURIComponent(n);},
+  1796: function(n){return "https://www.netflix.com/search?q="+encodeURIComponent(n);},
+  337:  function(n){return "https://www.disneyplus.com/search/"+encodeURIComponent(n);},
+  119:  function(n){return "https://www.primevideo.com/search/ref=atv_nb_sr?phrase="+encodeURIComponent(n);},
+  531:  function(n){return "https://www.paramountplus.com/search/?query="+encodeURIComponent(n);},
+  350:  function(n){return "https://tv.apple.com/search?term="+encodeURIComponent(n);},
+  1899: function(n){return "https://play.max.com/search?q="+encodeURIComponent(n);},
+  1825: function(n){return "https://play.max.com/search?q="+encodeURIComponent(n);},
+  457:  function(n){return "https://www.vix.com/es-mx/buscar?q="+encodeURIComponent(n);},
+  1866: function(n){return "https://www.vix.com/es-mx/buscar?q="+encodeURIComponent(n);},
+  11:   function(n){return "https://mubi.com/en/search?query="+encodeURIComponent(n);},
+  167:  function(n){return "https://www.clarovideo.com/buscar?q="+encodeURIComponent(n);},
+  258:  function(n){return "https://www.criterionchannel.com/search?query="+encodeURIComponent(n);},
+  99:   function(n){return "https://www.shudder.com/search?q="+encodeURIComponent(n);},
+  386:  function(n){return "https://www.peacocktv.com/search?query="+encodeURIComponent(n);},
+};
+// Para versiones US/ES/AR del mismo servicio, usar el mismo tmdbId base
+[8,337,119,531,350,1899,11].forEach(function(id){
+  ["_US","_ES","_AR"].forEach(function(suf){
+    if(!STREAMING_SEARCH_URLS[id+suf]&&STREAMING_SEARCH_URLS[id])
+      STREAMING_SEARCH_URLS[id+suf]=STREAMING_SEARCH_URLS[id];
+  });
+});
 
 // Mapa de países disponibles en la app
 var STREAMING_COUNTRIES = {
@@ -4158,6 +4185,7 @@ function showResult(t){
   if(badge)badge.textContent=badgeText;
   var titleEl=document.getElementById("rTitle");
   if(titleEl)titleEl.textContent=t.n;
+  window._lastPickTitle=t.n||""; // para generar URLs de streaming
 
   var h=Math.floor((t.m||0)/60),m=(t.m||0)%60,dur=t.m>0?(h>0?h+"h "+m+"min":m+" min"):"";
   var meta="";
@@ -4554,15 +4582,18 @@ function renderProviders(providers,container){
   });
   filtered.forEach(function(p){
     var info=ALL_PROVIDERS[p.provider_id]||{name:p.provider_name,region:"MX"};
-    var link=p._link||null;
+    // Generar URL directa de búsqueda en el servicio
+    var streamUrl=null;
+    var urlFn=STREAMING_SEARCH_URLS[p.provider_id]||STREAMING_SEARCH_URLS[info.tmdbId];
+    if(urlFn&&window._lastPickTitle)streamUrl=urlFn(window._lastPickTitle);
     var reg=info.region==="US"?' <span style="font-size:7px;color:var(--accent);vertical-align:super">US</span>':"";
     var inner='<img src="'+TMDB_LOGO+p.logo_path+'" alt="'+info.name+'" onerror="this.style.display=\'none\'">'
       +'<span>'+info.name+reg+'</span>';
-    if(link){
+    if(streamUrl){
       var a=document.createElement("a");
       a.className="stream-logo stream-logo-link";
-      a.href=link;a.target="_blank";a.rel="noopener noreferrer";
-      a.title="Ver en "+info.name;
+      a.href=streamUrl;a.target="_blank";a.rel="noopener noreferrer";
+      a.title="Buscar en "+info.name;
       a.innerHTML=inner;
       container.appendChild(a);
     } else {
