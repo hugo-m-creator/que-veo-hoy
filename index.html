@@ -1530,7 +1530,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.134");
+console.log("QVH version: 11.135");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3437,8 +3437,44 @@ function scoreSuggestion(m,p){
   if(p.ratings==="Prefiero descubrir películas poco conocidas"){
     score -= (m.popularity||0)*0.02;
   }
+
+  // ── BOOST DEMOGRÁFICO: género × géneros cinematográficos elegidos ──
+  // Solo activa si el usuario eligió géneros que confirman la afinidad.
+  // Hombre + eligió géneros masculinos → boost a esas mismas categorías
+  // Mujer + eligió géneros femeninos → boost a esas mismas categorías
+  // Si no hay coincidencia, el género no afecta nada.
+  var movieGenres = m.genre_ids || [];
+  var MALE_GENRE_IDS   = [878, 80, 28, 53, 10752, 37]; // Sci-Fi, Crime, Acción, Thriller, War, Western
+  var FEMALE_GENRE_IDS = [10749, 10751, 10402, 35];     // Romance, Family, Music, Comedy (romántica)
+
+  if(p.gender === "Hombre"){
+    // Contar cuántos géneros "masculinos" eligió el usuario
+    var maleChosenCount = MALE_GENRE_IDS.filter(function(id){
+      return genreIds.indexOf(id) !== -1;
+    }).length;
+    // Solo boost si eligió al menos 2 géneros masculinos (confirma afinidad)
+    if(maleChosenCount >= 2){
+      var maleMatchCount = movieGenres.filter(function(g){
+        return MALE_GENRE_IDS.indexOf(g) !== -1;
+      }).length;
+      score += maleMatchCount * 4; // +4 por cada género masculino que tiene la película
+    }
+  } else if(p.gender === "Mujer"){
+    var femaleChosenCount = FEMALE_GENRE_IDS.filter(function(id){
+      return genreIds.indexOf(id) !== -1;
+    }).length;
+    if(femaleChosenCount >= 1){ // Romance solo basta con 1 para confirmar afinidad
+      var femaleMatchCount = movieGenres.filter(function(g){
+        return FEMALE_GENRE_IDS.indexOf(g) !== -1;
+      }).length;
+      score += femaleMatchCount * 4;
+    }
+  }
+  // ── FIN BOOST DEMOGRÁFICO ─────────────────────────────────────────
+
   return score;
 }
+
 
 function checkNeedsSensitiveFilter(p){
   // Fase 2: usar TMDB keywords en lugar de doesthedogdie
