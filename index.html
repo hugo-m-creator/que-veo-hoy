@@ -1530,7 +1530,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.138");
+console.log("QVH version: 11.139");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3693,7 +3693,27 @@ function rollWithSource(){
     return;
   }
   if(_useSuggestions&&suggestionPool.length){
-    var available=suggestionPool.filter(function(m){return m!==lastPick;});
+    // Aplicar filtros activos al pool de sugerencias
+    var available=suggestionPool.filter(function(m){
+      if(m===lastPick)return false;
+      // Filtro de país
+      if(activeCountry!=="all"){
+        var mc=m.country||(Array.isArray(m.origin_country)?m.origin_country[0]:m.origin_country)||"";
+        if(mc!==activeCountry)return false;
+      }
+      // Filtro de duración máxima
+      if(typeof maxDur==="number"&&maxDur>0&&maxDur<9999){
+        if(m.m&&m.m>maxDur)return false;
+      }
+      // Filtro de energía/mood
+      if(activeMood!=="any"&&MOOD[activeMood]){
+        var mg=m.genres||m.genre_ids||[];
+        if(mg.length>0&&!MOOD[activeMood].some(function(g){return mg.indexOf(g)!==-1;}))return false;
+      }
+      return true;
+    });
+    // Si los filtros dejan el pool vacío, ignorarlos y usar todo el pool
+    if(!available.length)available=suggestionPool.filter(function(m){return m!==lastPick;});
     if(!available.length)available=suggestionPool;
     if(!available.length){showToast("Pool vacío. Regenera sugerencias desde tu perfil.");return;}
     if(lastPick){lastPickHistory.push(lastPick);if(lastPickHistory.length>10)lastPickHistory.shift();}
