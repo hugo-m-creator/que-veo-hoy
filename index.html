@@ -1530,7 +1530,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.141");
+console.log("QVH version: 11.142");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -2343,8 +2343,14 @@ function buildDecades(){
   var dec=new Set();
   titles.filter(function(t){return t.status==="active";}).forEach(function(t){if(t.y)dec.add(Math.floor(t.y/10)*10);});
   var c=document.getElementById("decadePills");
-  c.innerHTML='<div class="pill on" data-v="all" onclick="pickDecade(this)">Todas</div>';
+  c.innerHTML='<div class="pill" data-v="all" onclick="pickDecade(this)">Todas</div>';
   Array.from(dec).sort().forEach(function(d){var el=document.createElement("div");el.className="pill";el.dataset.v=d;el.setAttribute("onclick","pickDecade(this)");el.textContent=d+"s";c.appendChild(el);});
+  // Restaurar estado visual según activeDecades
+  if(activeDecades[0]==="all"||!activeDecades.length){
+    var allPill=c.querySelector('[data-v="all"]');if(allPill)allPill.classList.add("on");
+  } else {
+    activeDecades.forEach(function(d){var p=c.querySelector('[data-v="'+d+'"]');if(p)p.classList.add("on");});
+  }
 }
 function buildFilterServices(){
   var wrap=document.getElementById("filterServicePills");
@@ -2368,21 +2374,58 @@ function buildGenres(){
   var gc={};
   titles.filter(function(t){return t.status==="active";}).forEach(function(t){(t.genres||[]).forEach(function(g){gc[g]=(gc[g]||0)+1;});});
   var c=document.getElementById("genrePills");
-  c.innerHTML='<div class="pill on" data-v="all" onclick="pickGenre(this)">Todos</div>';
+  c.innerHTML='<div class="pill" data-v="all" onclick="pickGenre(this)">Todos</div>';
   Object.entries(gc).sort(function(a,b){return b[1]-a[1];}).slice(0,16).forEach(function(p){
     var id=parseInt(p[0]),name=GENRE_MAP[id]||("G"+id);
     var el=document.createElement("div");el.className="pill";el.dataset.v=id;el.setAttribute("onclick","pickGenre(this)");el.textContent=name;c.appendChild(el);
   });
+  // Restaurar estado visual según activeGenres
+  if(!activeGenres.length){
+    var allPill=c.querySelector('[data-v="all"]');if(allPill)allPill.classList.add("on");
+  } else {
+    activeGenres.forEach(function(g){
+      var p=c.querySelector('[data-v="'+g+'"]');
+      if(p){
+        p.classList.add("on");
+      } else {
+        // Género no está en la lista personal — agregar pill dinámica
+        var dynPill=document.createElement("div");
+        dynPill.className="pill on";
+        dynPill.dataset.v=g;
+        dynPill.setAttribute("onclick","pickGenre(this)");
+        dynPill.textContent=GENRE_MAP[g]||("G"+g);
+        c.appendChild(dynPill);
+      }
+    });
+  }
 }
 function buildCountries(){
   var cc={};
   titles.filter(function(t){return t.status==="active"&&t.country;}).forEach(function(t){cc[t.country]=(cc[t.country]||0)+1;});
   var c=document.getElementById("countryPills");
-  c.innerHTML='<div class="pill on" data-v="all" onclick="pickCountry(this)">Todos</div>';
+  c.innerHTML='<div class="pill" data-v="all" onclick="pickCountry(this)">Todos</div>';
   Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,12).forEach(function(p){
     var code=p[0],name=COUNTRY_NAMES[code]||code;
     var el=document.createElement("div");el.className="pill";el.dataset.v=code;el.setAttribute("onclick","pickCountry(this)");el.textContent=name;c.appendChild(el);
   });
+  // Restaurar estado visual según activeCountry
+  if(activeCountry==="all"){
+    var allPill=c.querySelector('[data-v="all"]');if(allPill)allPill.classList.add("on");
+  } else {
+    var activePill=c.querySelector('[data-v="'+activeCountry+'"]');
+    if(activePill){
+      activePill.classList.add("on");
+    } else {
+      // El país no está en la lista personal — agregarlo como pill dinámica
+      // para que el usuario vea que el filtro sigue activo
+      var dynPill=document.createElement("div");
+      dynPill.className="pill on";
+      dynPill.dataset.v=activeCountry;
+      dynPill.setAttribute("onclick","pickCountry(this)");
+      dynPill.textContent=COUNTRY_NAMES[activeCountry]||activeCountry;
+      c.appendChild(dynPill);
+    }
+  }
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────────────────
