@@ -1530,7 +1530,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.140");
+console.log("QVH version: 11.141");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3386,8 +3386,11 @@ async function buildSuggestionPool(){
       n:m.title||m.name,
       y:parseInt((m.release_date||"").substring(0,4))||null,
       poster:m.poster_path?"https://image.tmdb.org/t/p/w200"+m.poster_path:null,
+      backdrop:m.backdrop_path?"https://image.tmdb.org/t/p/w780"+m.backdrop_path:null,
       overview:m.overview||"",
       genres:m.genre_ids||[],
+      origin_country:m.origin_country||[],
+      country:(m.origin_country&&m.origin_country[0])||"",
       _score:score,
       _isSuggestion:true
     };
@@ -3710,8 +3713,14 @@ function rollWithSource(){
       if(m===lastPick)return false;
       // Filtro de país
       if(activeCountry!=="all"){
-        var mc=m.country||(Array.isArray(m.origin_country)?m.origin_country[0]:m.origin_country)||"";
-        if(mc!==activeCountry)return false;
+        var mc=m.country||"";
+        var oc=Array.isArray(m.origin_country)?m.origin_country:(m.origin_country?[m.origin_country]:[]);
+        if(mc!==activeCountry && oc.indexOf(activeCountry)===-1)return false;
+      }
+      // Filtro de género
+      if(activeGenres.length>0){
+        var mg=m.genres||m.genre_ids||[];
+        if(!activeGenres.some(function(g){return mg.indexOf(g)!==-1;}))return false;
       }
       // Filtro de duración máxima
       if(typeof maxDur==="number"&&maxDur>0&&maxDur<9999){
