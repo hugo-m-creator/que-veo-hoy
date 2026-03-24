@@ -689,9 +689,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #resultCard .r-inner::before{
     content:'';
     position:absolute;
-    top:-100px; /* sube para solapar el final del backdrop */
+    top:-50px; /* justo arriba de donde empieza el badge */
     left:0;right:0;
-    height:110px;
+    height:60px;
     background:linear-gradient(to bottom,
       transparent 0%,
       var(--bg) 100%
@@ -713,26 +713,26 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     flex-direction:row;
     gap:14px;
     padding:0 14px;
-    margin-top:-60px; /* sube sobre el backdrop */
+    margin-top:-90px; /* sube más sobre el backdrop para el póster grande */
     position:relative;
     z-index:2;
     align-items:flex-end;
   }
-  /* Póster vertical a la izquierda */
+  /* Póster vertical a la izquierda — más grande para aprovechar el espacio */
   #rPosterWrap{
-    width:90px !important;
-    min-width:90px !important;
-    height:135px !important;
+    width:120px !important;
+    min-width:120px !important;
+    height:180px !important;
     flex-shrink:0;
     padding:0 !important;
     background:transparent !important;
   }
   #rPosterWrap img{
-    width:90px !important;
-    height:135px !important;
+    width:120px !important;
+    height:180px !important;
     object-fit:cover !important;
-    border-radius:4px !important;
-    box-shadow:0 4px 20px rgba(0,0,0,0.8) !important;
+    border-radius:6px !important;
+    box-shadow:0 6px 24px rgba(0,0,0,0.9) !important;
     display:block;
   }
   /* Info a la derecha del póster */
@@ -1571,7 +1571,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.150");
+console.log("QVH version: 11.152");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
