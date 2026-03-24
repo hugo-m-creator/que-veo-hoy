@@ -1563,7 +1563,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.153");
+console.log("QVH version: 11.154");
+// Paso B — loggear estado inicial después de cargar
+setTimeout(function(){
+  if(typeof getStateFromDOM === "function"){
+    var state = getStateFromDOM();
+    console.log("[QVH STATE]", JSON.stringify(state, null, 2));
+  }
+}, 1500); // esperar a que loadState() termine
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -2665,6 +2672,73 @@ function updatePoolStatus(){
   }else{
     ps.textContent="";
   }
+}
+
+// ── getStateFromDOM — Paso A del refactor arquitectural ──────────
+// Lee el estado actual de la aplicación desde variables globales y DOM.
+// NO cambia ninguna lógica. Solo observa y reporta.
+// Ref: https://claude.ai — sugerencia de refactor incremental
+function getStateFromDOM(){
+  // Filtros de la vista HOY
+  var durSlider = document.getElementById("durSlider");
+  var durVal = durSlider ? parseInt(durSlider.value) : 480;
+
+  // Servicios activos (pills con clase "on" en el selector de servicios)
+  var serviceEls = document.querySelectorAll("#servicePills .pill.on, #svcPills .pill.on");
+  var activeServicesDOM = Array.from(serviceEls).map(function(p){
+    return isNaN(p.dataset.v) ? p.dataset.v : parseInt(p.dataset.v);
+  });
+
+  return {
+    // Filtros principales (vienen de variables globales — ya desacopladas del DOM)
+    filters: {
+      type:          activeType,
+      genres:        activeGenres.slice(),
+      decades:       activeDecades.slice(),
+      mood:          activeMood,
+      country:       activeCountry,
+      list:          activeList,
+      excludeList:   excludeList,
+      watchedFilter: activeWatchedFilter,
+      maxDuration:   maxDur,
+    },
+    // Fuente de recomendaciones
+    source: {
+      useSuggestions: _useSuggestions,
+      poolSize:       suggestionPool.length,
+    },
+    // Perfil del usuario
+    profile: userProfile ? {
+      gender:      userProfile.gender   || null,
+      attitude:    userProfile.attitude || null,
+      genresLike:  (userProfile.genresLike  || []).slice(),
+      genresAvoid: (userProfile.genresAvoid || []).slice(),
+      origins:     (userProfile.origins     || []).slice(),
+      eras:        (userProfile.eras         || []).slice(),
+      duration:    userProfile.duration || null,
+      violence:    userProfile.violence || null,
+      country:     userProfile.country  || null,
+      refsCount:   (userProfile.refs    || []).length,
+    } : null,
+    // Señales de comportamiento
+    signals: {
+      positive:     signalsPositive.length,
+      negative:     signalsNegative.length,
+      animeDiscards:(signalsCounts && signalsCounts.animeDiscards) || 0,
+      genreCounts:  signalsCounts ? Object.assign({}, signalsCounts.genres) : {},
+    },
+    // Sesión actual
+    session: {
+      titlesTotal:   titles.length,
+      titlesActive:  titles.filter(function(t){return t.status==="active";}).length,
+      titlesWatched: titles.filter(function(t){return t.status==="watched";}).length,
+      lastPick:      lastPick ? {n: lastPick.n, y: lastPick.y} : null,
+      historyCount:  lastPickHistory.length,
+      guestActive:   !!activeGuestId,
+    },
+    // Servicios de streaming
+    activeServices: activeServices.slice(),
+  };
 }
 
 function updateCandidates(){
