@@ -677,10 +677,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     background:linear-gradient(
       to bottom,
       rgba(7,7,10,0.1) 0%,
-      rgba(7,7,10,0.3) 45%,
-      rgba(7,7,10,0.7) 70%,
-      var(--bg) 90%,
-      var(--bg) 100%
+      rgba(7,7,10,0.2) 100%
     );
   }
   /* El r-inner: sin fondo propio — el gradiente del backdrop lo cubre */
@@ -689,24 +686,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     z-index:2;
     background:transparent;
   }
-  /* Gradiente fijo detrás del hero — capa entre backdrop y hero */
-  /* Sube de negro sólido (abajo) a transparente (arriba) */
-  /* Garantiza legibilidad del badge/título/meta sin importar el backdrop */
-  #resultCard .r-inner::before{
-    content:'';
-    position:absolute;
-    top:0;left:0;right:0;
-    height:200px; /* cubre toda la zona del hero */
-    background:linear-gradient(to bottom,
-      transparent 0%,
-      transparent 30%,
-      rgba(7,7,10,0.5) 60%,
-      var(--bg) 100%
-    );
-    z-index:0;
-    pointer-events:none;
-  }
-  /* Hero y r-content sobre el gradiente */
+  /* Hero sobre el backdrop */
   .r-hero{position:relative;z-index:1;}
   /* r-content: fondo sólido — tapa el backdrop completamente al scrollear */
   #resultCard .r-content{
@@ -729,6 +709,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     position:relative;
     z-index:2;
     align-items:flex-end;
+  }
+  /* Degradado anclado al hero — encima del backdrop, se mueve con el contenido */
+  .r-hero::before{
+    content:'';
+    position:absolute;
+    top:-60px; /* empieza 60px arriba del hero */
+    left:0;right:0;
+    bottom:0; /* llega hasta el borde inferior del hero */
+    background:linear-gradient(to bottom,
+      transparent 0%,
+      rgba(7,7,10,0.6) 50%,
+      var(--bg) 100%
+    );
+    z-index:-1; /* detrás del contenido del hero pero encima del backdrop */
+    pointer-events:none;
   }
   /* Póster vertical a la izquierda — más grande para aprovechar el espacio */
   #rPosterWrap{
@@ -1583,7 +1578,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.161");
+console.log("QVH version: 11.164");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -4250,38 +4245,45 @@ function initCardParallax(){
   var backdrop = document.getElementById('rBackdrop');
   if(!card || !backdrop) return;
 
-  var baseHeight = 200; // altura base del backdrop en px
-  var lastScrollY = 0;
-  var ticking = false;
+  var baseHeight = 200;
+  var touchStartY = 0;
+  var isTouchingTop = false;
+  var animFrame = null;
 
+  // Parallax del background-position al scrollear hacia abajo
   card.addEventListener('scroll', function(){
     if(window.innerWidth > 640) return;
     var scrollY = card.scrollTop;
-
-    // Parallax del background-position al scrollear hacia abajo
     var offset = 30 + scrollY * 0.12;
     backdrop.style.backgroundPosition = 'center ' + Math.min(offset, 55) + '%';
-
-    // Efecto rubber band: solo cuando el usuario intenta scrollear hacia arriba
-    // desde el tope (scrollTop = 0)
-    if(scrollY <= 0){
-      // scrollY puede ser negativo en iOS (overscroll nativo)
-      var stretch = Math.abs(scrollY) * 0.6; // crece al 60% de la velocidad del scroll
-      var newHeight = baseHeight + stretch;
-      backdrop.style.height = newHeight + 'px';
-      backdrop.style.transition = 'none'; // sin transición mientras arrastra
-    } else {
-      // Al scrollear hacia abajo, restaurar la altura con un resorte suave
-      backdrop.style.height = baseHeight + 'px';
-      backdrop.style.transition = 'height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    }
-
-    lastScrollY = scrollY;
   }, {passive:true});
 
-  // Cuando el usuario suelta el scroll, restaurar con animación de resorte
+  // Rubber band con touch events — funciona en iOS
+  card.addEventListener('touchstart', function(e){
+    if(window.innerWidth > 640) return;
+    touchStartY = e.touches[0].clientY;
+    isTouchingTop = card.scrollTop <= 0;
+  }, {passive:true});
+
+  card.addEventListener('touchmove', function(e){
+    if(window.innerWidth > 640) return;
+    if(!isTouchingTop) return;
+    var touchY = e.touches[0].clientY;
+    var delta = touchY - touchStartY; // positivo = arrastra hacia abajo (overscroll hacia arriba)
+    if(delta <= 0) return;
+    var stretch = delta * 0.5;
+    var newHeight = baseHeight + stretch;
+    if(animFrame) cancelAnimationFrame(animFrame);
+    animFrame = requestAnimationFrame(function(){
+      backdrop.style.height = newHeight + 'px';
+      backdrop.style.transition = 'none';
+    });
+  }, {passive:true});
+
   card.addEventListener('touchend', function(){
     if(window.innerWidth > 640) return;
+    isTouchingTop = false;
+    if(animFrame) cancelAnimationFrame(animFrame);
     backdrop.style.height = baseHeight + 'px';
     backdrop.style.transition = 'height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
   }, {passive:true});
