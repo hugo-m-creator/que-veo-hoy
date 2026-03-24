@@ -673,35 +673,27 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     inset:0;
     background:linear-gradient(
       to bottom,
-      rgba(7,7,10,0.15) 0%,
-      rgba(7,7,10,0.4) 50%,
-      rgba(7,7,10,0.85) 80%,
+      rgba(7,7,10,0.1) 0%,
+      rgba(7,7,10,0.3) 45%,
+      rgba(7,7,10,0.7) 70%,
+      var(--bg) 90%,
       var(--bg) 100%
     );
   }
-  /* El r-inner necesita z-index mayor para estar sobre el backdrop sticky */
+  /* El r-inner: sin fondo propio — el gradiente del backdrop lo cubre */
   #resultCard .r-inner{
     position:relative;
     z-index:2;
-    background:var(--bg); /* fondo sólido — tapa el backdrop completamente */
+    background:transparent;
   }
-  /* Gradiente de transición en la parte superior del r-inner */
-  #resultCard .r-inner::before{
-    content:'';
-    position:absolute;
-    top:-50px; /* justo arriba de donde empieza el badge */
-    left:0;right:0;
-    height:60px;
-    background:linear-gradient(to bottom,
-      transparent 0%,
-      var(--bg) 100%
-    );
-    z-index:0;
-    pointer-events:none;
-  }
-  /* Hero y contenido sobre el pseudo-gradiente */
+  /* Hero y r-content sobre el backdrop */
   .r-hero{position:relative;z-index:1;}
-  #resultCard .r-content{position:relative;z-index:1;}
+  /* r-content: fondo sólido — tapa el backdrop completamente al scrollear */
+  #resultCard .r-content{
+    position:relative;
+    z-index:1;
+    background:var(--bg);
+  }
 
   /* Layout principal: póster izquierda + info derecha */
   .r-inner{
@@ -1571,7 +1563,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.152");
+console.log("QVH version: 11.153");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
