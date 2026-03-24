@@ -705,7 +705,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     flex-direction:row;
     gap:14px;
     padding:0 14px;
-    margin-top:-170px;
+    margin-top:-120px;
     position:relative;
     z-index:2;
     align-items:flex-end;
@@ -1578,7 +1578,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.166");
+console.log("QVH version: 11.167");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -4259,19 +4259,26 @@ function initCardParallax(){
   }, {passive:true});
 
   // Rubber band con touch events — funciona en iOS
+  // Debug visual — muestra valores en pantalla
+  var dbg = document.createElement('div');
+  dbg.id = 'rbDebug';
+  dbg.style.cssText = 'position:fixed;top:60px;right:10px;z-index:9999;background:rgba(0,0,0,0.8);color:#fff;font-size:11px;padding:8px 10px;border-radius:4px;font-family:monospace;pointer-events:none;';
+  document.body.appendChild(dbg);
+  function dbgLog(msg){ dbg.textContent = msg; }
+
   card.addEventListener('touchstart', function(e){
     if(window.innerWidth > 640) return;
     touchStartY = e.touches[0].clientY;
     isTouchingTop = card.scrollTop <= 0;
-    console.log('[RB] touchstart scrollTop='+card.scrollTop+' isTouchingTop='+isTouchingTop);
+    dbgLog('start scrollTop='+Math.round(card.scrollTop)+'\natTop='+isTouchingTop);
   }, {passive:true});
 
   card.addEventListener('touchmove', function(e){
     if(window.innerWidth > 640) return;
-    if(!isTouchingTop) return;
     var touchY = e.touches[0].clientY;
     var delta = touchY - touchStartY;
-    console.log('[RB] touchmove delta='+Math.round(delta)+' scrollTop='+card.scrollTop);
+    dbgLog('move delta='+Math.round(delta)+'\natTop='+isTouchingTop+'\nscrollTop='+Math.round(card.scrollTop));
+    if(!isTouchingTop) return;
     if(delta <= 0) return;
     var stretch = delta * 0.5;
     var newHeight = baseHeight + stretch;
@@ -4288,7 +4295,7 @@ function initCardParallax(){
     if(animFrame) cancelAnimationFrame(animFrame);
     backdrop.style.height = baseHeight + 'px';
     backdrop.style.transition = 'height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    console.log('[RB] touchend — backdrop restaurado a '+baseHeight+'px');
+    dbgLog('end — restaurado');
   }, {passive:true});
 }
 
@@ -4365,7 +4372,7 @@ function showResult(t){
       heroDiv = document.createElement("div");
       heroDiv.id = "rHeroMob";
       heroDiv.className = "r-hero";
-      heroDiv.style.cssText = "display:flex;flex-direction:row;gap:14px;padding:0 14px;margin-top:-170px;position:relative;z-index:2;align-items:flex-end;";
+      heroDiv.style.cssText = "display:flex;flex-direction:row;gap:14px;padding:0 14px;margin-top:-120px;position:relative;z-index:2;align-items:flex-end;";
       var heroInfo = document.createElement("div");
       heroInfo.id = "rHeroInfo";
       heroInfo.style.cssText = "flex:1;min-width:0;padding-bottom:6px;";
