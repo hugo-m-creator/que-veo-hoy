@@ -1530,7 +1530,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.135");
+console.log("QVH version: 11.138");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3470,7 +3470,62 @@ function scoreSuggestion(m,p){
       score += femaleMatchCount * 4;
     }
   }
-  // ── FIN BOOST DEMOGRÁFICO ─────────────────────────────────────────
+  // ── FILTRO ANIME GENERAL ─────────────────────────────────────────
+  // TMDB está sesgado hacia anime en resultados japoneses.
+  // Penalizar anime (Animation + JP) con rating < 8.0 en todos los casos,
+  // para dar espacio al live action asiático bien valorado y menos conocido.
+  // Solo pasan: Ghibli, Satoshi Kon y equivalentes (≥ 8.0)
+  var isAnimated = movieGenres.indexOf(16) !== -1;
+  var originCountries = m.origin_country || [];
+  var isJapanese = originCountries.indexOf("JP") !== -1;
+  var isAsian = isJapanese || originCountries.indexOf("KR") !== -1 || originCountries.indexOf("CN") !== -1;
+  var likedAnimation = genreIds.indexOf(16) !== -1;
+  var likedAsian = (p.origins||[]).indexOf("Cine asiático (Japón, Corea, China...)") !== -1;
+
+  // Detectar si el usuario tiene anime en su lista (señal positiva)
+  var animeInList = titles.some(function(t){
+    return (t.genres||[]).indexOf(16)!==-1 &&
+           (t.country==="JP" || (t.origin_country||[]).indexOf("JP")!==-1);
+  });
+
+  // Penalización base por anime japonés de bajo rating
+  if(isAnimated && isJapanese){
+    if((m.vote_average||0) < 8.0){
+      var animePenalty = 25;
+
+      // Amplificar según historial de descartes de anime
+      var animeDiscards = (signalsCounts&&signalsCounts.animeDiscards)||0;
+      if(animeDiscards >= 3)  animePenalty += 15; // 3+ descartes → -40 total
+      if(animeDiscards >= 6)  animePenalty += 15; // 6+ descartes → -55 total
+      if(animeDiscards >= 10) animePenalty += 20; // 10+ descartes → -75 total (casi nunca aparece)
+
+      // Reducir penalización si tiene anime en su lista (le gusta pero es selectivo)
+      if(animeInList) animePenalty = Math.max(animePenalty - 20, 0);
+
+      score -= animePenalty;
+    }
+    // Si el usuario además NO eligió animación ni cine asiático, penalización extra
+    if(!likedAnimation && !likedAsian){
+      score -= 20;
+    }
+  }
+
+  // Boost adicional al perfil "animación occidental"
+  if(isAnimated && isJapanese && likedAnimation && !likedAsian){
+    if((m.vote_average||0) < 8.0){
+      score -= 10;
+    }
+  }
+
+  // Boost al live action asiático — para que suba sobre el anime
+  if(isAsian && !isAnimated && likedAsian){
+    var liveActionBoost = 0;
+    if((m.vote_average||0) >= 7.5) liveActionBoost += 8;
+    if((m.vote_average||0) >= 8.0) liveActionBoost += 6;
+    if((m.popularity||0) < 20) liveActionBoost += 5;
+    score += liveActionBoost;
+  }
+  // ── FIN FILTRO ANIME ─────────────────────────────────────────────
 
   return score;
 }
@@ -3537,12 +3592,21 @@ function applySignalPatterns(pool){
 }
 
 // ── Señales del usuario ───────────────────────────────────────────
-function dismissSuggestion(tmdbId, directorName, genres){
+function dismissSuggestion(tmdbId, directorName, genres, originCountry){
   signalsNegative.push(tmdbId);
   if(!signalsCounts.directors)signalsCounts.directors={};
   if(!signalsCounts.genres)signalsCounts.genres={};
   if(directorName)signalsCounts.directors[directorName]=(signalsCounts.directors[directorName]||0)+1;
   (genres||[]).forEach(function(g){signalsCounts.genres[g]=(signalsCounts.genres[g]||0)+1;});
+
+  // Rastrear descartes de anime específicamente
+  var isAnimeDiscard = (genres||[]).indexOf(16)!==-1 &&
+    (originCountry==="JP" || (typeof originCountry==="object" && (originCountry||[]).indexOf("JP")!==-1));
+  if(isAnimeDiscard){
+    if(!signalsCounts.animeDiscards)signalsCounts.animeDiscards=0;
+    signalsCounts.animeDiscards++;
+  }
+
   suggestionPool=suggestionPool.filter(function(m){return m._tmdbId!==tmdbId;});
   saveSuggestionPool();saveSignals();
   document.getElementById("resultCard").classList.remove("show");
@@ -3660,7 +3724,7 @@ function closeResultCard(){
 function dismissFromResult(){
   if(!lastPick||!lastPick._tmdbId)return;
   var t=lastPick;
-  dismissSuggestion(t._tmdbId, t.director||"", t.genres||[]);
+  dismissSuggestion(t._tmdbId, t.director||"", t.genres||[], t.country||t.origin_country||"");
 }
 
 
