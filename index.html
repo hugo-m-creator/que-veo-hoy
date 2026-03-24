@@ -1530,7 +1530,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.139");
+console.log("QVH version: 11.140");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -3279,6 +3279,10 @@ async function buildSuggestionPool(){
   });
   if(avoidIds.length)params.push("without_genres="+avoidIds.join(","));
 
+  // Excluir live action remakes de animación — siempre, independientemente del perfil
+  // Keywords TMDB: 210024=live action remake, 9717=based on animated film, 282178=disney live action remake
+  params.push("without_keywords=210024,9717,282178");
+
   // Épocas
   var yearMin=null,yearMax=null;
   var eras=p.eras||[];
@@ -3437,6 +3441,14 @@ function scoreSuggestion(m,p){
   if(p.ratings==="Prefiero descubrir películas poco conocidas"){
     score -= (m.popularity||0)*0.02;
   }
+
+  // ── LIVE ACTION REMAKES — penalización absoluta ─────────────────
+  // Por si alguno llega por vía distinta al discover (similares, etc.)
+  var LIVE_ACTION_REMAKE_KWS = [210024, 9717, 282178];
+  if(m._keywordIds && LIVE_ACTION_REMAKE_KWS.some(function(k){return m._keywordIds.indexOf(k)!==-1;})){
+    score -= 200; // Prácticamente imposible que aparezca
+  }
+  // ── FIN LIVE ACTION REMAKES ───────────────────────────────────────
 
   // ── BOOST DEMOGRÁFICO: género × géneros cinematográficos elegidos ──
   // Solo activa si el usuario eligió géneros que confirman la afinidad.
