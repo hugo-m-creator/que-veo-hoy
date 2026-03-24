@@ -483,38 +483,40 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   .watch-together-label{margin-bottom:4px;}
   /* Pool status y toggle de source */
   #poolStatus{font-size:9px;}
+
+  /* ── FILTROS COLAPSABLES EN MÓVIL ── */
+  #filterBar{display:flex;align-items:center;gap:8px;}
+  #filterToggleBtn{
+    font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;
+    text-transform:uppercase;padding:7px 12px;
+    border:1px solid var(--border);background:transparent;
+    color:var(--text);cursor:pointer;border-radius:2px;
+    white-space:nowrap;
+  }
+  #filterToggleBtn.has-filters{border-color:var(--accent);color:var(--accent);}
+  #filterActiveCount{font-size:9px;color:var(--muted);}
+  /* Panel — oculto por defecto en móvil */
+  #filterPanel{
+    display:none;
+    border:1px solid var(--border);background:var(--surface);
+    padding:14px 14px 4px;margin-bottom:10px;border-radius:4px;
+  }
+  #filterPanel.open{display:block;}
+  #filterPanel .fgroup{margin-bottom:12px;}
+  #filterPanel .slabel{margin-bottom:6px;}
   #srcToggleBtn{font-size:8px;padding:4px 8px;}
 
   /* resultCard en móvil — pantalla completa */
   #resultCard{
     position:fixed;inset:0;z-index:400;
     border:none;border-radius:0;
-    overflow-y:scroll !important; /* scroll en lugar de auto — más estable en iOS */
+    overflow-y:scroll !important;
     overflow-x:hidden;
     margin:0;
     animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
     -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain; /* evita que el scroll se propague al body */
-    touch-action:pan-y; /* permite scroll vertical, bloquea interferencias */
-  }
-  /* Bloquear scroll del body cuando el card está abierto */
-  body.card-open{
-    overflow:hidden !important;
-    position:fixed;
-    width:100%;
-    left:0;right:0;
-  }
-  /* resultCard en móvil — pantalla completa */
-  #resultCard{
-    position:fixed;inset:0;z-index:400;
-    border:none;border-radius:0;
-    overflow-y:scroll !important; /* scroll en lugar de auto — más estable en iOS */
-    overflow-x:hidden;
-    margin:0;
-    animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain; /* evita que el scroll se propague al body */
-    touch-action:pan-y; /* permite scroll vertical, bloquea interferencias */
+    overscroll-behavior:contain;
+    touch-action:pan-y;
   }
   /* Bloquear scroll del body cuando el card está abierto */
   body.card-open{
@@ -817,6 +819,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #mobileTabBar{display:none;}
   .r-close-btn{display:none;}
   #cardInlineActions{display:none !important;}
+  /* Filtros siempre visibles en desktop */
+  #filterBar{display:none !important;}
+  #filterPanel{display:block !important;}
+  #filterMode>.fgroup,
+  #filterMode>#watchTogetherWrap{display:block !important;}
 }
 
 .dismiss-ext-btn{
@@ -1147,58 +1154,68 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   </div>
 
   <div id="filterMode">
-    <div class="fgroup"><div class="slabel">Tipo</div>
-      <div class="pills" id="typePills">
-        <div class="pill ton" data-v="all" onclick="pickType(this)">Todo</div>
-        <div class="pill" data-v="movie" onclick="pickType(this)">Pel&#237;culas</div>
-        <div class="pill" data-v="short" onclick="pickType(this)">Cortometrajes</div>
-        <div class="pill" data-v="tv" onclick="pickType(this)">Series</div>
-        <div class="pill" data-v="doc" onclick="pickType(this)">Documentales</div>
-      </div>
-    </div>
-    <div class="fgroup"><div class="slabel">G&#233;nero</div><div class="pills" id="genrePills"><div class="pill on" data-v="all" onclick="pickGenre(this)">Todos</div></div></div>
-    <div class="fgroup"><div class="slabel">D&#233;cada</div><div class="pills" id="decadePills"><div class="pill on" data-v="all" onclick="pickDecade(this)">Todas</div></div></div>
-    <div class="fgroup"><div class="slabel">Pa&#237;s</div><div class="pills" id="countryPills"><div class="pill on" data-v="all" onclick="pickCountry(this)">Todos</div></div></div>
-    <div class="fgroup" id="listFilterGroup" style="display:none;">
-      <div class="slabel">Listas</div>
-      <div class="pills" id="listPills"><div class="pill on" data-v="all" onclick="pickList(this)">Todas</div></div>
-    </div>
-    <div class="fgroup" id="watchedFilterGroup">
-      <div class="slabel">Estado</div>
-      <div class="pills" id="watchedPills">
-        <div class="pill" data-v="all" onclick="pickWatched(this)">Ambas</div>
-        <div class="pill on" data-v="pending" onclick="pickWatched(this)">Por ver</div>
-        <div class="pill" data-v="watched" onclick="pickWatched(this)">Ya vistas</div>
-      </div>
-    </div>
-    <div class="fgroup"><div class="slabel">Duraci&#243;n m&#225;xima</div>
-      <div class="slider-row">
-        <div class="slider-wrap"><input type="range" id="durSlider" min="0" max="480" step="15" value="480" oninput="updateDur(this.value)"></div>
-        <div class="sval" id="durVal">Sin l&#237;mite</div>
-      </div>
-    </div>
-    <div class="fgroup" id="filterServiceGroup" style="display:none;"><div class="slabel">Servicio</div><div class="pills" id="filterServicePills"><div class="pill on" data-v="all" onclick="pickFilterService(this,'all')">Todos</div></div></div>
-    <div class="fgroup"><div class="slabel">Energ&#237;a</div>
-      <div class="pills" id="moodPills">
-        <div class="pill on" data-v="any" onclick="pickMood(this)">Cualquiera</div>
-        <div class="pill" data-v="intense" onclick="pickMood(this)">Intensa</div>
-        <div class="pill" data-v="light" onclick="pickMood(this)">Ligera</div>
-        <div class="pill" data-v="dark" onclick="pickMood(this)">Oscura</div>
-        <div class="pill" data-v="funny" onclick="pickMood(this)">Divertida</div>
-        <div class="pill" data-v="thinking" onclick="pickMood(this)">Para pensar</div>
-        <div class="pill" data-v="visual" onclick="pickMood(this)">Visualmente impresionante</div>
-      </div>
-    </div>
-    <div id="cInfo"></div>
-    <!-- Toggle ver con... -->
-    <div id="watchTogetherWrap" class="watch-together-wrap">
-      <div class="watch-together-label">Ver con</div>
-      <div class="watch-together-chips" id="watchTogetherChips"></div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;margin-top:6px;">
+
+    <!-- Barra superior: fuente + botón filtros (móvil) -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
       <button id="srcToggleBtn" class="mbtn mbtn-d" style="font-size:9px;" onclick="toggleSuggestionSource(this)">&#127922; Desde mi lista</button>
-      <span id="poolStatus" style="font-size:10px;color:var(--muted);"></span>
+      <span id="poolStatus" style="font-size:10px;color:var(--muted);flex:1;"></span>
+      <div id="filterBar">
+        <button id="filterToggleBtn" onclick="toggleFilterPanel()">&#9776; Filtros</button>
+        <span id="filterActiveCount"></span>
+      </div>
     </div>
+
+    <!-- Panel colapsable (en móvil) / siempre visible (en desktop) -->
+    <div id="filterPanel">
+      <div class="fgroup"><div class="slabel">Tipo</div>
+        <div class="pills" id="typePills">
+          <div class="pill ton" data-v="all" onclick="pickType(this)">Todo</div>
+          <div class="pill" data-v="movie" onclick="pickType(this)">Pel&#237;culas</div>
+          <div class="pill" data-v="short" onclick="pickType(this)">Cortometrajes</div>
+          <div class="pill" data-v="tv" onclick="pickType(this)">Series</div>
+          <div class="pill" data-v="doc" onclick="pickType(this)">Documentales</div>
+        </div>
+      </div>
+      <div class="fgroup"><div class="slabel">G&#233;nero</div><div class="pills" id="genrePills"><div class="pill on" data-v="all" onclick="pickGenre(this)">Todos</div></div></div>
+      <div class="fgroup"><div class="slabel">D&#233;cada</div><div class="pills" id="decadePills"><div class="pill on" data-v="all" onclick="pickDecade(this)">Todas</div></div></div>
+      <div class="fgroup"><div class="slabel">Pa&#237;s</div><div class="pills" id="countryPills"><div class="pill on" data-v="all" onclick="pickCountry(this)">Todos</div></div></div>
+      <div class="fgroup" id="listFilterGroup" style="display:none;">
+        <div class="slabel">Listas</div>
+        <div class="pills" id="listPills"><div class="pill on" data-v="all" onclick="pickList(this)">Todas</div></div>
+      </div>
+      <div class="fgroup" id="watchedFilterGroup">
+        <div class="slabel">Estado</div>
+        <div class="pills" id="watchedPills">
+          <div class="pill" data-v="all" onclick="pickWatched(this)">Ambas</div>
+          <div class="pill on" data-v="pending" onclick="pickWatched(this)">Por ver</div>
+          <div class="pill" data-v="watched" onclick="pickWatched(this)">Ya vistas</div>
+        </div>
+      </div>
+      <div class="fgroup"><div class="slabel">Duraci&#243;n m&#225;xima</div>
+        <div class="slider-row">
+          <div class="slider-wrap"><input type="range" id="durSlider" min="0" max="480" step="15" value="480" oninput="updateDur(this.value)"></div>
+          <div class="sval" id="durVal">Sin l&#237;mite</div>
+        </div>
+      </div>
+      <div class="fgroup" id="filterServiceGroup" style="display:none;"><div class="slabel">Servicio</div><div class="pills" id="filterServicePills"><div class="pill on" data-v="all" onclick="pickFilterService(this,'all')">Todos</div></div></div>
+      <div class="fgroup"><div class="slabel">Energ&#237;a</div>
+        <div class="pills" id="moodPills">
+          <div class="pill on" data-v="any" onclick="pickMood(this)">Cualquiera</div>
+          <div class="pill" data-v="intense" onclick="pickMood(this)">Intensa</div>
+          <div class="pill" data-v="light" onclick="pickMood(this)">Ligera</div>
+          <div class="pill" data-v="dark" onclick="pickMood(this)">Oscura</div>
+          <div class="pill" data-v="funny" onclick="pickMood(this)">Divertida</div>
+          <div class="pill" data-v="thinking" onclick="pickMood(this)">Para pensar</div>
+          <div class="pill" data-v="visual" onclick="pickMood(this)">Visualmente impresionante</div>
+        </div>
+      </div>
+      <div id="watchTogetherWrap" class="watch-together-wrap">
+        <div class="watch-together-label">Ver con</div>
+        <div class="watch-together-chips" id="watchTogetherChips"></div>
+      </div>
+    </div><!-- /filterPanel -->
+
+    <div id="cInfo"></div>
     <button id="rollPrevBtn" onclick="rollPrev()" style="display:none;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;padding:10px 18px;border:1px solid var(--border);color:var(--muted);background:transparent;cursor:pointer;margin-bottom:8px;">&#8592; Anterior</button>
     <button id="mainRollBtn" class="roll-btn" onclick="rollWithSource()">Sorpr&#233;ndeme</button>
     <!-- extCardActions movido al interior del card -->
@@ -1530,7 +1547,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.142");
+console.log("QVH version: 11.143");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -2527,6 +2544,33 @@ function pickFilterService(el){
 }
 
 function pickMood(el){document.querySelectorAll("#moodPills .pill").forEach(function(p){p.classList.remove("on");});el.classList.add("on");activeMood=el.dataset.v;updateCandidates();}
+
+function toggleFilterPanel(){
+  if(window.innerWidth>640)return; // en desktop no aplica
+  var panel=document.getElementById("filterPanel");
+  if(!panel)return;
+  panel.classList.toggle("open");
+  var btn=document.getElementById("filterToggleBtn");
+  if(btn)btn.textContent=panel.classList.contains("open")?"✕ Cerrar":"▼ Filtros";
+}
+
+function updateFilterBadge(){
+  if(window.innerWidth>640)return;
+  var count=0;
+  if(activeGenres.length>0)count++;
+  if(activeCountry!=="all")count++;
+  if(activeDecades[0]!=="all")count++;
+  if(activeMood!=="any")count++;
+  if(activeWatchedFilter!=="pending")count++;
+  if(typeof maxDur==="number"&&maxDur>0&&maxDur<480)count++;
+  var btn=document.getElementById("filterToggleBtn");
+  var badge=document.getElementById("filterActiveCount");
+  if(btn){
+    btn.classList.toggle("has-filters",count>0);
+    if(!btn.textContent.includes("Cerrar"))btn.textContent=(count>0?"▼ Filtros ("+count+")":"▼ Filtros");
+  }
+  if(badge)badge.textContent=count>0?count+" activos":"";
+}
 function updateDur(v){
   v=parseInt(v);maxDur=v>=480?9999:v;
   document.getElementById("durVal").textContent=v>=480?"Sin limite":(v<60?v+" min":Math.floor(v/60)+"h"+(v%60?" "+v%60+"m":""));
@@ -2581,6 +2625,7 @@ function updatePoolStatus(){
 }
 
 function updateCandidates(){
+  if(typeof updateFilterBadge==="function")updateFilterBadge();
   var ready=getCandidates().length;
   var total=titles.filter(function(t){return t.status==="active";}).length;
   var pending=total-titles.filter(function(t){return t.status==="active"&&t.genres&&t.genres.length;}).length;
@@ -3791,19 +3836,7 @@ function rollWithSource(){
 
 
 
-function closeResultCard(){
-  var card = document.getElementById("resultCard");
-  if(card) card.classList.remove("show");
-  // Restaurar scroll del body y posición
-  var scrollY = parseInt(document.body.dataset.scrollY || '0');
-  document.body.classList.remove('card-open');
-  document.body.style.top = '';
-  window.scrollTo(0, scrollY);
-  // Ocultar botones inline al cerrar (aunque se ocultan solos con el card)
-  var inlineGroup=document.getElementById("cardInlineActions");
-  if(inlineGroup)inlineGroup.style.display="none";
-  lastPick = null;
-}
+
 
 function dismissFromResult(){
   if(!lastPick||!lastPick._tmdbId)return;
@@ -4351,7 +4384,14 @@ function closeResultCard(){
   var grid=document.getElementById('browseGrid');
   var app=document.getElementById('app');
   if(!rc)return;
+
+  // Restaurar scroll del body (móvil — body.card-open usa position:fixed)
+  var savedScrollY = parseInt(document.body.dataset.scrollY || '0');
+  document.body.classList.remove('card-open');
+  document.body.style.top = '';
+
   if(grid&&rc.parentNode===grid){
+    // Cerrar desde Mi Lista (card insertado en el grid)
     var nx=rc.nextSibling;
     var nxTop=nx?nx.getBoundingClientRect().top:null;
     rc.style.gridColumn='';
@@ -4364,8 +4404,15 @@ function closeResultCard(){
     }
   }else{
     rc.classList.remove('show');
+    // Restaurar posición de scroll en móvil
+    if(window.innerWidth<=640&&savedScrollY>0){
+      window.scrollTo(0, savedScrollY);
+    }
   }
+
   document.querySelectorAll('.browse-card.selected').forEach(function(c){c.classList.remove('selected');});
+  var inlineGroup=document.getElementById("cardInlineActions");
+  if(inlineGroup)inlineGroup.style.display="none";
   lastPick=null;
 }
 
