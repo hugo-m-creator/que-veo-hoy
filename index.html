@@ -677,7 +677,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     background:linear-gradient(
       to bottom,
       rgba(7,7,10,0.1) 0%,
-      rgba(7,7,10,0.2) 100%
+      transparent 30%,
+      transparent 55%,
+      rgba(7,7,10,0.6) 80%,
+      var(--bg) 100%
     );
   }
   /* El r-inner: sin fondo propio — el gradiente del backdrop lo cubre */
@@ -1578,7 +1581,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.167");
+console.log("QVH version: 11.168");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
