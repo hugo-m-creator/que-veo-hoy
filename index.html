@@ -670,15 +670,38 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #rBackdrop::after{
     content:'';
     position:absolute;
-    bottom:0;left:0;right:0;
-    height:160px;
-    background:linear-gradient(to bottom, transparent 0%, rgba(7,7,10,0.7) 60%, var(--bg) 100%);
+    inset:0;
+    background:linear-gradient(
+      to bottom,
+      rgba(7,7,10,0.15) 0%,
+      rgba(7,7,10,0.4) 50%,
+      rgba(7,7,10,0.85) 80%,
+      var(--bg) 100%
+    );
   }
   /* El r-inner necesita z-index mayor para estar sobre el backdrop sticky */
   #resultCard .r-inner{
     position:relative;
     z-index:2;
   }
+  /* Gradiente de transición: el contenido tapa el backdrop al scrollear */
+  #resultCard .r-inner::before{
+    content:'';
+    position:absolute;
+    top:-80px; /* sube para cubrir la zona del hero también */
+    left:0;right:0;
+    height:120px;
+    background:linear-gradient(to bottom,
+      transparent 0%,
+      rgba(7,7,10,0.6) 40%,
+      var(--bg) 100%
+    );
+    z-index:0;
+    pointer-events:none;
+  }
+  /* El hero y el contenido por encima del pseudo-gradiente */
+  .r-hero{position:relative;z-index:1;}
+  .r-content{position:relative;z-index:1;}
 
   /* Layout principal: póster izquierda + info derecha */
   .r-inner{
@@ -1548,7 +1571,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.147");
+console.log("QVH version: 11.148");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
