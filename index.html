@@ -1547,7 +1547,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.143");
+console.log("QVH version: 11.144");
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
@@ -4398,9 +4398,15 @@ function closeResultCard(){
     grid.removeChild(rc);
     if(app)app.appendChild(rc);
     rc.classList.remove('show');
-    if(nx&&nxTop!==null&&window.innerWidth>640){
-      var diff=nx.getBoundingClientRect().top-nxTop;
-      if(Math.abs(diff)>0.5)window.scrollBy({top:diff,behavior:'smooth'});
+    if(window.innerWidth<=640){
+      // Móvil: restaurar posición de scroll guardada
+      if(savedScrollY>0) window.scrollTo(0, savedScrollY);
+    } else {
+      // Desktop: compensar el salto de layout al retirar el card del grid
+      if(nx&&nxTop!==null){
+        var diff=nx.getBoundingClientRect().top-nxTop;
+        if(Math.abs(diff)>0.5)window.scrollBy({top:diff,behavior:'smooth'});
+      }
     }
   }else{
     rc.classList.remove('show');
