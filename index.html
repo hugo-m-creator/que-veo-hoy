@@ -659,14 +659,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   #rBackdrop{
     display:block !important;
     width:100%;
-    height:200px;
+    height:200px; /* controlada dinámicamente por JS para el rubber band */
     background-size:cover;
     background-position:center 30%;
     flex-shrink:0;
     position:sticky;
     top:0;
     z-index:1;
-    /* Resetear filtros del CSS base */
+    will-change:height; /* optimización para animación suave */
     filter:none !important;
     transform:none !important;
   }
@@ -1583,7 +1583,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.160");
+console.log("QVH version: 11.161");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -4249,12 +4249,41 @@ function initCardParallax(){
   var card = document.getElementById('resultCard');
   var backdrop = document.getElementById('rBackdrop');
   if(!card || !backdrop) return;
+
+  var baseHeight = 200; // altura base del backdrop en px
+  var lastScrollY = 0;
+  var ticking = false;
+
   card.addEventListener('scroll', function(){
     if(window.innerWidth > 640) return;
     var scrollY = card.scrollTop;
-    // Mover el backdrop más lento que el scroll — efecto parallax
-    var offset = 30 + scrollY * 0.3; // empieza en 30%, se mueve lento
-    backdrop.style.backgroundPosition = 'center ' + offset + '%';
+
+    // Parallax del background-position al scrollear hacia abajo
+    var offset = 30 + scrollY * 0.12;
+    backdrop.style.backgroundPosition = 'center ' + Math.min(offset, 55) + '%';
+
+    // Efecto rubber band: solo cuando el usuario intenta scrollear hacia arriba
+    // desde el tope (scrollTop = 0)
+    if(scrollY <= 0){
+      // scrollY puede ser negativo en iOS (overscroll nativo)
+      var stretch = Math.abs(scrollY) * 0.6; // crece al 60% de la velocidad del scroll
+      var newHeight = baseHeight + stretch;
+      backdrop.style.height = newHeight + 'px';
+      backdrop.style.transition = 'none'; // sin transición mientras arrastra
+    } else {
+      // Al scrollear hacia abajo, restaurar la altura con un resorte suave
+      backdrop.style.height = baseHeight + 'px';
+      backdrop.style.transition = 'height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    }
+
+    lastScrollY = scrollY;
+  }, {passive:true});
+
+  // Cuando el usuario suelta el scroll, restaurar con animación de resorte
+  card.addEventListener('touchend', function(){
+    if(window.innerWidth > 640) return;
+    backdrop.style.height = baseHeight + 'px';
+    backdrop.style.transition = 'height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
   }, {passive:true});
 }
 
