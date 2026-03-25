@@ -1586,7 +1586,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.173");
+console.log("QVH version: 11.174");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -6870,34 +6870,28 @@ function filterByGenre(genreId){
   setMode("browse", browseTab);
 
   setTimeout(function(){
-    // Usar el sistema de filtros propio de browseMode — setBDFilter
-    browseGenre = String(genreId);
-
-    // Activar visualmente el pill correcto en el filtro de géneros de Mi Lista
-    var pills = document.querySelectorAll('[id^="bdGenre"] .bd-item, .bd-item[data-val]');
-    // Buscar el pill del género en browseMode
-    var found = false;
-    document.querySelectorAll('.bd-item').forEach(function(p){
-      if(p.getAttribute('onclick') && p.getAttribute('onclick').includes("'browseGenre'")){
-        p.classList.remove('active');
-        if(String(p.dataset.val) === String(genreId)){
-          p.classList.add('active');
-          found = true;
-        }
-      }
+    // Buscar el pill del género en el menú de Mi Lista y simular click
+    var pill = Array.from(document.querySelectorAll('#bdGenreMenu .bd-item')).find(function(p){
+      return String(p.dataset.val) === String(genreId);
     });
-    // Si no encontró el pill (puede que no esté construido aún), construirlo
-    if(!found){
-      buildGenreFilterBrowse && buildGenreFilterBrowse();
+    if(pill){
+      // Usar setBDFilter directamente — maneja visual + variable + botón limpiar
+      setBDFilter('browseGenre', String(genreId), pill, 'bdGenre');
+    } else {
+      // Si el pill no está construido aún, forzar la variable y renderizar
+      browseGenre = String(genreId);
+      // Construir los géneros y buscar de nuevo
+      buildGenres && buildGenres();
+      setTimeout(function(){
+        var p2 = Array.from(document.querySelectorAll('#bdGenreMenu .bd-item')).find(function(p){
+          return String(p.dataset.val) === String(genreId);
+        });
+        if(p2) setBDFilter('browseGenre', String(genreId), p2, 'bdGenre');
+        else { renderBrowse(); updateResetBtn(); }
+      }, 100);
     }
-
-    renderBrowse();
-
-    // Scroll al tope
-    var app = document.getElementById('app');
-    if(app) app.scrollTop = 0;
     window.scrollTo(0,0);
-  }, 150);
+  }, 200);
 }
 
 var _deleteListTarget=null;
