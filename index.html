@@ -1417,6 +1417,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 
   <div id="statsMode">
     <div class="stat-grid" id="statGrid"></div>
+    <div id="statCadencia"></div>
     <div class="streak-box">
       <div class="streak-title">Actividad &#8212; &#250;ltimos 90 d&#237;as (requiere sync con LB)</div>
       <div class="streak-days" id="streakDays"></div>
@@ -1581,7 +1582,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.168");
+console.log("QVH version: 11.169");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -5282,6 +5283,51 @@ function renderStats(){
     sCard(active.length,"Pendientes","titulos en tu watchlist")+
     sCard(dW+"d "+hW+"h","Tiempo visto","de contenido consumido")+
     sCard(dA+"d "+hA+"h","Tiempo pendiente","de contenido por ver");
+
+  // ── Tarjeta de cadencia ───────────────────────────────────────────
+  var cadenciaEl = document.getElementById("statCadencia");
+  if(cadenciaEl && active.length > 0){
+    var pending = active.length;
+
+    function formatTime(weeks){
+      if(weeks < 4) return weeks + " semana" + (weeks !== 1 ? "s" : "");
+      var months = Math.round(weeks / 4.33);
+      if(months < 12) return months + " mes" + (months !== 1 ? "es" : "");
+      var years = Math.floor(months / 12);
+      var remMonths = months % 12;
+      var str = years + " año" + (years !== 1 ? "s" : "");
+      if(remMonths > 0) str += " y " + remMonths + " mes" + (remMonths !== 1 ? "es" : "");
+      return str;
+    }
+
+    var cadences = [
+      {label:"1 por semana",   perWeek:1},
+      {label:"2 por semana",   perWeek:2},
+      {label:"3 por semana",   perWeek:3},
+      {label:"1 diaria",       perWeek:7},
+      {label:"2 diarias",      perWeek:14},
+    ];
+
+    var rows = cadences.map(function(c){
+      var weeks = Math.ceil(pending / c.perWeek);
+      var time = formatTime(weeks);
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">'
+        +'<span style="font-size:11px;color:var(--text);">'+c.label+'</span>'
+        +'<span style="font-size:11px;color:var(--accent);font-weight:500;">'+time+'</span>'
+        +'</div>';
+    }).join('');
+
+    cadenciaEl.innerHTML =
+      '<div class="stat-card" style="grid-column:1/-1;margin-top:4px;">'
+      +'<div class="stat-card-label">¿Cuánto tiempo para ver todo?</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Con <strong style="color:var(--text);">'+pending+'</strong> películas pendientes</div>'
+      + rows
+      +'</div>';
+  } else if(cadenciaEl){
+    cadenciaEl.innerHTML = '';
+  }
+  // ── Fin tarjeta cadencia ──────────────────────────────────────────
+
   var sd=document.getElementById("streakDays"),si=document.getElementById("streakInfo");
   sd.innerHTML="";
   if(!diaryDates.length){si.textContent="Sincroniza con Letterboxd para ver tu actividad.";return;}
