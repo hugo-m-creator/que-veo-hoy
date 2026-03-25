@@ -1586,7 +1586,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.170");
+console.log("QVH version: 11.172");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -5381,17 +5381,42 @@ function statSection(id, title, rows, note){
 function renderStatGenres(){
   var active = titles.filter(function(t){return t.status==="active";});
   var gc = {};
+  var gcId = {}; // nombre → id
   active.forEach(function(t){
     (t.genres||[]).forEach(function(g){
       var name = GENRE_MAP[g];
-      if(name) gc[name] = (gc[name]||0)+1;
+      if(name){gc[name]=(gc[name]||0)+1; gcId[name]=g;}
     });
   });
-  var rows = Object.entries(gc)
+  var sorted = Object.entries(gc)
     .sort(function(a,b){return b[1]-a[1];})
-    .slice(0,7)
-    .map(function(e){return {label:e[0], val:e[1], suffix:' títulos'};});
-  statSection('statGenres','Géneros en tu watchlist',rows,'Películas pendientes por género');
+    .slice(0,7);
+
+  var el = document.getElementById('statGenres');
+  if(!el||!sorted.length){if(el)el.innerHTML='';return;}
+
+  var max = sorted[0][1]||1;
+  var medals = ['🥇','🥈','🥉'];
+  var rows = sorted.map(function(e,i){
+    var pct = Math.round((e[1]/max)*100);
+    var gid = gcId[e[0]];
+    return '<div style="margin-bottom:10px;cursor:pointer;" onclick="filterByGenre('+gid+')" title="Ver '+e[0]+' en Mi Lista">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+      +'<span style="font-size:11px;color:var(--text);">'+(medals[i]||'')+(medals[i]?' ':'')+e[0]
+      +' <span style="font-size:9px;color:var(--accent);letter-spacing:.5px;">→ ver</span></span>'
+      +'<span style="font-size:11px;color:var(--accent);font-weight:500;">'+e[1]+' títulos</span>'
+      +'</div>'
+      +'<div style="height:3px;background:var(--border);border-radius:2px;">'
+      +'<div style="height:3px;width:'+pct+'%;background:var(--accent);border-radius:2px;transition:width 0.4s ease;"></div>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+
+  el.innerHTML = '<div class="stat-card" style="grid-column:1/-1;margin-top:4px;">'
+    +'<div class="stat-card-label">Géneros en tu watchlist</div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-bottom:12px;">Toca un género para verlo en Mi Lista</div>'
+    + rows
+    +'</div>';
 }
 
 // ── Décadas ───────────────────────────────────────────────────────
@@ -5424,6 +5449,14 @@ function renderStatDirectors(){
 
 // ── Ranking de streaming — carga progresiva ───────────────────────
 var _streamingStatsRunning = false;
+
+// Mapa para agrupar variantes del mismo servicio
+var PROVIDER_CANONICAL = {
+  1796: 8,      // Netflix con anuncios → Netflix
+  1825: 1899,   // HBO Max (Prime) → HBO Max
+  1866: 457,    // VIX Premium (Prime) → VIX
+};
+
 async function renderStatStreaming(){
   if(_streamingStatsRunning) return;
   _streamingStatsRunning = true;
@@ -5434,13 +5467,17 @@ async function renderStatStreaming(){
   var active = titles.filter(function(t){return t.status==="active"&&t._tmdbId;});
   if(!active.length){el.innerHTML='';return;}
 
-  // Mostrar estado inicial de carga
+  // Solo los servicios que el usuario tiene activos, canonicalizados
+  var userServices = new Set(activeServices.map(function(id){
+    return PROVIDER_CANONICAL[id]||id;
+  }));
+
   el.innerHTML = '<div class="stat-card" style="grid-column:1/-1;margin-top:4px;">'
     +'<div class="stat-card-label">Ranking de streaming</div>'
     +'<div style="font-size:10px;color:var(--muted);">Consultando disponibilidad... (0/'+active.length+')</div>'
     +'</div>';
 
-  var counts = {}; // provider_id → count
+  var counts = {};
   var userCountry = (userProfile&&userProfile.country==="México")?"MX"
     :(userProfile&&userProfile.country==="Estados Unidos")?"US"
     :(userProfile&&userProfile.country==="España")?"ES":"MX";
@@ -5462,18 +5499,23 @@ async function renderStatStreaming(){
         streamCache[cacheKey] = providers;
       }
       providers.forEach(function(p){
-        counts[p.provider_id] = (counts[p.provider_id]||0)+1;
+        // Canonicalizar variantes y filtrar solo los del usuario
+        var canonical = PROVIDER_CANONICAL[p.provider_id]||p.provider_id;
+        if(userServices.has(canonical)){
+          counts[canonical] = (counts[canonical]||0)+1;
+        }
       });
     } catch(e){}
 
-    // Actualizar ranking cada 10 películas o al final
     if(i%10===9 || i===active.length-1){
       var rows = Object.entries(counts)
         .sort(function(a,b){return b[1]-a[1];})
         .slice(0,8)
         .map(function(e){
           var info = ALL_PROVIDERS[e[0]]||{name:'Servicio '+e[0]};
-          return {label:info.name, val:e[1], suffix:' títulos'};
+          // Usar nombre limpio sin "(con anuncios)", "(Prime)", etc.
+          var name = info.name.replace(/ \(con anuncios\)/,'').replace(/ \(Prime\)/,'').replace(/ \(US\)| \(ES\)| \(AR\)/,'');
+          return {label:name, val:e[1], suffix:' títulos'};
         });
       var note = i<active.length-1
         ? 'Consultando... ('+(i+1)+'/'+active.length+')'
@@ -6818,6 +6860,29 @@ function filterByList(name){
     pills.forEach(function(p){p.classList.remove("on");});
     var pill=Array.from(pills).find(function(p){return p.dataset.v===name;});
     if(pill){pill.classList.add("on");activeList=name;updateCandidates();}
+  },150);
+}
+
+function filterByGenre(genreId){
+  // Cambiar a Mi Lista (browseMode)
+  var browseTab=document.querySelector('.mode-tab[onclick*="browse"]')||document.querySelector('.mode-tab');
+  setMode("browse",browseTab);
+  setTimeout(function(){
+    // Activar el filtro de género en browseMode
+    var genreFilter=document.getElementById("browseGenreFilter");
+    if(genreFilter){
+      // Si hay un picker de géneros en browse, activarlo
+      var pills=genreFilter.querySelectorAll(".pill");
+      pills.forEach(function(p){p.classList.remove("on");});
+      var pill=Array.from(pills).find(function(p){return parseInt(p.dataset.v)===genreId;});
+      if(pill){pill.classList.add("on");}
+    }
+    // Usar el filtro de género del modo HOY — aplica al render de browse también
+    activeGenres=[genreId];
+    updateCandidates();
+    // Hacer scroll al tope de Mi Lista
+    var bm=document.getElementById("browseMode");
+    if(bm)bm.scrollTop=0;
   },150);
 }
 
