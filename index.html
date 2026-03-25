@@ -1586,7 +1586,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.172");
+console.log("QVH version: 11.173");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -6864,26 +6864,40 @@ function filterByList(name){
 }
 
 function filterByGenre(genreId){
-  // Cambiar a Mi Lista (browseMode)
-  var browseTab=document.querySelector('.mode-tab[onclick*="browse"]')||document.querySelector('.mode-tab');
-  setMode("browse",browseTab);
+  // Cambiar a Mi Lista
+  var browseTab = document.querySelector('.mode-tab[onclick*="browse"]');
+  if(!browseTab) return;
+  setMode("browse", browseTab);
+
   setTimeout(function(){
-    // Activar el filtro de género en browseMode
-    var genreFilter=document.getElementById("browseGenreFilter");
-    if(genreFilter){
-      // Si hay un picker de géneros en browse, activarlo
-      var pills=genreFilter.querySelectorAll(".pill");
-      pills.forEach(function(p){p.classList.remove("on");});
-      var pill=Array.from(pills).find(function(p){return parseInt(p.dataset.v)===genreId;});
-      if(pill){pill.classList.add("on");}
+    // Usar el sistema de filtros propio de browseMode — setBDFilter
+    browseGenre = String(genreId);
+
+    // Activar visualmente el pill correcto en el filtro de géneros de Mi Lista
+    var pills = document.querySelectorAll('[id^="bdGenre"] .bd-item, .bd-item[data-val]');
+    // Buscar el pill del género en browseMode
+    var found = false;
+    document.querySelectorAll('.bd-item').forEach(function(p){
+      if(p.getAttribute('onclick') && p.getAttribute('onclick').includes("'browseGenre'")){
+        p.classList.remove('active');
+        if(String(p.dataset.val) === String(genreId)){
+          p.classList.add('active');
+          found = true;
+        }
+      }
+    });
+    // Si no encontró el pill (puede que no esté construido aún), construirlo
+    if(!found){
+      buildGenreFilterBrowse && buildGenreFilterBrowse();
     }
-    // Usar el filtro de género del modo HOY — aplica al render de browse también
-    activeGenres=[genreId];
-    updateCandidates();
-    // Hacer scroll al tope de Mi Lista
-    var bm=document.getElementById("browseMode");
-    if(bm)bm.scrollTop=0;
-  },150);
+
+    renderBrowse();
+
+    // Scroll al tope
+    var app = document.getElementById('app');
+    if(app) app.scrollTop = 0;
+    window.scrollTo(0,0);
+  }, 150);
 }
 
 var _deleteListTarget=null;
