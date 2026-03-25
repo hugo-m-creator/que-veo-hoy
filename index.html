@@ -1586,7 +1586,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.174");
+console.log("QVH version: 11.175");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -7520,6 +7520,22 @@ function setBDFilter(varName,val,el,wrapId){
   // Marcar wrapper activo si no es "all"
   var wrap=document.getElementById(wrapId);
   if(wrap)wrap.classList.toggle('active',val!=='all'&&val!=='alpha_asc');
+  // Actualizar texto del botón para mostrar el valor seleccionado
+  if(wrap){
+    var btn=wrap.querySelector('.bd-btn');
+    if(btn){
+      var labels={
+        'browseGenre':'Género','browseType':'Tipo','browseDecade':'Década',
+        'browseCountry':'País','browseService':'Servicio','browseSort':'Ordenar',
+        'browseStatus':'Estado','browseList':'Lista'
+      };
+      var baseLabel=labels[varName]||varName;
+      var displayVal=(val==='all'||val==='alpha_asc')?null:el.textContent.trim();
+      btn.innerHTML=(displayVal
+        ?baseLabel+': <span style="color:var(--accent)">'+displayVal+'</span>'
+        :baseLabel)+' <span class="bd-arrow">&#9660;</span>';
+    }
+  }
   // Cerrar dropdown
   if(wrap)wrap.classList.remove('open');
   // Mostrar/ocultar botón limpiar
@@ -7542,6 +7558,19 @@ function resetBDFilters(){
   document.querySelectorAll('.bd-item[data-val="all"]').forEach(function(i){i.classList.add('active');});
   document.querySelectorAll('.bd-item[data-val="alpha_asc"]').forEach(function(i){i.classList.add('active');});
   document.querySelectorAll('.bd-wrap').forEach(function(w){w.classList.remove('active','open');});
+  // Resetear texto de todos los botones a su label base
+  var defaultLabels={
+    'bdType':'Tipo','bdDecade':'Década','bdGenre':'Género',
+    'bdCountry':'País','bdService':'Servicio','bdSort':'Ordenar',
+    'bdStatus':'Estado','bdList':'Lista'
+  };
+  Object.entries(defaultLabels).forEach(function(e){
+    var wrap=document.getElementById(e[0]);
+    if(wrap){
+      var btn=wrap.querySelector('.bd-btn');
+      if(btn)btn.innerHTML=e[1]+' <span class="bd-arrow">&#9660;</span>';
+    }
+  });
   updateResetBtn();
   renderBrowse();
 }
