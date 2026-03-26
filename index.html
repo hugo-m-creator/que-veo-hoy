@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.192");
+console.log("QVH version: 11.193");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1866,25 +1866,43 @@ async function supaLoadAll(){
     // ── Perfil ────────────────────────────────────────────────────
     var pr = await supa.from("profiles").select("*").eq("id",supaUser.id).maybeSingle();
     if(pr.data){
-      userProfile = {
-        gender:      pr.data.gender,
-        attitude:    pr.data.attitude,
-        genresLike:  pr.data.genres_like || [],
-        genresAvoid: pr.data.genres_avoid || [],
-        origins:     pr.data.origins || [],
-        eras:        pr.data.eras || [],
-        duration:    pr.data.duration,
-        country:     pr.data.country,
-        refs:        pr.data.refs || [],
-        userHandle:  pr.data.user_handle || null,
-        displayName: pr.data.display_name || null,
-        userName:    pr.data.user_name || null,
-      };
+      var cloudHasSurvey = pr.data.gender ||
+        (pr.data.genres_like && pr.data.genres_like.length > 0);
+
+      if(cloudHasSurvey){
+        // La nube tiene datos de encuesta — sobrescribir completo
+        userProfile = {
+          gender:      pr.data.gender,
+          attitude:    pr.data.attitude,
+          genresLike:  pr.data.genres_like || [],
+          genresAvoid: pr.data.genres_avoid || [],
+          origins:     pr.data.origins || [],
+          eras:        pr.data.eras || [],
+          duration:    pr.data.duration,
+          country:     pr.data.country,
+          refs:        pr.data.refs || [],
+          userHandle:  pr.data.user_handle || null,
+          displayName: pr.data.display_name || null,
+          userName:    pr.data.user_name || null,
+        };
+        console.log("[SUPA] perfil completo cargado:", userProfile.userName);
+      } else {
+        // La nube tiene perfil vacío — solo actualizar nombre/handle
+        // y conservar los datos de encuesta que hay en local
+        if(!userProfile) userProfile = {};
+        if(pr.data.user_name)    userProfile.userName    = pr.data.user_name;
+        if(pr.data.user_handle)  userProfile.userHandle  = pr.data.user_handle;
+        if(pr.data.display_name) userProfile.displayName = pr.data.display_name;
+        console.log("[SUPA] perfil parcial — conservando encuesta local");
+        // Subir los datos locales a la nube ya que la nube está vacía
+        if(userProfile.gender || (userProfile.genresLike && userProfile.genresLike.length)){
+          setTimeout(function(){ supaSaveProfile(); }, 1000);
+        }
+      }
       try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
       updateProfileBadge();
       if(typeof renderProfileIdentity === "function") renderProfileIdentity();
       if(typeof renderProfileSummary === "function") renderProfileSummary();
-      console.log("[SUPA] perfil cargado:", userProfile.userName);
     }
 
     // ── Señales ───────────────────────────────────────────────────
