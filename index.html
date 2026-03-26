@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.190");
+console.log("QVH version: 11.191");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -2012,6 +2012,100 @@ function checkProfileSyncBtn(){
   var hasLocalData = titles.filter(function(t){ return t.status !== "removed"; }).length > 0
     || (userProfile && userProfile.userName);
   btn.style.display = (hasSession && hasLocalData) ? "inline-block" : "none";
+}
+
+
+// ── CACHÉ GLOBAL DE METADATOS TMDB ───────────────────────────────
+// Compartido entre todos los usuarios — solo datos de TMDB, nada personal
+
+// Guardar metadatos de un título en el caché global
+async function supaMetaSave(t){
+  if(!supa || !supaUser || !t._tmdbId) return;
+  try {
+    await supa.from("tmdb_metadata").upsert({
+      tmdb_id:       t._tmdbId,
+      media_type:    t._mediaType || "movie",
+      title:         t.n || null,
+      year:          t.y || null,
+      genres:        t.genres || [],
+      director:      t.director || null,
+      poster:        t.poster || null,
+      backdrop:      t.backdrop || null,
+      minutes:       t.m || 0,
+      country:       t.country || null,
+      rating:        t.rating || null,
+      overview:      t.overview || null,
+      imdb_id:       t._imdbId || null,
+      certification: t.certification || null,
+      keyword_ids:   t._keywordIds || [],
+    }, {onConflict: "tmdb_id"});
+  } catch(e){ /* silencioso — no crítico */ }
+}
+
+// Cargar metadatos del caché global para una lista de títulos
+async function supaMetaLoad(titlesToLoad){
+  if(!supa || !supaUser || !titlesToLoad.length) return;
+  try {
+    // Buscar por tmdb_id los que ya tienen ID
+    var withId = titlesToLoad.filter(function(t){ return t._tmdbId; });
+    var withoutId = titlesToLoad.filter(function(t){ return !t._tmdbId && t.n; });
+    var loaded = 0;
+
+    if(withId.length){
+      var ids = withId.map(function(t){ return t._tmdbId; });
+      var res = await supa.from("tmdb_metadata").select("*").in("tmdb_id", ids);
+      if(res.data && res.data.length){
+        res.data.forEach(function(r){
+          var t = titlesToLoad.find(function(t){ return t._tmdbId === r.tmdb_id; });
+          if(t) { applyMetaFromCache(t, r); loaded++; }
+        });
+      }
+    }
+
+    // Buscar por título+año los que no tienen ID
+    if(withoutId.length){
+      // En batches de 20 para no hacer queries gigantes
+      for(var i=0; i<withoutId.length; i+=20){
+        var batch = withoutId.slice(i, i+20);
+        var orFilter = batch.map(function(t){
+          return 'and(title.eq.'+t.n+',year.eq.'+(t.y||0)+')';
+        }).join(',');
+        var res2 = await supa.from("tmdb_metadata").select("*").or(orFilter);
+        if(res2.data && res2.data.length){
+          res2.data.forEach(function(r){
+            var t = batch.find(function(t){
+              return t.n === r.title && (t.y === r.year || !t.y);
+            });
+            if(t) { applyMetaFromCache(t, r); loaded++; }
+          });
+        }
+      }
+    }
+
+    if(loaded > 0) console.log("[META] metadatos cargados del caché global:", loaded);
+    return loaded;
+  } catch(e){
+    console.error("[META] error cargando caché:", e);
+    return 0;
+  }
+}
+
+// Aplicar metadatos del caché a un título
+function applyMetaFromCache(t, r){
+  if(!t || !r) return;
+  if(!t._tmdbId && r.tmdb_id)   t._tmdbId       = r.tmdb_id;
+  if(!t._mediaType && r.media_type) t._mediaType = r.media_type;
+  if(!t.genres || !t.genres.length) t.genres     = r.genres || [];
+  if(!t.director && r.director) t.director       = r.director;
+  if(!t.poster && r.poster)     t.poster         = r.poster;
+  if(!t.backdrop && r.backdrop) t.backdrop       = r.backdrop;
+  if(!t.m && r.minutes)         t.m              = r.minutes;
+  if(!t.country && r.country)   t.country        = r.country;
+  if(!t.rating && r.rating)     t.rating         = r.rating;
+  if(!t.overview && r.overview) t.overview       = r.overview;
+  if(!t._imdbId && r.imdb_id)   t._imdbId        = r.imdb_id;
+  if(!t.certification && r.certification) t.certification = r.certification;
+  if(!t._keywordIds && r.keyword_ids) t._keywordIds = r.keyword_ids;
 }
 
 function updateAuthUI(){
@@ -2712,34 +2806,17 @@ var TMDB_OVERRIDES={
 };
 
 async function startEnrich(){
-  // Primero intentar cargar metadatos desde Supabase para evitar llamadas a TMDB
+  // Primero intentar cargar metadatos del caché global (compartido entre usuarios)
   if(supaUser){
-    try{
-      var cloudMeta = await supa.from("titles").select(
-        "name,year,tmdb_id,media_type,genres,director,poster,backdrop,minutes,country,rating,logline"
-      ).eq("user_id", supaUser.id).not("tmdb_id","is",null);
-      if(cloudMeta.data && cloudMeta.data.length){
-        cloudMeta.data.forEach(function(r){
-          var t = titles.find(function(t){
-            return (r.tmdb_id && t._tmdbId===r.tmdb_id) ||
-                   (t.n===r.name && t.y===r.year);
-          });
-          if(t && !t._tmdbId){
-            t._tmdbId    = r.tmdb_id || t._tmdbId;
-            t._mediaType = r.media_type || t._mediaType;
-            t.genres     = r.genres && r.genres.length ? r.genres : t.genres;
-            t.director   = r.director || t.director;
-            t.poster     = r.poster || t.poster;
-            t.backdrop   = r.backdrop || t.backdrop;
-            t.m          = r.minutes || t.m;
-            t.country    = r.country || t.country;
-            t.rating     = r.rating || t.rating;
-            t.logline    = r.logline || t.logline;
-          }
-        });
-        console.log("[SUPA] metadatos cargados desde la nube:", cloudMeta.data.length);
+    var needMeta = titles.filter(function(t){
+      return t.status !== "removed" && (!t._tmdbId || !t.genres || !t.genres.length);
+    });
+    if(needMeta.length){
+      var loaded = await supaMetaLoad(needMeta);
+      if(loaded > 0){
+        buildGenres(); updateStats(); updateCandidates();
       }
-    }catch(e){ console.error("[SUPA] error cargando metadatos:", e); }
+    }
   }
 
   var toE=titles.filter(function(t){
@@ -2921,6 +2998,8 @@ async function startEnrich(){
         var kws=(det.keywords&&det.keywords.keywords)||(det.keywords&&det.keywords.results)||[];
         t._keywordIds=kws.map(function(k){return k.id;});
         applyTitleFromTMDB(t,det);
+        // Contribuir metadatos al caché global compartido
+        if(supaUser && t._tmdbId) supaMetaSave(t);
         if(ep==="tv"){
           var epRt2=det.episode_run_time&&det.episode_run_time[0]||0;
           var numEps2=det.number_of_episodes||0;
