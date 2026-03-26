@@ -1620,7 +1620,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.177");
+console.log("QVH version: 11.178");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1677,12 +1677,61 @@ function initSupabase(){
 // luego carga lo que haya en la nube (por si hay datos de otro dispositivo)
 async function supaFirstSync(){
   if(!supa || !supaUser) return;
-  showToast("☁ Sincronizando tu cuenta...");
+
+  // Verificar si ya hay datos en la nube para esta cuenta
+  var existing = await supa.from("titles").select("id", {count:"exact",head:true})
+    .eq("user_id", supaUser.id);
+  var hasCloudData = (existing.count || 0) > 0;
+
+  // Verificar si hay datos locales relevantes
+  var hasLocalData = titles.filter(function(t){
+    return t.status !== "removed";
+  }).length > 0;
+
+  if(hasCloudData){
+    // Cuenta existente con datos en la nube — cargar sin subir datos locales
+    // para evitar mezclar datos de diferentes perfiles
+    showToast("☁ Cargando tu cuenta...");
+    await supaLoadAll();
+    showToast("☁ Cuenta cargada");
+  } else if(hasLocalData){
+    // Cuenta nueva + hay datos locales — preguntar al usuario qué hacer
+    showSupaMergeDialog();
+  } else {
+    // Cuenta nueva + sin datos locales — solo sincronizar perfil
+    await supaSaveProfile();
+    await supaSaveSignals();
+    showToast("☁ Cuenta lista");
+  }
+}
+
+// Diálogo para preguntar si importar datos locales a la cuenta nueva
+function showSupaMergeDialog(){
+  var dialog = document.createElement("div");
+  dialog.style.cssText = "position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;";
+  dialog.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);padding:28px;max-width:360px;width:90%;font-family:\'DM Mono\',monospace;">'
+    + '<div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:14px;">IMPORTAR DATOS</div>'
+    + '<div style="font-size:14px;color:var(--text);margin-bottom:10px;">¿Importar tu lista actual?</div>'
+    + '<div style="font-size:11px;color:var(--muted);margin-bottom:22px;line-height:1.6;">Tienes <strong style="color:var(--text)">' + titles.filter(function(t){return t.status!=="removed";}).length + ' títulos</strong> guardados en este dispositivo. ¿Quieres importarlos a tu cuenta nueva?</div>'
+    + '<button onclick="supaImportLocal(this.closest(\'[style*=fixed]\')" style="display:block;width:100%;font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:1.5px;padding:12px;background:var(--accent);color:#000;border:none;cursor:pointer;margin-bottom:10px;">SÍ, IMPORTAR MI LISTA</button>'
+    + '<button onclick="supaSkipImport(this.closest(\'[style*=fixed]\')" style="display:block;width:100%;font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:1.5px;padding:12px;background:transparent;color:var(--muted);border:1px solid var(--border);cursor:pointer;">NO, EMPEZAR DESDE CERO</button>'
+    + '</div>';
+  document.body.appendChild(dialog);
+}
+
+async function supaImportLocal(dialog){
+  if(dialog) dialog.remove();
+  showToast("☁ Importando tu lista...");
   await supaSaveTitles();
   await supaSaveProfile();
   await supaSaveSignals();
-  await supaLoadAll();
-  showToast("☁ Cuenta sincronizada");
+  showToast("☁ Lista importada correctamente");
+}
+
+async function supaSkipImport(dialog){
+  if(dialog) dialog.remove();
+  // Limpiar datos locales y cargar cuenta vacía
+  showToast("☁ Cuenta lista — empezando desde cero");
 }
 
 // ── Auth: registro ────────────────────────────────────────────
