@@ -1509,7 +1509,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   <div id="profileSection" style="margin-bottom:16px;padding:14px 20px;border:1px solid var(--border);background:var(--surface);">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Preferencias de cine</div>
-      <button class="mbtn mbtn-d" style="font-size:9px;" onclick="confirmOpenSurvey()">&#9998; Editar encuesta</button>
+      <div style="display:flex;gap:6px;">
+        <button id="supaProfileSyncBtn" class="mbtn mbtn-d" style="font-size:9px;display:none;" onclick="supaUploadProfile()">&#9729; Subir mis datos</button>
+        <button class="mbtn mbtn-d" style="font-size:9px;" onclick="confirmOpenSurvey()">&#9998; Editar encuesta</button>
+      </div>
     </div>
     <div id="profileSummary" style="font-size:11px;color:var(--muted);">Sin perfil guardado. Responde la encuesta para obtener recomendaciones personalizadas.</div>
   </div>
@@ -1626,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.182");
+console.log("QVH version: 11.184");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1976,6 +1979,32 @@ async function supaUploadLocalData(){
   await supaSaveProfile();
   await supaSaveSignals();
   showToast("☁ ¡Datos subidos correctamente!");
+}
+
+// Subir todos los datos locales a la nube (perfil, títulos y señales)
+async function supaUploadProfile(){
+  if(!supa || !supaUser){ showToast("Inicia sesión primero"); return; }
+  var btn = document.getElementById("supaProfileSyncBtn");
+  if(btn){ btn.textContent="☁ Sincronizando..."; btn.disabled=true; }
+  showToast("☁ Sincronizando datos...");
+  await supaSaveProfile();
+  await supaSaveTitles();
+  await supaSaveSignals();
+  showToast("☁ Todo sincronizado correctamente");
+  if(btn){ btn.style.display="none"; btn.disabled=false; btn.textContent="☁ Sincronizar"; }
+}
+
+// Mostrar botón sync de perfil si hay datos locales que no están en la nube
+async function checkProfileSyncBtn(){
+  var btn = document.getElementById("supaProfileSyncBtn");
+  if(!btn || !supaUser) return;
+  // Si hay datos de encuesta locales
+  var hasLocalSurvey = userProfile && (userProfile.gender || (userProfile.genresLike && userProfile.genresLike.length));
+  if(!hasLocalSurvey){ btn.style.display="none"; return; }
+  // Verificar si la nube tiene esos datos
+  var pr = await supa.from("profiles").select("gender,genres_like").eq("id",supaUser.id).maybeSingle();
+  var cloudHasSurvey = pr.data && (pr.data.gender || (pr.data.genres_like && pr.data.genres_like.length));
+  btn.style.display = cloudHasSurvey ? "none" : "inline-block";
 }
 
 function updateAuthUI(){
@@ -5223,7 +5252,7 @@ function setMode(mode,btn){
   document.getElementById("resultCard").classList.remove("show");
   if(mode==="wizard")startWizard();
   if(mode==="browse"){renderBrowse();preloadServiceCache().then(function(){buildFilterServices();});}
-  if(mode==="manage"){renderManage();checkSupaUploadBanner();}
+  if(mode==="manage"){renderManage();checkSupaUploadBanner();checkProfileSyncBtn();}
   if(mode==="stats")renderStats();
   // Devolver resultCard al app si estaba en browse
   var rc=document.getElementById('resultCard');
