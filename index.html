@@ -1620,7 +1620,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.179");
+console.log("QVH version: 11.180");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1817,6 +1817,9 @@ async function supaSaveProfile(){
       duration:     userProfile.duration || null,
       country:      userProfile.country || null,
       refs:         userProfile.refs || [],
+      user_handle:  userProfile.userHandle || null,
+      display_name: userProfile.displayName || null,
+      user_name:    userProfile.userName || null,
     });
     if(res.error) console.error("[SUPA] saveProfile:", res.error.message);
     else console.log("[SUPA] perfil guardado");
@@ -1842,7 +1845,7 @@ async function supaLoadAll(){
   try {
     // Perfil
     var pr = await supa.from("profiles").select("*").eq("id",supaUser.id).maybeSingle();
-    if(pr.data && pr.data.gender){
+    if(pr.data){
       userProfile = {
         gender:      pr.data.gender,
         attitude:    pr.data.attitude,
@@ -1853,8 +1856,14 @@ async function supaLoadAll(){
         duration:    pr.data.duration,
         country:     pr.data.country,
         refs:        pr.data.refs || [],
+        userHandle:  pr.data.user_handle || null,
+        displayName: pr.data.display_name || null,
+        userName:    pr.data.user_name || null,
       };
       try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
+      updateProfileBadge();
+      if(typeof renderProfileIdentity === "function") renderProfileIdentity();
+      if(typeof renderProfileSummary === "function") renderProfileSummary();
     }
     // Señales
     var sg = await supa.from("signals").select("*").eq("user_id",supaUser.id).maybeSingle();
