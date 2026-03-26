@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.185");
+console.log("QVH version: 11.186");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -7773,6 +7773,14 @@ async function processZip(file, isGuest){
     }
 
     saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();
+
+    // Sincronizar con Supabase si hay sesión activa
+    if(supaUser){
+      showToast("☁ Sincronizando con la nube...");
+      supaSaveTitles().then(function(){
+        showToast("☁ Lista sincronizada en la nube");
+      });
+    }
 
     // Si era ZIP de otra persona, mostrar modal de confirmación de guest
     if(isGuest){
