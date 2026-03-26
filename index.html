@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.197");
+console.log("QVH version: 11.204");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -2436,39 +2436,66 @@ function normName(s){
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
 }
 
-async function fetchLBData(url){
-  if(!url)return null;
-  // Resolver short URLs de Letterboxd (boxd.it → letterboxd.com/film/...)
-  if(url.includes("boxd.it")){
-    try{
-      var rr=await fetch(url,{method:"HEAD",signal:AbortSignal.timeout(4000),redirect:"follow"});
-      if(rr.url&&rr.url.includes("letterboxd.com"))url=rr.url;
-      else return null;
-    }catch(e){return null;}
-  }
-  if(!url.includes("letterboxd.com"))return null;
+// Obtener datos de Letterboxd via RapidAPI
+// Soporta IDs de boxd.it (ej: "3wEC") y slugs de letterboxd.com/film/
+var _lbApiKey = null; // se carga desde localStorage o input del usuario
+function getLBApiKey(){
+  if(_lbApiKey) return _lbApiKey;
   try{
-    var r=await fetch(url,{signal:AbortSignal.timeout(5000)});
-    if(!r.ok)return null;
-    var html=await r.text();
-    var result={director:null,mins:null,originalTitle:null,_resolvedUrl:url};
-    // Director desde el <title>
-    var tm=html.match(/<title[^>]*>([^<]+)<\/title>/);
-    if(tm){var dm=tm[1].match(/directed by (.+?)(?:\s*[\u2022\u00b7]|$)/);
-      if(dm)result.director=dm[1].replace(/et al\.?/,"").split(",")[0].trim();}
-    // Duración
-    var mm=html.match(/(\d+)\s*[Mm]in(?!i)/);
-    if(mm&&parseInt(mm[1])>1&&parseInt(mm[1])<10000)result.mins=parseInt(mm[1]);
-    // Título original — clase "originalname" en el HTML de Letterboxd
-    var om=html.match(/class="originalname"[^>]*>[^<]*<[^>]*>([^<]+)<\/[^>]+>/);
-    if(om)result.originalTitle=om[1].trim();
-    // Fallback: buscar en cualquier elemento con originalname
-    if(!result.originalTitle){
-      var om2=html.match(/class="originalname"[^>]*>\s*([^<]+)\s*</);
-      if(om2)result.originalTitle=om2[1].trim();
+    var sk = localStorage.getItem("wq_lbKey");
+    if(sk){ _lbApiKey = sk; return sk; }
+  }catch(e){}
+  var ke = document.getElementById("lbApiKey");
+  if(ke && ke.value){ _lbApiKey = ke.value; return ke.value; }
+  return "6eb9bd8e94msh0f467a70cd2b796p13dfa1jsnc306373d3d10"; // default key
+}
+
+async function fetchLBData(url){
+  if(!url) return null;
+
+  // Extraer el ID de boxd.it o el slug de letterboxd.com/film/
+  var lbId = null;
+  var boxdMatch = url.match(/boxd\.it\/([A-Za-z0-9]+)/);
+  var slugMatch = url.match(/letterboxd\.com\/film\/([^/]+)/);
+
+  if(boxdMatch) lbId = boxdMatch[1];
+  else if(slugMatch) lbId = slugMatch[1];
+  else return null;
+
+  var RBASE = "https://letterboxd9.p.rapidapi.com";
+  var apiKey = getLBApiKey();
+  var headers = {"x-rapidapi-key": apiKey, "x-rapidapi-host": "letterboxd9.p.rapidapi.com"};
+
+  try {
+    var r = await fetch(RBASE + "/api/letterboxd/film/" + lbId, {
+      headers: headers, signal: AbortSignal.timeout(6000)
+    });
+    if(!r.ok) return null;
+    var data = await r.json();
+
+    // Extraer director de contributions
+    var director = null;
+    if(data.contributions){
+      var dirEntry = data.contributions.find(function(c){ return c.type === "Director"; });
+      if(dirEntry && dirEntry.contributors && dirEntry.contributors.length){
+        director = dirEntry.contributors[0].name;
+      }
     }
-    return result;
-  }catch(e){return null;}
+
+    return {
+      director:      director,
+      mins:          data.runTime || null,
+      originalTitle: data.originalName || null,
+      tmdbId:        data.links && data.links.find(function(l){ return l.type === "tmdb"; }) 
+                       ? parseInt(data.links.find(function(l){ return l.type === "tmdb"; }).id) 
+                       : null,
+      year:          data.releaseYear || null,
+      _resolvedUrl:  data.link || url,
+      _lbId:         data.id || lbId,
+    };
+  } catch(e){
+    return null;
+  }
 }
 
 function makeLBSlug(name){
@@ -2728,7 +2755,13 @@ function handleWelcomeImport(file){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
-      if(!uri||!name||ourURIs.has(uri))return;
+      if(!name)return;
+      // Deduplicar: no agregar si ya existe por URI o por nombre+año
+      if(uri&&ourURIs.has(uri))return;
+      if(titles.find(function(t){
+        return t.n&&t.n.toLowerCase()===name.toLowerCase()&&
+               (!year||!t.y||t.y===year);
+      }))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedWL;
       titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
         overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
@@ -2768,9 +2801,11 @@ function handleWelcomeImport(file){
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!name)return;
+      // Deduplicar: no agregar si ya existe por URI o por nombre+año
       if(uri&&ourURIs.has(uri))return;
       if(titles.find(function(t){
-        return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);
+        return t.n&&t.n.toLowerCase()===name.toLowerCase()&&
+               (!year||!t.y||t.y===year);
       }))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:addedWD;
       titles.push({idx:ni,n:name,y:year,m:0,u:uri||"",is_series:false,genres:[],type:null,
@@ -2858,9 +2893,30 @@ var TMDB_OVERRIDES={
   "Crash_2004":      {id:1580,   type:"movie"},
   "Crash_1996":      {id:11849,  type:"movie"},
   "Dreams_1990":     {id:11377,  type:"movie"},
-  "The Trial_1962":  {id:30619,  type:"movie"}, // Le Procès, Orson Welles
+  "The Trial_1962":  {id:30619,  type:"movie"},
   "Le Procès_1962":  {id:30619,  type:"movie"},
-  "M_1931":          {id:832,    type:"movie"}  // M - Fritz Lang (evitar confusión con serie coreana)
+  "M_1931":          {id:832,    type:"movie"},
+
+  // Corregidos por auditoría — títulos ambiguos con película incorrecta
+  "Split_2016":          {id:381288,  type:"movie"}, // M. Night Shyamalan (no Deborah Kampmeier)
+  "Mother_2009":         {id:19546,   type:"movie"}, // Bong Joon Ho - 마더 (no serie japonesa)
+  "The Raid_2011":       {id:72179,   type:"movie"}, // Gareth Evans - Serbuan Maut (no Kevin M. Johnson)
+  "Monster_2004":        {id:11385,   type:"tv"},    // Masayuki Kojima anime (no Patty Jenkins)
+  "Lupin_2021":          {id:96677,   type:"tv"},    // Louis Leterrier (no Hélène Ducrocq)
+  "Away_2019":           {id:601644,  type:"movie"}, // Gints Zilbalodis - Projām (no Emre Okten)
+  "The Wolves_2019":     {id:670466,  type:"movie"}, // Samuel Kishi - Los lobos (no Matthew Barber)
+  "The Intruder_2020":   {id:674127,  type:"movie"}, // Natalia Meta - El prófugo (no Deon Taylor)
+  "The Vampire_1957":    {id:75752,   type:"movie"}, // Fernando Méndez - El vampiro (no Paul Landres)
+  "The Other_1946":      {id:93648,   type:"movie"}, // Roberto Gavaldón - La otra (no Paul Etheredge)
+  "Cowboy Bebop_1998":   {id:30240,   type:"tv"},    // serie anime (no película)
+  "Your Lie in April_2014": {id:61069, type:"tv"},   // Kyohei Ishiguro anime (no Takehiko Shinjo)
+  "Zoom_2015":           {id:334537,  type:"movie"}, // Pedro Morelli (no Anish Varma)
+  "Sob a Pele_2013":     {id:188927,  type:"movie"}, // Under the Skin - Jonathan Glazer
+  "La mujer del puerto_1934": {id:107288, type:"movie"}, // Raphael J. Sevilla (no Arkady Boytler)
+  "The Amazing Colossal Woman_2016": {id:398173, type:"movie"}, // Nacho Vigalondo - Colossal
+  "Fantastic Beasts: The Secrets of Dumbledore_2022": {id:338953, type:"movie"}, // David Yates correcto
+  "Gladstone and Disraeli: Clash of the Titans_2010": {id:90220, type:"tv"}, // documental correcto
+  "Uncovering the Real Gangs of New York_2002": {id:76170, type:"movie"}, // documental Scorsese
 };
 
 async function startEnrich(){
@@ -2897,6 +2953,9 @@ async function startEnrich(){
     await Promise.all(batch.map(async function(t){
       try{
         var q=encodeURIComponent(t.n),yr=t.y?"&year="+t.y:"";
+        // Si tenemos slug de Letterboxd, también preparar búsqueda alternativa
+        // El slug suele incluir el año: "the-hunt-2012" → más específico
+        var lbSlugQuery = t._lbSlug ? t._lbSlug.replace(/-/g," ").replace(/\s*\d{4}\s*$/,"").trim() : null;
         var r=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY+"&query="+q+yr+"&language=en-US&page=1",{signal:AbortSignal.timeout(6000)});
         if(!r.ok)return;
         var res=(await r.json()).results.filter(function(x){return x.media_type==="movie"||x.media_type==="tv";});
@@ -2906,30 +2965,99 @@ async function startEnrich(){
           res=(await r.json()).results.filter(function(x){return x.media_type==="movie"||x.media_type==="tv";});
         }
         if(!res.length)return;
-        // Selección robusta: priorizar coincidencia exacta de año
+        // Selección robusta: priorizar coincidencia exacta de año + popularidad
         var best=null;
         if(t.y){
-          // 1. Coincidencia exacta de año
-          best=res.find(function(x){return(x.release_date||x.first_air_date||"").startsWith(String(t.y));});
-          // 2. Si no hay exacta, buscar ±1 año (remasters, re-releases)
-          if(!best)best=res.find(function(x){
-            var yr=parseInt((x.release_date||x.first_air_date||"").substring(0,4));
-            return yr&&Math.abs(yr-t.y)<=1;
+          // 1. Todos los que coinciden exactamente en año
+          var exactYear=res.filter(function(x){
+            return (x.release_date||x.first_air_date||"").startsWith(String(t.y));
           });
-          // 3. Si ninguno coincide con el año, desconfiar del primer resultado
-          //    y preferir el que tenga el año más cercano
+          if(exactYear.length===1){
+            best=exactYear[0];
+          } else if(exactYear.length>1){
+            // Varios del mismo año — verificar director desde TMDB para desempatar
+            // Esto es más confiable que popularidad para películas extranjeras
+            var resolvedByDir=null;
+            // Si el título tiene un director guardado (de enriquecimiento previo parcial)
+            if(t.director){
+              var dirNorm=normName(t.director);
+              for(var _di=0;_di<Math.min(exactYear.length,4);_di++){
+                try{
+                  var _ep2=exactYear[_di].media_type==="tv"?"tv":"movie";
+                  var _rc=await fetch("https://api.themoviedb.org/3/"+_ep2+"/"+exactYear[_di].id+"?api_key="+KEY+"&append_to_response=credits",{signal:AbortSignal.timeout(4000)});
+                  if(_rc.ok){
+                    var _dc=await _rc.json();
+                    var _crew=(_dc.credits&&_dc.credits.crew)||[];
+                    var _dir=_crew.find(function(c){return c.job==="Director";});
+                    if(_dir&&normName(_dir.name)===dirNorm){resolvedByDir=exactYear[_di];break;}
+                  }
+                }catch(e_){}
+              }
+            }
+            if(resolvedByDir){
+              best=resolvedByDir;
+            } else {
+              // Sin director conocido — intentar con slug si el título es diferente
+              if(lbSlugQuery && lbSlugQuery !== t.n.toLowerCase()){
+                try{
+                  var rSlug=await fetch("https://api.themoviedb.org/3/search/multi?api_key="+KEY+"&query="+encodeURIComponent(lbSlugQuery)+"&year="+t.y+"&language=en-US&page=1",{signal:AbortSignal.timeout(5000)});
+                  if(rSlug.ok){
+                    var resSlug=(await rSlug.json()).results.filter(function(x){return x.media_type==="movie"||x.media_type==="tv";});
+                    var slugMatch=resSlug.find(function(x){
+                      return (x.release_date||x.first_air_date||"").startsWith(String(t.y));
+                    });
+                    if(slugMatch)best=slugMatch;
+                  }
+                }catch(e_){}
+              }
+              // Último recurso: más popular del año exacto
+              if(!best){
+                exactYear.sort(function(a,b){return (b.popularity||0)-(a.popularity||0);});
+                best=exactYear[0];
+              }
+            }
+          }
+          // 2. Si no hay exacta, buscar ±1 año — más popular
+          if(!best){
+            var nearYear=res.filter(function(x){
+              var yr=parseInt((x.release_date||x.first_air_date||"").substring(0,4));
+              return yr&&Math.abs(yr-t.y)<=1;
+            });
+            if(nearYear.length){
+              nearYear.sort(function(a,b){return (b.popularity||0)-(a.popularity||0);});
+              best=nearYear[0];
+            }
+          }
+          // 3. Si ninguno coincide con el año, preferir el más cercano
           if(!best){
             var withYear=res.filter(function(x){return(x.release_date||x.first_air_date||"").length>=4;});
             if(withYear.length){
               withYear.sort(function(a,b){
                 var ya=parseInt((a.release_date||a.first_air_date||"").substring(0,4))||9999;
                 var yb=parseInt((b.release_date||b.first_air_date||"").substring(0,4))||9999;
-                return Math.abs(ya-t.y)-Math.abs(yb-t.y);
+                var diffA=Math.abs(ya-t.y);
+                var diffB=Math.abs(yb-t.y);
+                if(diffA===diffB) return (b.popularity||0)-(a.popularity||0);
+                return diffA-diffB;
               });
-              // Solo usar si está a menos de 3 años de diferencia
               var closest=withYear[0];
               var closestYr=parseInt((closest.release_date||closest.first_air_date||"").substring(0,4))||9999;
-              if(Math.abs(closestYr-t.y)<=3)best=closest;
+              // Si la diferencia de año es grande (>10 años), buscar también en películas
+              // específicamente — puede ser una película extranjera conocida por otro título
+              if(Math.abs(closestYr-t.y)>10){
+                try{
+                  // Búsqueda solo en movies con el año exacto
+                  var rMovie=await fetch("https://api.themoviedb.org/3/search/movie?api_key="+KEY+"&query="+q+"&year="+t.y+"&language=en-US&page=1",{signal:AbortSignal.timeout(5000)});
+                  if(rMovie.ok){
+                    var movieRes=await rMovie.json();
+                    var exactMovie=movieRes.results&&movieRes.results.find(function(x){
+                      return (x.release_date||"").startsWith(String(t.y));
+                    });
+                    if(exactMovie)best=Object.assign({},exactMovie,{media_type:"movie"});
+                  }
+                }catch(e_){}
+              }
+              if(!best&&Math.abs(closestYr-t.y)<=3)best=closest;
             }
           }
         }
@@ -2944,6 +3072,13 @@ async function startEnrich(){
           if(movieAlt)best=movieAlt;
         }
         // Verificación con Letterboxd: director + título original como factores clave
+        // Intentar construir URL directa desde el slug si tenemos URL corta
+        if(t.u&&t.u.includes("boxd.it")&&t._lbSlug){
+          // Intentar con el slug conocido directamente
+          var directUrl="https://letterboxd.com/film/"+t._lbSlug+"/";
+          var testDirect=await fetchLBData(directUrl);
+          if(testDirect&&testDirect.director)t.u=directUrl;
+        }
         if(t.u&&(t.u.includes("letterboxd.com")||t.u.includes("boxd.it"))){
           var lbData=await fetchLBData(t.u);
           // Si fetchLBData resolvió una short URL, guardar la URL larga
@@ -7963,8 +8098,13 @@ async function processZip(file, isGuest){
       var year=parseInt(r["Year"]||r["year"])||null;
       if(!uri||!name||ourURIs.has(uri))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+      // Extraer slug de la URL de Letterboxd si es URL completa
+      var lbSlug=null;
+      var slugMatch=uri.match(/letterboxd\.com\/film\/([^\/]+)/);
+      if(slugMatch)lbSlug=slugMatch[1];
       titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
-        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false});
+        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false,
+        _lbSlug:lbSlug});
       ourURIs.add(uri);stats.addedWatchlist++;
     });
 
@@ -7987,8 +8127,12 @@ async function processZip(file, isGuest){
         return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||t.y===year);
       }))return;
       var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+      var lbSlugW=null;
+      var slugMatchW=uri&&uri.match(/letterboxd\.com\/film\/([^\/]+)/);
+      if(slugMatchW)lbSlugW=slugMatchW[1];
       titles.push({idx:ni,n:name,y:year,m:0,u:uri||"",is_series:false,genres:[],type:null,
-        overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false});
+        overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false,
+        _lbSlug:lbSlugW});
       if(uri)ourURIs.add(uri);stats.addedWatched++;
     });
 
