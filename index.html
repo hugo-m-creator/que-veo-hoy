@@ -1464,6 +1464,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
   </div>
 
   <div id="manageMode">
+  <!-- Banner de sincronización — solo visible cuando hay sesión y datos locales sin subir -->
+  <div id="supaUploadBanner" style="display:none;background:rgba(245,200,66,0.08);border:1px solid var(--accent);padding:14px 16px;margin-bottom:16px;display:none;">
+    <div style="font-size:10px;color:var(--accent);letter-spacing:1px;margin-bottom:6px;">☁ DATOS SIN SINCRONIZAR</div>
+    <div style="font-size:11px;color:var(--text);margin-bottom:12px;line-height:1.6;">Tienes datos en este dispositivo que aún no están en la nube. Súbelos para acceder a ellos desde cualquier dispositivo.</div>
+    <button onclick="supaUploadLocalData()" style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;padding:8px 16px;background:var(--accent);color:#000;border:none;cursor:pointer;">SUBIR MIS DATOS A LA NUBE</button>
+  </div>
   <!-- Sección de identidad del usuario -->
   <div class="profile-identity" id="profileIdentitySection">
     <div class="profile-identity-header">
@@ -1620,7 +1626,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.181");
+console.log("QVH version: 11.182");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1942,6 +1948,36 @@ function supaAutoSync(){
 }
 
 // ── UI del botón de sesión ────────────────────────────────────
+// Detectar si hay datos locales que no están en la nube
+async function checkSupaUploadBanner(){
+  var banner = document.getElementById("supaUploadBanner");
+  if(!banner) return;
+  if(!supaUser){ banner.style.display="none"; return; }
+
+  // Verificar si ya hay títulos en la nube
+  var res = await supa.from("titles").select("id",{count:"exact",head:true})
+    .eq("user_id", supaUser.id);
+  var cloudCount = res.count || 0;
+  var localCount = titles.filter(function(t){ return t.status !== "removed"; }).length;
+
+  // Mostrar banner si hay datos locales pero pocos o ninguno en la nube
+  var hasLocalData = localCount > 0 || (userProfile && userProfile.userName);
+  var cloudIsEmpty = cloudCount === 0;
+  banner.style.display = (hasLocalData && cloudIsEmpty) ? "block" : "none";
+}
+
+// Subir todos los datos locales a la nube
+async function supaUploadLocalData(){
+  if(!supa || !supaUser){ showToast("Inicia sesión primero"); return; }
+  var banner = document.getElementById("supaUploadBanner");
+  if(banner) banner.style.display = "none";
+  showToast("☁ Subiendo tus datos...");
+  await supaSaveTitles();
+  await supaSaveProfile();
+  await supaSaveSignals();
+  showToast("☁ ¡Datos subidos correctamente!");
+}
+
 function updateAuthUI(){
   var btn = document.getElementById("supaAuthBtn");
   if(!btn) return;
@@ -5187,7 +5223,7 @@ function setMode(mode,btn){
   document.getElementById("resultCard").classList.remove("show");
   if(mode==="wizard")startWizard();
   if(mode==="browse"){renderBrowse();preloadServiceCache().then(function(){buildFilterServices();});}
-  if(mode==="manage")renderManage();
+  if(mode==="manage"){renderManage();checkSupaUploadBanner();}
   if(mode==="stats")renderStats();
   // Devolver resultCard al app si estaba en browse
   var rc=document.getElementById('resultCard');
