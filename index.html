@@ -1620,7 +1620,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.176");
+console.log("QVH version: 11.177");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1645,11 +1645,14 @@ function initSupabase(){
   try {
     supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
     // Verificar sesión existente al arrancar
+    // Usamos setTimeout para asegurarnos que loadState() ya corrió antes
     supa.auth.getSession().then(function(res){
       if(res.data && res.data.session){
         supaUser = res.data.session.user;
         updateAuthUI();
-        supaLoadAll();
+        // Esperar 800ms para que loadState() y el render inicial terminen
+        // antes de sobrescribir con datos de la nube
+        setTimeout(function(){ supaLoadAll(); }, 800);
       }
     });
     // Escuchar cambios de sesión
