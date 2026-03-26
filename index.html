@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.186");
+console.log("QVH version: 11.188");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -2372,7 +2372,24 @@ function saveState(){
   });
   try{localStorage.setItem("wq_s7",JSON.stringify(s));}catch(e){}
   try{if(diaryDates.length)localStorage.setItem("wq_diary",JSON.stringify(diaryDates));}catch(e){}
-  if(supaUser) supaSaveTitles();
+  if(supaUser) scheduleSupaSync();
+}
+
+// Debounce para sync con Supabase — espera 2s antes de guardar
+// Evita race conditions cuando el usuario hace refresh justo después
+var _supaSyncTimer = null;
+function scheduleSupaSync(){
+  if(_supaSyncTimer) clearTimeout(_supaSyncTimer);
+  _supaSyncTimer = setTimeout(async function(){
+    _supaSyncTimer = null;
+    // Guardar todo en paralelo
+    await Promise.all([
+      supaSaveTitles(),
+      supaSaveProfile(),
+      supaSaveSignals(),
+    ]);
+    console.log("[SUPA] sync completo — títulos, perfil y señales guardados");
+  }, 2000);
 }
 function loadState(){
   try{
@@ -2395,6 +2412,15 @@ function saveServices(){
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
+// Guardar en Supabase antes de cerrar/recargar la página
+window.addEventListener("beforeunload", function(){
+  if(supaUser){
+    if(_supaSyncTimer){ clearTimeout(_supaSyncTimer); _supaSyncTimer = null; }
+    // Intentar guardar todo antes de salir
+    supaSaveTitles(); supaSaveProfile(); supaSaveSignals();
+  }
+});
+
 window.addEventListener("load",function(){
   initSupabase();
   loadAccountMode();
@@ -3284,7 +3310,7 @@ function buildFilterServicePills(){
 function saveProfile(){
   try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
   updateProfileBadge();
-  if(supaUser) supaSaveProfile();
+  if(supaUser) scheduleSupaSync();
 }
 function updateProfileBadge(){
   var btn=document.getElementById("profileBadgeBtn");
@@ -3315,7 +3341,7 @@ function saveSignals(){
   try{localStorage.setItem("wq_signals",JSON.stringify({
     positive:signalsPositive,negative:signalsNegative,counts:signalsCounts
   }));}catch(e){}
-  if(supaUser) supaSaveSignals();
+  if(supaUser) scheduleSupaSync();
 }
 function saveSuggestionPool(){
   try{localStorage.setItem("wq_pool",JSON.stringify(suggestionPool));}catch(e){}
