@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.195");
+console.log("QVH version: 11.196");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -2097,45 +2097,50 @@ async function supaMetaSave(t){
 
 // Cargar metadatos del caché global para una lista de títulos
 async function supaMetaLoad(titlesToLoad){
-  if(!supa || !supaUser || !titlesToLoad.length) return;
+  if(!supa || !supaUser || !titlesToLoad.length) return 0;
   try {
-    // Buscar por tmdb_id los que ya tienen ID
-    var withId = titlesToLoad.filter(function(t){ return t._tmdbId; });
-    var withoutId = titlesToLoad.filter(function(t){ return !t._tmdbId && t.n; });
     var loaded = 0;
 
+    // ── Paso 1: los que ya tienen tmdb_id — una sola query ────────
+    var withId = titlesToLoad.filter(function(t){ return t._tmdbId; });
     if(withId.length){
+      // Supabase tiene límite de 1000 items en .in() — dividir si es necesario
+      var allMeta = [];
       var ids = withId.map(function(t){ return t._tmdbId; });
-      var res = await supa.from("tmdb_metadata").select("*").in("tmdb_id", ids);
-      if(res.data && res.data.length){
-        res.data.forEach(function(r){
-          var t = titlesToLoad.find(function(t){ return t._tmdbId === r.tmdb_id; });
-          if(t) { applyMetaFromCache(t, r); loaded++; }
+      for(var i=0; i<ids.length; i+=1000){
+        var batch = ids.slice(i, i+1000);
+        var res = await supa.from("tmdb_metadata")
+          .select("tmdb_id,media_type,genres,director,poster,backdrop,minutes,country,rating,overview,imdb_id,certification,keyword_ids")
+          .in("tmdb_id", batch);
+        if(res.data) allMeta = allMeta.concat(res.data);
+      }
+      // Crear mapa para lookup rápido
+      var metaById = {};
+      allMeta.forEach(function(r){ metaById[r.tmdb_id] = r; });
+      withId.forEach(function(t){
+        var r = metaById[t._tmdbId];
+        if(r){ applyMetaFromCache(t, r); loaded++; }
+      });
+    }
+
+    // ── Paso 2: los que NO tienen tmdb_id — buscar por nombre+año ─
+    // Solo para los que genuinamente no tienen ID (muy pocos)
+    var withoutId = titlesToLoad.filter(function(t){ return !t._tmdbId && t.n; });
+    if(withoutId.length && withoutId.length <= 100){
+      // Solo hacer esta query si son pocos títulos sin ID
+      var nameYearMap = {};
+      withoutId.forEach(function(t){ nameYearMap[t.n+'_'+(t.y||0)] = t; });
+      var names = withoutId.map(function(t){ return t.n; });
+      var res2 = await supa.from("tmdb_metadata").select("*").in("title", names);
+      if(res2.data){
+        res2.data.forEach(function(r){
+          var t = nameYearMap[r.title+'_'+(r.year||0)] || nameYearMap[r.title+'_0'];
+          if(t){ applyMetaFromCache(t, r); loaded++; }
         });
       }
     }
 
-    // Buscar por título+año los que no tienen ID
-    if(withoutId.length){
-      // En batches de 20 para no hacer queries gigantes
-      for(var i=0; i<withoutId.length; i+=20){
-        var batch = withoutId.slice(i, i+20);
-        var orFilter = batch.map(function(t){
-          return 'and(title.eq.'+t.n+',year.eq.'+(t.y||0)+')';
-        }).join(',');
-        var res2 = await supa.from("tmdb_metadata").select("*").or(orFilter);
-        if(res2.data && res2.data.length){
-          res2.data.forEach(function(r){
-            var t = batch.find(function(t){
-              return t.n === r.title && (t.y === r.year || !t.y);
-            });
-            if(t) { applyMetaFromCache(t, r); loaded++; }
-          });
-        }
-      }
-    }
-
-    if(loaded > 0) console.log("[META] metadatos cargados del caché global:", loaded);
+    if(loaded > 0) console.log("[META] metadatos cargados del caché global:", loaded, "de", titlesToLoad.length);
     return loaded;
   } catch(e){
     console.error("[META] error cargando caché:", e);
