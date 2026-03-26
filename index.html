@@ -1620,7 +1620,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.180");
+console.log("QVH version: 11.181");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1842,8 +1842,9 @@ async function supaSaveSignals(){
 // ── Cargar todo desde Supabase ────────────────────────────────
 async function supaLoadAll(){
   if(!supa || !supaUser) return;
+  console.log("[SUPA] cargando datos de la nube...");
   try {
-    // Perfil
+    // ── Perfil ────────────────────────────────────────────────────
     var pr = await supa.from("profiles").select("*").eq("id",supaUser.id).maybeSingle();
     if(pr.data){
       userProfile = {
@@ -1864,8 +1865,10 @@ async function supaLoadAll(){
       updateProfileBadge();
       if(typeof renderProfileIdentity === "function") renderProfileIdentity();
       if(typeof renderProfileSummary === "function") renderProfileSummary();
+      console.log("[SUPA] perfil cargado:", userProfile.userName);
     }
-    // Señales
+
+    // ── Señales ───────────────────────────────────────────────────
     var sg = await supa.from("signals").select("*").eq("user_id",supaUser.id).maybeSingle();
     if(sg.data){
       signalsPositive = sg.data.positive || [];
@@ -1874,20 +1877,26 @@ async function supaLoadAll(){
       try{localStorage.setItem("wq_signals",JSON.stringify(
         {positive:signalsPositive,negative:signalsNegative,counts:signalsCounts}));}catch(e){}
     }
-    // Títulos
-    var ti = await supa.from("titles").select("*")
-      .eq("user_id",supaUser.id).neq("status","removed");
+
+    // ── Títulos — LA NUBE MANDA SIEMPRE ──────────────────────────
+    // No hacemos merge — sobrescribimos el estado de los títulos
+    // con lo que dice Supabase. El dispositivo es solo una vista.
+    var ti = await supa.from("titles").select("*").eq("user_id",supaUser.id);
     if(ti.data && ti.data.length){
+      // Actualizar status/pinned/lists de títulos que ya están en RAW
       ti.data.forEach(function(r){
         var ex = titles.find(function(t){
           return (r.tmdb_id && t._tmdbId === r.tmdb_id) ||
                  (t.n === r.name && t.y === r.year);
         });
         if(ex){
-          ex.status = r.status;
-          ex.pinned = r.pinned;
+          // Título del CSV — actualizar estado desde la nube
+          ex.status = r.status || "active";
+          ex.pinned = r.pinned || false;
           ex.lists  = r.lists || [];
-        } else if(r.name){
+          ex.logline = r.logline || ex.logline;
+        } else if(r.name && r.status !== "removed"){
+          // Título agregado manualmente — importar desde la nube
           titles.push({
             idx:"supa_"+r.id, n:r.name, y:r.year, m:r.minutes||0,
             type:r.type||"movie", status:r.status||"active",
@@ -1898,7 +1907,26 @@ async function supaLoadAll(){
           });
         }
       });
-      updateStats(); updateCandidates();
+
+      // Resetear a "active" los títulos que NO están en Supabase
+      // (significa que en otro dispositivo los quitaron)
+      var supaIds = new Set(ti.data.map(function(r){ return r.tmdb_id; }).filter(Boolean));
+      var supaNames = new Set(ti.data.map(function(r){ return r.name+"_"+r.year; }));
+      titles.forEach(function(t){
+        var inSupa = (t._tmdbId && supaIds.has(t._tmdbId)) ||
+                     supaNames.has(t.n+"_"+t.y);
+        if(!inSupa && !t.isNew){
+          // Título del CSV que no está en Supabase — resetear a active
+          t.status = "active";
+          t.pinned = false;
+          t.lists  = [];
+        }
+      });
+
+      // Sincronizar localStorage
+      saveState();
+      updateStats();
+      updateCandidates();
       if(typeof renderBrowse === "function") renderBrowse();
       console.log("[SUPA] títulos cargados:", ti.data.length);
     }
