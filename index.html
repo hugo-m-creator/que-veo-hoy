@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#07070a">
 <title>Que veo hoy</title>
@@ -964,45 +965,75 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     </div>
   </div>
 
-  <!-- PASO 1A: Crear cuenta — encuesta primero -->
+  <!-- PASO 1A: Crear cuenta — correo + contraseña -->
   <div class="welcome-card" id="createAccountScreen" style="display:none;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <button onclick="showSetupStep('welcome')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;">&#8592;</button>
       <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Crear cuenta</div>
     </div>
-    <div style="font-size:16px;color:var(--text);margin-bottom:6px;font-family:'Playfair Display',serif;">Primero cu&eacute;ntanos sobre ti</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:24px;line-height:1.6;">
-      La encuesta nos ayuda a darte recomendaciones personalizadas desde el primer d&iacute;a. Solo toma unos minutos.
+    <div style="font-size:16px;color:var(--text);margin-bottom:6px;font-family:'Playfair Display',serif;">Crea tu cuenta</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.6;">
+      Tu lista y preferencias quedar&aacute;n guardadas en la nube, accesibles desde cualquier dispositivo.
     </div>
-    <button class="mbtn" style="width:100%;border-color:var(--accent);color:var(--accent);padding:14px;font-size:11px;margin-bottom:12px;" onclick="startAccountSurvey()">
-      &#9654; Responder encuesta
+    <input id="regEmail" type="email" placeholder="correo@email.com"
+      style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:10px;outline:none;"
+      oninput="validateRegForm()">
+    <input id="regPassword" type="password" placeholder="contrase&#241;a (m&#237;n. 6 caracteres)"
+      style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:10px;outline:none;"
+      oninput="validateRegForm()" onkeydown="if(event.key==='Enter')continueToSurvey()">
+    <input id="regPassword2" type="password" placeholder="confirmar contrase&#241;a"
+      style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:6px;outline:none;"
+      oninput="validateRegForm()" onkeydown="if(event.key==='Enter')continueToSurvey()">
+    <div id="regMsg" style="font-size:10px;color:var(--muted);min-height:16px;margin-bottom:16px;"></div>
+    <button id="regContinueBtn" class="mbtn" disabled
+      style="width:100%;border-color:var(--accent);color:var(--accent);padding:14px;font-size:11px;opacity:0.4;margin-bottom:10px;"
+      onclick="continueToSurvey()">
+      Continuar &#8594;
     </button>
-    <div style="font-size:10px;color:var(--muted);text-align:center;">
-      Despu&eacute;s de la encuesta podr&aacute;s elegir tu nombre de usuario.
+    <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.6;">
+      Despu&eacute;s confirmar&aacute;s tu correo y elegir&aacute;s un nombre de usuario.
     </div>
   </div>
 
-  <!-- PASO 1B: Iniciar sesión — importar .qvh -->
+  <!-- PASO 1B: Iniciar sesión — correo + contraseña O importar .qvh -->
   <div class="welcome-card" id="signInScreen" style="display:none;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <button onclick="showSetupStep('welcome')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0;">&#8592;</button>
       <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Iniciar sesi&oacute;n</div>
     </div>
-    <div style="font-size:16px;color:var(--text);margin-bottom:6px;font-family:'Playfair Display',serif;">Importa tu perfil</div>
+    <div style="font-size:16px;color:var(--text);margin-bottom:6px;font-family:'Playfair Display',serif;">Bienvenido de vuelta</div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.6;">
-      Selecciona el archivo .qvh que exportaste anteriormente. Tu lista, encuesta y preferencias se restaurar&aacute;n autom&aacute;ticamente.
+      Ingresa con tu cuenta para cargar tu lista y preferencias autom&aacute;ticamente.
     </div>
-    <button class="mbtn" style="width:100%;border-color:var(--blue);color:var(--blue);padding:14px;font-size:11px;margin-bottom:12px;"
+    <input id="loginEmail" type="email" placeholder="correo@email.com"
+      style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:10px;outline:none;">
+    <input id="loginPassword" type="password" placeholder="contrase&#241;a"
+      style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:6px;outline:none;"
+      onkeydown="if(event.key==='Enter')handleLoginFromWelcome()">
+    <div id="loginMsg" style="font-size:10px;color:var(--muted);min-height:16px;margin-bottom:16px;"></div>
+    <button class="mbtn" style="width:100%;border-color:var(--blue);color:var(--blue);padding:14px;font-size:11px;margin-bottom:10px;"
+      onclick="handleLoginFromWelcome()">
+      Iniciar sesi&oacute;n &#8594;
+    </button>
+    <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:20px;">
+      ¿Olvidaste tu contrase&#241;a? <span style="color:var(--blue);cursor:pointer;" onclick="handleForgotPassword()">Recuperar acceso</span>
+    </div>
+    <!-- Separador -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">O</div>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+    <!-- Importar .qvh -->
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+      ¿Tienes un archivo .qvh? Imp&oacute;rtalo para restaurar tu lista y perfil.
+    </div>
+    <button class="mbtn" style="width:100%;border-color:var(--border);color:var(--muted);padding:12px;font-size:11px;margin-bottom:8px;"
       onclick="document.getElementById('signInFile').click()">
-      &#8595; Seleccionar archivo .qvh
+      &#8595; Importar archivo .qvh
     </button>
     <input type="file" id="signInFile" accept=".qvh,.json" style="display:none" onchange="handleSignInImport(event)">
     <div id="signInMsg" style="font-size:11px;min-height:16px;color:var(--muted);"></div>
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;">
-        ¿No tienes un archivo .qvh? Cuando creas una cuenta puedes exportar tu perfil desde Mi Perfil.
-      </div>
-    </div>
   </div>
 
   <!-- PASO 1C: Invitado — solo encuesta -->
@@ -1179,6 +1210,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
     &#8635; Re-enriquecer
   </button>
 </div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px;">
+    <button id="supaAuthBtn" style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;transition:all 0.15s;" onclick="document.getElementById('supaAuthModal').style.display='flex'">&#9729; Iniciar sesión</button>
+  </div>
   <div class="mode-tabs">
     <button class="mode-tab active" onclick="setMode('filter',this)">&#127902; ¿Qué veo hoy?</button>
     <button class="mode-tab" onclick="setMode('wizard',this)">Descubrir</button>
@@ -1586,7 +1620,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.175");
+console.log("QVH version: 11.176");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1597,6 +1631,284 @@ setTimeout(function(){
 var B64=[];
 var RAW=[];
 var KEY = "05a9c438e2d7c0c027487ba3ee17ed33";
+
+// ══════════════════════════════════════════════════════════════
+// SUPABASE — sincronización en la nube
+// ══════════════════════════════════════════════════════════════
+var SUPA_URL = "https://zsbinvzlfzuhddljvjpz.supabase.co";
+var SUPA_KEY = "sb_publishable_weWJOU6h9AsfpoR7O5vFZg_ARi6ygAo";
+var supa = null;
+var supaUser = null;
+var _supaMode = "login";
+
+function initSupabase(){
+  try {
+    supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    // Verificar sesión existente al arrancar
+    supa.auth.getSession().then(function(res){
+      if(res.data && res.data.session){
+        supaUser = res.data.session.user;
+        updateAuthUI();
+        supaLoadAll();
+      }
+    });
+    // Escuchar cambios de sesión
+    supa.auth.onAuthStateChange(function(event, session){
+      supaUser = session ? session.user : null;
+      if(event === "SIGNED_IN"){
+        updateAuthUI();
+        // Al iniciar sesión: primero subir datos locales, luego cargar de la nube
+        supaFirstSync();
+      }
+      if(event === "SIGNED_OUT"){
+        supaUser = null;
+        updateAuthUI();
+      }
+    });
+    console.log("[SUPA] inicializado OK");
+  } catch(e){ console.error("[SUPA] init error:", e); }
+}
+
+// ── Sincronización inicial al loguearse ──────────────────────
+// Sube todo lo que hay en localStorage a Supabase,
+// luego carga lo que haya en la nube (por si hay datos de otro dispositivo)
+async function supaFirstSync(){
+  if(!supa || !supaUser) return;
+  showToast("☁ Sincronizando tu cuenta...");
+  await supaSaveTitles();
+  await supaSaveProfile();
+  await supaSaveSignals();
+  await supaLoadAll();
+  showToast("☁ Cuenta sincronizada");
+}
+
+// ── Auth: registro ────────────────────────────────────────────
+async function supaSignUp(email, password){
+  if(!supa) return {error:{message:"Supabase no inicializado"}};
+  return await supa.auth.signUp({
+    email:email, password:password,
+    options:{emailRedirectTo:"https://hugo-m-creator.github.io/que-veo-hoy/"}
+  });
+}
+
+// ── Auth: login ───────────────────────────────────────────────
+async function supaSignIn(email, password){
+  if(!supa) return {error:{message:"Supabase no inicializado"}};
+  return await supa.auth.signInWithPassword({email:email, password:password});
+}
+
+// ── Auth: logout ──────────────────────────────────────────────
+async function supaSignOut(){
+  if(!supa) return;
+  await supa.auth.signOut();
+  supaUser = null;
+  updateAuthUI();
+  showToast("Sesión cerrada");
+}
+
+// ── Guardar títulos ───────────────────────────────────────────
+async function supaSaveTitles(){
+  if(!supa || !supaUser) return;
+  try {
+    var rows = titles
+      .filter(function(t){ return t.status !== "removed"; })
+      .map(function(t){
+        return {
+          user_id:        supaUser.id,
+          tmdb_id:        t._tmdbId || null,
+          name:           t.n,
+          year:           t.y || null,
+          type:           t.type || "movie",
+          status:         t.status || "active",
+          minutes:        t.m || 0,
+          director:       t.director || null,
+          genres:         t.genres || [],
+          poster:         t.poster || null,
+          backdrop:       t.backdrop || null,
+          country:        t.country || null,
+          origin_country: t.origin_country || null,
+          rating:         t.rating || null,
+          letterboxd_url: t.u || null,
+          pinned:         t.pinned || false,
+          lists:          t.lists || [],
+          logline:        t.logline || null,
+          media_type:     t._mediaType || null,
+        };
+      });
+    if(!rows.length) return;
+    var res = await supa.from("titles").upsert(rows, {onConflict:"user_id,name,year"});
+    if(res.error) console.error("[SUPA] saveTitles:", res.error.message);
+    else console.log("[SUPA] títulos guardados:", rows.length);
+  } catch(e){ console.error("[SUPA] saveTitles error:", e); }
+}
+
+// ── Guardar perfil ────────────────────────────────────────────
+async function supaSaveProfile(){
+  if(!supa || !supaUser || !userProfile) return;
+  try {
+    var res = await supa.from("profiles").upsert({
+      id:           supaUser.id,
+      gender:       userProfile.gender || null,
+      attitude:     userProfile.attitude || null,
+      genres_like:  userProfile.genresLike || [],
+      genres_avoid: userProfile.genresAvoid || [],
+      origins:      userProfile.origins || [],
+      eras:         userProfile.eras || [],
+      duration:     userProfile.duration || null,
+      country:      userProfile.country || null,
+      refs:         userProfile.refs || [],
+    });
+    if(res.error) console.error("[SUPA] saveProfile:", res.error.message);
+    else console.log("[SUPA] perfil guardado");
+  } catch(e){ console.error("[SUPA] saveProfile error:", e); }
+}
+
+// ── Guardar señales ───────────────────────────────────────────
+async function supaSaveSignals(){
+  if(!supa || !supaUser) return;
+  try {
+    var res = await supa.from("signals").upsert(
+      {user_id:supaUser.id, positive:signalsPositive||[],
+       negative:signalsNegative||[], counts:signalsCounts||{}},
+      {onConflict:"user_id"});
+    if(res.error) console.error("[SUPA] saveSignals:", res.error.message);
+    else console.log("[SUPA] señales guardadas");
+  } catch(e){ console.error("[SUPA] saveSignals error:", e); }
+}
+
+// ── Cargar todo desde Supabase ────────────────────────────────
+async function supaLoadAll(){
+  if(!supa || !supaUser) return;
+  try {
+    // Perfil
+    var pr = await supa.from("profiles").select("*").eq("id",supaUser.id).maybeSingle();
+    if(pr.data && pr.data.gender){
+      userProfile = {
+        gender:      pr.data.gender,
+        attitude:    pr.data.attitude,
+        genresLike:  pr.data.genres_like || [],
+        genresAvoid: pr.data.genres_avoid || [],
+        origins:     pr.data.origins || [],
+        eras:        pr.data.eras || [],
+        duration:    pr.data.duration,
+        country:     pr.data.country,
+        refs:        pr.data.refs || [],
+      };
+      try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
+    }
+    // Señales
+    var sg = await supa.from("signals").select("*").eq("user_id",supaUser.id).maybeSingle();
+    if(sg.data){
+      signalsPositive = sg.data.positive || [];
+      signalsNegative = sg.data.negative || [];
+      signalsCounts   = sg.data.counts || {};
+      try{localStorage.setItem("wq_signals",JSON.stringify(
+        {positive:signalsPositive,negative:signalsNegative,counts:signalsCounts}));}catch(e){}
+    }
+    // Títulos
+    var ti = await supa.from("titles").select("*")
+      .eq("user_id",supaUser.id).neq("status","removed");
+    if(ti.data && ti.data.length){
+      ti.data.forEach(function(r){
+        var ex = titles.find(function(t){
+          return (r.tmdb_id && t._tmdbId === r.tmdb_id) ||
+                 (t.n === r.name && t.y === r.year);
+        });
+        if(ex){
+          ex.status = r.status;
+          ex.pinned = r.pinned;
+          ex.lists  = r.lists || [];
+        } else if(r.name){
+          titles.push({
+            idx:"supa_"+r.id, n:r.name, y:r.year, m:r.minutes||0,
+            type:r.type||"movie", status:r.status||"active",
+            director:r.director||"", genres:r.genres||[],
+            poster:r.poster||null, country:r.country||"",
+            _tmdbId:r.tmdb_id||null, u:r.letterboxd_url||"",
+            pinned:r.pinned||false, lists:r.lists||[], isNew:true,
+          });
+        }
+      });
+      updateStats(); updateCandidates();
+      if(typeof renderBrowse === "function") renderBrowse();
+      console.log("[SUPA] títulos cargados:", ti.data.length);
+    }
+  } catch(e){ console.error("[SUPA] loadAll error:", e); }
+}
+
+// ── Dual write: al guardar localmente, también guardar en nube ─
+// (se llama desde saveState, saveProfile, saveSignals)
+function supaAutoSync(){
+  if(!supaUser) return;
+  supaSaveTitles();
+  supaSaveSignals();
+}
+
+// ── UI del botón de sesión ────────────────────────────────────
+function updateAuthUI(){
+  var btn = document.getElementById("supaAuthBtn");
+  if(!btn) return;
+  if(supaUser){
+    var name = (supaUser.email||"").split("@")[0];
+    btn.innerHTML = "&#9601; " + name;
+    btn.title = "Sesión activa: " + supaUser.email + " — clic para cerrar sesión";
+    btn.classList.add("active");
+    btn.onclick = function(){
+      if(confirm("¿Cerrar sesión de " + supaUser.email + "?")) supaSignOut();
+    };
+  } else {
+    btn.innerHTML = "&#9729; Iniciar sesión";
+    btn.title = "Iniciar sesión o crear cuenta";
+    btn.classList.remove("active");
+    btn.onclick = function(){
+      document.getElementById("supaAuthModal").style.display = "flex";
+    };
+  }
+}
+
+// ── Modal: cambiar entre login y registro ─────────────────────
+function supaShowTab(mode){
+  _supaMode = mode;
+  var tl = document.getElementById("supaTabLogin");
+  var tr = document.getElementById("supaTabReg");
+  var sb = document.getElementById("supaSubmit");
+  var fe = document.getElementById("supaFormExtra");
+  if(tl){ tl.style.background = mode==="login"?"var(--accent)":"transparent";
+          tl.style.color       = mode==="login"?"#000":"var(--muted)"; }
+  if(tr){ tr.style.background = mode==="register"?"var(--accent)":"transparent";
+          tr.style.color       = mode==="register"?"#000":"var(--muted)"; }
+  if(sb) sb.textContent = mode==="login"?"INICIAR SESIÓN":"CREAR CUENTA";
+  if(fe) fe.style.display = mode==="register"?"block":"none";
+  var msg = document.getElementById("supaMsg");
+  if(msg) msg.textContent = "";
+}
+
+// ── Modal: submit ─────────────────────────────────────────────
+async function supaHandleAuth(){
+  var email    = (document.getElementById("supaEmail")||{}).value||"";
+  var password = (document.getElementById("supaPass")||{}).value||"";
+  var msg      = document.getElementById("supaMsg");
+  email = email.trim();
+  if(!email || !password){
+    if(msg) msg.textContent = "Ingresa tu correo y contraseña.";
+    return;
+  }
+  if(msg){ msg.style.color = "var(--muted)"; msg.textContent = "Un momento..."; }
+  var res = _supaMode === "login"
+    ? await supaSignIn(email, password)
+    : await supaSignUp(email, password);
+  if(res.error){
+    if(msg){ msg.style.color = "var(--red)";
+             msg.textContent = res.error.message || "Error al autenticar."; }
+  } else if(_supaMode === "register"){
+    if(msg){ msg.style.color = "var(--green)";
+             msg.textContent = "¡Cuenta creada! Revisa tu correo para confirmar."; }
+  } else {
+    document.getElementById("supaAuthModal").style.display = "none";
+    // supaFirstSync se llama automáticamente via onAuthStateChange
+  }
+}
+
 var TMDB_IMG = "https://image.tmdb.org/t/p/w200";
 var TMDB_LOGO = "https://image.tmdb.org/t/p/original";
 
@@ -1899,6 +2211,7 @@ function saveState(){
   });
   try{localStorage.setItem("wq_s7",JSON.stringify(s));}catch(e){}
   try{if(diaryDates.length)localStorage.setItem("wq_diary",JSON.stringify(diaryDates));}catch(e){}
+  if(supaUser) supaSaveTitles();
 }
 function loadState(){
   try{
@@ -1922,6 +2235,7 @@ function saveServices(){
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener("load",function(){
+  initSupabase();
   loadAccountMode();
   loadState();
   loadProfile();
@@ -2809,6 +3123,7 @@ function buildFilterServicePills(){
 function saveProfile(){
   try{localStorage.setItem("wq_profile",JSON.stringify(userProfile));}catch(e){}
   updateProfileBadge();
+  if(supaUser) supaSaveProfile();
 }
 function updateProfileBadge(){
   var btn=document.getElementById("profileBadgeBtn");
@@ -2839,6 +3154,7 @@ function saveSignals(){
   try{localStorage.setItem("wq_signals",JSON.stringify({
     positive:signalsPositive,negative:signalsNegative,counts:signalsCounts
   }));}catch(e){}
+  if(supaUser) supaSaveSignals();
 }
 function saveSuggestionPool(){
   try{localStorage.setItem("wq_pool",JSON.stringify(suggestionPool));}catch(e){}
@@ -6579,8 +6895,11 @@ function finishCreateAccount(){
   document.getElementById('setupOverlay').style.display = 'none';
   renderProfileIdentity();
   renderProfileSummary();
-  renderGuestBadge(); // ocultar badge de invitado
+  renderGuestBadge();
   showToast('¡Bienvenido, @' + handle + '! ✓');
+
+  // Si hay credenciales pendientes de Supabase, registrar ahora
+  if(window._pendingRegEmail) finishSupaRegistration();
 
   // Si hay títulos pendientes de enriquecer, arrancar
   var needsEnrich = titles.filter(function(t){ return t.isNew && (!t._tmdbId || !t.genres || !t.genres.length); });
@@ -8794,6 +9113,110 @@ async function addFromTMDB(item){
   showToast(title+(year?" ("+year+")":"")+" agregada");
 }
 function addTitle(){var n=(document.getElementById("addN")||{}).value;if(n){var sq=document.getElementById("addSearchQ");if(sq){sq.value=n;searchToAdd();}}}
+// ── FLUJO DE REGISTRO CON SUPABASE ───────────────────────────────
+function validateRegForm(){
+  var email    = (document.getElementById("regEmail")||{}).value||"";
+  var pass     = (document.getElementById("regPassword")||{}).value||"";
+  var pass2    = (document.getElementById("regPassword2")||{}).value||"";
+  var msg      = document.getElementById("regMsg");
+  var btn      = document.getElementById("regContinueBtn");
+  var valid    = false;
+
+  if(!email || !email.includes("@")){
+    if(msg){msg.style.color="var(--muted)";msg.textContent=email?"Correo no válido.":"";}
+  } else if(pass.length < 6){
+    if(msg){msg.style.color="var(--muted)";msg.textContent=pass?"Mínimo 6 caracteres.":"";}
+  } else if(pass !== pass2){
+    if(msg){msg.style.color="var(--red)";msg.textContent=pass2?"Las contraseñas no coinciden.":"";}
+  } else {
+    if(msg){msg.style.color="var(--green)";msg.textContent="✓ Todo listo";}
+    valid = true;
+  }
+
+  if(btn){
+    btn.disabled = !valid;
+    btn.style.opacity = valid ? "1" : "0.4";
+  }
+}
+
+// Guardar credenciales temporalmente y continuar a la encuesta
+function continueToSurvey(){
+  var email = (document.getElementById("regEmail")||{}).value||"";
+  var pass  = (document.getElementById("regPassword")||{}).value||"";
+  var pass2 = (document.getElementById("regPassword2")||{}).value||"";
+  var msg   = document.getElementById("regMsg");
+
+  email = email.trim();
+  if(!email||!email.includes("@")||pass.length<6||pass!==pass2){
+    if(msg){msg.style.color="var(--red)";msg.textContent="Revisa los campos antes de continuar.";}
+    return;
+  }
+  // Guardar temporalmente para usarlos después de la encuesta + handle
+  window._pendingRegEmail    = email;
+  window._pendingRegPassword = pass;
+  // Continuar al flujo de encuesta
+  startAccountSurvey();
+}
+
+// Al finalizar el handle (al final del flujo de crear cuenta),
+// registrar en Supabase con las credenciales guardadas
+async function finishSupaRegistration(){
+  var email = window._pendingRegEmail;
+  var pass  = window._pendingRegPassword;
+  if(!email || !pass) return; // no hay credenciales pendientes — flujo sin Supabase
+
+  var res = await supaSignUp(email, pass);
+  if(res.error){
+    showToast("Error al crear cuenta: " + (res.error.message||""));
+    console.error("[SUPA] signUp error:", res.error);
+  } else {
+    showToast("☁ Cuenta creada. Revisa tu correo para confirmar.");
+    window._pendingRegEmail    = null;
+    window._pendingRegPassword = null;
+    // Los datos se subirán automáticamente via onAuthStateChange → supaFirstSync
+  }
+}
+
+// ── FLUJO DE LOGIN DESDE PANTALLA DE BIENVENIDA ───────────────────
+async function handleLoginFromWelcome(){
+  var email = (document.getElementById("loginEmail")||{}).value||"";
+  var pass  = (document.getElementById("loginPassword")||{}).value||"";
+  var msg   = document.getElementById("loginMsg");
+  email = email.trim();
+
+  if(!email||!pass){
+    if(msg){msg.style.color="var(--muted)";msg.textContent="Ingresa tu correo y contraseña.";}
+    return;
+  }
+  if(msg){msg.style.color="var(--muted)";msg.textContent="Verificando...";}
+
+  var res = await supaSignIn(email, pass);
+  if(res.error){
+    if(msg){msg.style.color="var(--red)";msg.textContent=res.error.message||"Error al iniciar sesión.";}
+  } else {
+    // Sesión iniciada — cerrar overlay y cargar datos
+    document.getElementById("setupOverlay").style.display = "none";
+    saveAccountMode("account");
+    // supaFirstSync se llama automáticamente via onAuthStateChange
+  }
+}
+
+// ── RECUPERAR CONTRASEÑA ─────────────────────────────────────────
+async function handleForgotPassword(){
+  var email = (document.getElementById("loginEmail")||{}).value||"";
+  email = email.trim();
+  if(!email||!email.includes("@")){
+    showToast("Ingresa tu correo primero.");
+    return;
+  }
+  if(!supa) return;
+  var res = await supa.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://hugo-m-creator.github.io/que-veo-hoy/"
+  });
+  if(res.error) showToast("Error: " + res.error.message);
+  else showToast("Correo de recuperación enviado a " + email);
+}
+
 
 </script>
 <div id="deleteListModal">
@@ -8869,5 +9292,38 @@ function addTitle(){var n=(document.getElementById("addN")||{}).value;if(n){var 
   </button>
 </div>
 
+
+  <!-- ── Modal autenticación Supabase ── -->
+  <div id="supaAuthModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);padding:32px 28px;max-width:380px;width:92%;position:relative;font-family:'DM Mono',monospace;">
+      <!-- Cerrar -->
+      <button onclick="document.getElementById('supaAuthModal').style.display='none'"
+        style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">&#215;</button>
+      <!-- Logo / título -->
+      <div style="font-size:9px;letter-spacing:3px;color:var(--muted);margin-bottom:20px;">&#9729; SINCRONIZACIÓN EN LA NUBE</div>
+      <!-- Tabs login / registro -->
+      <div style="display:flex;border:1px solid var(--border);margin-bottom:22px;">
+        <button id="supaTabLogin" onclick="supaShowTab('login')"
+          style="flex:1;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;padding:9px;border:none;background:var(--accent);color:#000;cursor:pointer;">INICIAR SESIÓN</button>
+        <button id="supaTabReg" onclick="supaShowTab('register')"
+          style="flex:1;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;padding:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;">CREAR CUENTA</button>
+      </div>
+      <!-- Campos -->
+      <input id="supaEmail" type="email" placeholder="correo@email.com"
+        style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:10px;outline:none;">
+      <input id="supaPass" type="password" placeholder="contraseña (mín. 6 caracteres)"
+        style="display:block;width:100%;box-sizing:border-box;font-family:'DM Mono',monospace;font-size:11px;padding:11px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);margin-bottom:18px;outline:none;"
+        onkeydown="if(event.key==='Enter')supaHandleAuth()">
+      <!-- Botón submit -->
+      <button id="supaSubmit" onclick="supaHandleAuth()"
+        style="display:block;width:100%;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;padding:13px;background:var(--accent);color:#000;border:none;cursor:pointer;transition:opacity 0.15s;">INICIAR SESIÓN</button>
+      <!-- Mensaje de estado -->
+      <div id="supaMsg" style="font-size:10px;color:var(--muted);margin-top:14px;text-align:center;min-height:18px;line-height:1.4;"></div>
+      <!-- Nota -->
+      <div style="font-size:9px;color:var(--muted);margin-top:16px;text-align:center;line-height:1.6;opacity:0.7;">
+        Al iniciar sesión tus datos se sincronizan<br>automáticamente en todos tus dispositivos.
+      </div>
+    </div>
+  </div>
 </body>
 </html>
