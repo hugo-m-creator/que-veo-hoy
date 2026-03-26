@@ -1629,7 +1629,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.204");
+console.log("QVH version: 11.205");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -8142,6 +8142,33 @@ async function processZip(file, isGuest){
       dRows.forEach(function(r){var wd=r["Watched Date"]||r["Date"]||"";if(wd)ds.add(wd.trim().slice(0,10));});
       diaryDates=Array.from(ds);
     }
+
+    // ── Deduplicar antes de guardar ───────────────────────────────
+    // Eliminar duplicados por nombre+año — ocurren cuando el CSV base y el ZIP
+    // tienen el mismo título con diferente formato de nombre
+    (function(){
+      var seenKeys = {};
+      var clean = [];
+      titles.forEach(function(t){
+        var key = (t.n||'').toLowerCase() + '_' + (t.y||'');
+        if(!seenKeys[key]){
+          seenKeys[key] = true;
+          clean.push(t);
+        } else {
+          // Duplicado — si el que ya está no tiene URI y este sí, reemplazar
+          var existing = clean.find(function(x){
+            return (x.n||'').toLowerCase()+'_'+(x.y||'') === key;
+          });
+          if(existing && !existing.u && t.u){
+            existing.u = t.u;
+            existing._lbSlug = t._lbSlug || existing._lbSlug;
+          }
+          // Si el duplicado está watched, marcar el existente como watched
+          if(existing && t.status === 'watched') existing.status = 'watched';
+        }
+      });
+      titles = clean;
+    })();
 
     saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();renderStats();
 
