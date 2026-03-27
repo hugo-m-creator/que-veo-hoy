@@ -1647,7 +1647,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.209");
+console.log("QVH version: 11.210");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -2587,11 +2587,41 @@ var LATIN_SCRIPT_LANGS={"es":1,"fr":1,"it":1,"pt":1,"de":1,"nl":1,"pl":1,"ro":1,
   "sl":1,"sq":1,"bs":1,"mk":1,"la":1,"eo":1,"cy":1,"ga":1,"af":1,"id":1,"ms":1,
   "tr":1,"az":1,"uz":1,"tl":1,"sw":1,"vi":1,"et":1,"lv":1,"lt":1};
 
+// Calcular similitud entre dos strings (0-1) — Jaccard sobre bigramas
+function strSimilarity(a, b){
+  if(!a || !b) return 0;
+  a = a.toLowerCase().replace(/[^a-z0-9]/g,"");
+  b = b.toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(a === b) return 1;
+  if(a.length < 2 || b.length < 2) return a === b ? 1 : 0;
+  var getBigrams = function(s){
+    var bg = new Set();
+    for(var i=0;i<s.length-1;i++) bg.add(s[i]+s[i+1]);
+    return bg;
+  };
+  var bgA = getBigrams(a), bgB = getBigrams(b);
+  var intersection = 0;
+  bgA.forEach(function(bg){ if(bgB.has(bg)) intersection++; });
+  return (2 * intersection) / (bgA.size + bgB.size);
+}
+
 function applyTitleFromTMDB(t,det){
   var enTitle=det.title||det.name||"";
   var origTitle=det.original_title||det.original_name||"";
   var lang=det.original_language||"";
   if(enTitle)t._lbSlug=makeLBSlug(enTitle);
+
+  // Punto 4: si el título del CSV y el de TMDB tienen menos del 90% de similitud,
+  // conservar el nombre del CSV como título principal hasta que el usuario lo verifique
+  var csvName = t._csvOrigName || t.n;
+  var tmdbSimilarity = strSimilarity(csvName, enTitle);
+  if(tmdbSimilarity < 0.9 && !t._manuallyLocked){
+    // Guardar el nombre de TMDB como referencia pero mantener el del CSV
+    t._tmdbTitle = enTitle;
+    // NO cambiar t.n — el CSV manda
+    // Marcar para revisión si la diferencia es grande
+    if(tmdbSimilarity < 0.5) t._syncStatus = "needs_review";
+  }
   if(origTitle&&LATIN_SCRIPT_LANGS[lang])t.n=origTitle;
   else if(enTitle)t.n=enTitle;
 }
@@ -3346,18 +3376,25 @@ async function startEnrich(){
 // Generar sección de fuente CSV para el modal de la card
 function buildCSVSourceSection(t){
   if(!t._csvOrigName) return "";
-  var nameMatch = t.n === t._csvOrigName;
-  var yearMatch = t.y === t._csvOrigYear;
+  var nameMatch = (t.n||"").toLowerCase() === (t._csvOrigName||"").toLowerCase();
+  var yearMatch = !t._csvOrigYear || t.y === t._csvOrigYear;
   if(nameMatch && yearMatch) return "";
-  return '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">'
-    +'<div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;">FUENTE: LETTERBOXD CSV</div>'
-    +'<div style="font-size:11px;color:#ff6b35;">'
-    +(nameMatch?'':('<span style="color:var(--muted)">Nombre original: </span>"'+t._csvOrigName+'"'))
-    +(!nameMatch&&!yearMatch?' &nbsp;&middot;&nbsp; ':'')
-    +(yearMatch?'':('<span style="color:var(--muted)">Año original: </span>'+t._csvOrigYear))
-    +'</div>'
-    +'<div style="font-size:10px;color:var(--muted);margin-top:4px;">Los metadatos actuales de TMDB pueden no corresponder al título del CSV.</div>'
-    +'</div>';
+  // Franja clicable que abre buscador con el nombre original del CSV
+  var searchName = encodeURIComponent(t._csvOrigName || "");
+  var searchYear = t._csvOrigYear || "";
+  return '<div style="margin-top:12px;padding:10px 12px;background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.3);cursor:pointer;" '    +'onclick="openCSVSearch(this,'+ JSON.stringify(t._csvOrigName||"") +','+ (t._csvOrigYear||"null") +')" '    +'title="Clic para buscar con el nombre original del CSV">'    +'<div style="display:flex;justify-content:space-between;align-items:center;">'    +'<div>'    +'<div style="font-size:9px;color:rgba(255,107,53,0.7);letter-spacing:1px;margin-bottom:4px;">&#9888; DATOS ORIGINALES DEL CSV</div>'    +(nameMatch?"":('<div style="font-size:11px;color:#ff6b35;">Nombre CSV: <strong>"'+t._csvOrigName+'"</strong></div>'))    +(yearMatch?"":('<div style="font-size:10px;color:rgba(255,107,53,0.7);margin-top:2px;">Año CSV: '+t._csvOrigYear+'</div>'))    +'</div>'    +'<div style="font-size:10px;color:rgba(255,107,53,0.6);">&#128269; Buscar</div>'    +'</div>'    +'</div>';}
+
+function openCSVSearch(el, csvName, csvYear){
+  // Pre-cargar el buscador de TMDB con el nombre original del CSV
+  var searchQ = document.getElementById("addSearchQ");
+  var searchY = document.getElementById("addSearchY");
+  if(searchQ){ searchQ.value = csvName; }
+  if(searchY && csvYear){ searchY.value = csvYear; }
+  // Ir a Mi Lista y disparar la búsqueda
+  document.querySelector('.mode-tab[data-mode="manage"]') && document.querySelector('.mode-tab[data-mode="manage"]').click();
+  setTimeout(function(){ searchToAdd(); }, 200);
+  closeResultCard();
+  showToast("Buscando: " + csvName);
 }
 
 // ── STATS & BUILD ─────────────────────────────────────────────────────────────
@@ -8258,10 +8295,25 @@ async function processZip(file, isGuest){
       if(nm&&yr)wdByKey[nm+"|"+yr]=true;
     });
 
-    // 1. Procesar watchlist con lógica de 3 escenarios
+    // 1. Procesar watchlist con lógica de 3 escenarios — en bloques de 20
     var ourURIs=new Set(titles.map(function(t){return t.u;}));
     stats.corrected = 0;
-    wlRows.forEach(function(r){
+
+    // Función helper para procesar un bloque y ceder control al navegador
+    async function processBlock(rows, processor){
+      var BLOCK = 20;
+      for(var bi = 0; bi < rows.length; bi += BLOCK){
+        var block = rows.slice(bi, bi + BLOCK);
+        block.forEach(processor);
+        // Ceder control al navegador entre bloques
+        await new Promise(function(resolve){ setTimeout(resolve, 0); });
+        // Actualizar progreso
+        var pct = Math.round((bi + block.length) / rows.length * 100);
+        result.innerHTML = '<span style="color:var(--muted)">Procesando... '+pct+'%</span>';
+      }
+    }
+
+    await processBlock(wlRows, function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
@@ -8282,27 +8334,36 @@ async function processZip(file, isGuest){
           // Escenario A — todo coincide, nada que hacer
           return;
         } else {
-          // Escenario B — URI coincide pero nombre o año difieren → corregir
-          // Guardar datos originales del CSV antes de corregir
-          existingByURI._csvOrigName = existingByURI._csvOrigName || existingByURI.n;
-          existingByURI._csvOrigYear = existingByURI._csvOrigYear || existingByURI.y;
-          existingByURI.n = name;
-          existingByURI.y = year;
-          existingByURI._lbSlug = lbSlug;
-          // Resetear metadatos para re-enriquecimiento
+          // Escenario B — URI coincide pero nombre/año difieren
+          // HARD RESET: borrar absolutamente todo y empezar desde cero con el nombre del CSV
           if(!existingByURI._manuallyLocked){
-            existingByURI._tmdbId = null;
-            existingByURI._mediaType = null;
-            existingByURI.genres = [];
-            existingByURI.director = "";
-            existingByURI.poster = null;
-            existingByURI.backdrop = null;
-            existingByURI.m = 0;
-            existingByURI.overview = "";
-            existingByURI._syncStatus = "needs_review";
-            existingByURI.isNew = true;
+            existingByURI._csvOrigName = existingByURI._csvOrigName || existingByURI.n;
+            existingByURI._csvOrigYear = existingByURI._csvOrigYear || existingByURI.y;
+            // El CSV es la verdad — actualizar nombre y año
+            existingByURI.n    = name;
+            existingByURI.y    = year;
+            existingByURI.u    = uri;
+            existingByURI._lbSlug = lbSlug;
+            // Borrar TODOS los metadatos de TMDB — sin excepciones
+            existingByURI._tmdbId        = null;
+            existingByURI._mediaType     = null;
+            existingByURI._imdbId        = null;
+            existingByURI._matchConfidence = null;
+            existingByURI.genres         = [];
+            existingByURI.director       = "";
+            existingByURI.poster         = null;
+            existingByURI.backdrop       = null;
+            existingByURI.m              = 0;
+            existingByURI.overview       = "";
+            existingByURI.type           = null;
+            existingByURI.country        = "";
+            existingByURI.certification  = null;
+            existingByURI._keywordIds    = [];
+            existingByURI.rating         = null;
+            existingByURI._syncStatus    = "needs_review";
+            existingByURI.isNew          = true; // fuerza re-enriquecimiento
+            stats.corrected++;
           }
-          stats.corrected++;
         }
       } else if(!ourURIs.has(uri)){
         // Escenario C — URI nueva, agregar
@@ -8315,7 +8376,7 @@ async function processZip(file, isGuest){
           _lbSlug:lbSlug,_csvOrigName:name,_csvOrigYear:year});
         ourURIs.add(uri);stats.addedWatchlist++;
       }
-    });
+    }); // fin processBlock wlRows
 
     // 2. Marcar como vistas (URI o nombre+año)
     titles.forEach(function(t){
@@ -8325,8 +8386,8 @@ async function processZip(file, isGuest){
       if(mURI||mKey){t.status="watched";stats.markedWatched++;}
     });
 
-    // 3. Agregar vistas que no estaban en ninguna lista
-    wRows.forEach(function(r){
+    // 3. Agregar vistas que no estaban en ninguna lista — en bloques de 20
+    await processBlock(wRows, function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
@@ -8343,7 +8404,7 @@ async function processZip(file, isGuest){
         overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false,
         _lbSlug:lbSlugW,_csvOrigName:name,_csvOrigYear:year});
       if(uri)ourURIs.add(uri);stats.addedWatched++;
-    });
+    }); // fin processBlock wRows
 
     // 4. Diary
     if(dRows.length){
