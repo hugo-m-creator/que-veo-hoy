@@ -1604,6 +1604,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mbtn" style="border-color:var(--red);color:var(--red);" onclick="clearAllTitles()">&#215; Borrar todo</button>
       <button class="mbtn" style="border-color:#ff8000;color:#ff8000;font-size:9px;" onclick="runProviderDiag()" title="Ver IDs reales de TMDB para tu región">&#9316; Providers</button>
       <button class="mbtn" style="border-color:#ff6b35;color:#ff6b35;font-size:9px;" onclick="resetFullUser()" title="Borrar todo incluyendo perfil, encuesta y caché — para pruebas">&#9762; Reset total</button>
+      <button class="mbtn" style="border-color:#f5c842;color:#f5c842;font-size:9px;" onclick="cleanLocalDuplicates()" title="Eliminar duplicados locales y sincronizar con Supabase">&#9873; Limpiar duplicados</button>
       <span id="reEnrichProgress" style="display:none;font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
     </div>
     <div class="add-box" style="margin-bottom:16px;">
@@ -1647,7 +1648,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.210");
+console.log("QVH version: 11.211");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1855,17 +1856,34 @@ async function supaSaveTitles(){
         };
       });
 
-    // Deduplicar por name+year — eliminar duplicados antes del upsert
-    var seen = {};
+    // Deduplicar: priorizar letterboxd_url como clave única, luego name+year
+    var seenUrl = {}, seenKey = {};
     var rows = allRows.filter(function(r){
-      var key = (r.name||'') + '_' + (r.year||'');
-      if(seen[key]) return false;
-      seen[key] = true;
+      if(r.letterboxd_url){
+        if(seenUrl[r.letterboxd_url]) return false;
+        seenUrl[r.letterboxd_url] = true;
+      } else {
+        var key = (r.name||'') + '_' + (r.year||'');
+        if(seenKey[key]) return false;
+        seenKey[key] = true;
+      }
       return true;
     });
 
     if(!rows.length) return;
-    var res = await supa.from("titles").upsert(rows, {onConflict:"user_id,name,year"});
+    // Dividir en rows con URL y sin URL para usar el onConflict correcto
+    var rowsWithUrl = rows.filter(function(r){ return !!r.letterboxd_url; });
+    var rowsNoUrl   = rows.filter(function(r){ return !r.letterboxd_url; });
+    var errors = [];
+    if(rowsWithUrl.length){
+      var r1 = await supa.from("titles").upsert(rowsWithUrl, {onConflict:"user_id,letterboxd_url"});
+      if(r1.error) errors.push(r1.error.message);
+    }
+    if(rowsNoUrl.length){
+      var r2 = await supa.from("titles").upsert(rowsNoUrl, {onConflict:"user_id,name,year"});
+      if(r2.error) errors.push(r2.error.message);
+    }
+    var res = {error: errors.length ? {message: errors.join('; ')} : null};
     if(res.error){
       console.error("[SUPA] saveTitles:", res.error.message);
       // Guardar backup de emergencia en localStorage
@@ -1997,8 +2015,15 @@ async function supaLoadAll(){
         {positive:signalsPositive,negative:signalsNegative,counts:signalsCounts}));}catch(e){}
     }
 
-    // ── Títulos — LA NUBE MANDA SIEMPRE ──────────────────────────
+    // ── Títulos — merge inteligente por letterboxd_url ──────────
     var ti = await supa.from("titles").select("*").eq("user_id",supaUser.id);
+    // Validación: si la nube tiene MENOS títulos que memoria, no sobreescribir ciegamente
+    var localCount = titles.filter(function(t){ return t.status !== "removed"; }).length;
+    if(ti.data && ti.data.length > 0 && ti.data.length < localCount * 0.5){
+      console.warn("[SUPA] nube tiene muchos menos títulos que local ("+ti.data.length+" vs "+localCount+") — abortando merge");
+      showToast("⚠ Sync abortado: la nube tiene muchos menos títulos. Verifica tu conexión.");
+      return;
+    }
     // Si Supabase falla o devuelve vacío, intentar recuperar del backup de emergencia
     if((!ti.data || !ti.data.length) && !ti.error){
       try {
@@ -2017,10 +2042,17 @@ async function supaLoadAll(){
     if(ti.data && ti.data.length){
       // Actualizar status/pinned/lists de títulos que ya están en RAW
       ti.data.forEach(function(r){
-        var ex = titles.find(function(t){
-          return (r.tmdb_id && t._tmdbId === r.tmdb_id) ||
-                 (t.n === r.name && t.y === r.year);
-        });
+        // Merge inteligente: buscar primero por letterboxd_url, luego tmdb_id, luego nombre+año
+        var ex = null;
+        if(r.letterboxd_url){
+          ex = titles.find(function(t){ return t.u === r.letterboxd_url; });
+        }
+        if(!ex && r.tmdb_id){
+          ex = titles.find(function(t){ return t._tmdbId === r.tmdb_id; });
+        }
+        if(!ex){
+          ex = titles.find(function(t){ return t.n === r.name && t.y === r.year; });
+        }
         if(ex){
           // Título del CSV — actualizar estado desde la nube
           ex.status = r.status || "active";
@@ -7842,6 +7874,41 @@ function removeT(idx){
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();
   showToast("Eliminada");
 }
+async function cleanLocalDuplicates(){
+  if(!confirm("¿Eliminar duplicados locales y sincronizar con Supabase?")) return;
+  showToast("Limpiando duplicados...");
+  var before = titles.length;
+  // Deduplicar por URI primero, luego por nombre+año
+  var seenUri = {}, seenName = {};
+  var clean = [];
+  titles.forEach(function(t){
+    var uriKey = t.u || null;
+    var nameKey = (t.n||"").toLowerCase()+"_"+(t.y||"");
+    if(uriKey && seenUri[uriKey]) return;
+    if(!uriKey && seenName[nameKey]) return;
+    if(uriKey) seenUri[uriKey] = true;
+    seenName[nameKey] = true;
+    clean.push(t);
+  });
+  titles = clean;
+  var removed = before - titles.length;
+  // Guardar local sin disparar sync
+  var _saved = supaUser;
+  supaUser = null;
+  saveState();
+  supaUser = _saved;
+  // Limpiar Supabase y re-subir
+  if(supaUser){
+    showToast("☁ Sincronizando lista limpia...");
+    await supa.from("titles").delete().eq("user_id", supaUser.id);
+    await supaSaveTitles();
+  }
+  updateStats(); updateCandidates();
+  if(typeof renderBrowse === "function") renderBrowse();
+  renderManage();
+  showToast("✓ " + removed + " duplicados eliminados. " + titles.length + " títulos en total.");
+}
+
 function toggleLock(idx){
   var t=titles.find(function(t){return t.idx===idx;});
   if(!t)return;
@@ -8413,29 +8480,30 @@ async function processZip(file, isGuest){
       diaryDates=Array.from(ds);
     }
 
-    // ── Deduplicar antes de guardar ───────────────────────────────
-    // Eliminar duplicados por nombre+año — ocurren cuando el CSV base y el ZIP
-    // tienen el mismo título con diferente formato de nombre
+    // ── Deduplicar antes de guardar — por URI primero, luego nombre+año ────
     (function(){
-      var seenKeys = {};
+      var seenUri = {}, seenKey = {};
       var clean = [];
       titles.forEach(function(t){
-        var key = (t.n||'').toLowerCase() + '_' + (t.y||'');
-        if(!seenKeys[key]){
-          seenKeys[key] = true;
-          clean.push(t);
-        } else {
-          // Duplicado — si el que ya está no tiene URI y este sí, reemplazar
-          var existing = clean.find(function(x){
-            return (x.n||'').toLowerCase()+'_'+(x.y||'') === key;
-          });
-          if(existing && !existing.u && t.u){
-            existing.u = t.u;
-            existing._lbSlug = t._lbSlug || existing._lbSlug;
+        var uriKey = t.u || null;
+        var nameKey = (t.n||'').toLowerCase() + '_' + (t.y||'');
+        if(uriKey){
+          if(seenUri[uriKey]){
+            // Duplicado por URI — transferir watched si aplica
+            var ex = clean.find(function(x){ return x.u === uriKey; });
+            if(ex && t.status === 'watched') ex.status = 'watched';
+            return;
           }
-          // Si el duplicado está watched, marcar el existente como watched
-          if(existing && t.status === 'watched') existing.status = 'watched';
+          seenUri[uriKey] = true;
+        } else {
+          if(seenKey[nameKey]){
+            var ex2 = clean.find(function(x){ return (x.n||'').toLowerCase()+'_'+(x.y||'') === nameKey; });
+            if(ex2 && t.status === 'watched') ex2.status = 'watched';
+            return;
+          }
+          seenKey[nameKey] = true;
         }
+        clean.push(t);
       });
       titles = clean;
     })();
