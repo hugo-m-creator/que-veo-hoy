@@ -1623,6 +1623,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mfbtn" onclick="setMF('removed',this)">Eliminados</button>
       <button class="mfbtn" onclick="setMF('new',this)">Agregados</button>
       <button class="mfbtn" onclick="setMF('nodata',this)">Sin duraci&#243;n</button>
+      <button class="mfbtn" onclick="setMF('review',this)" style="border-color:#ff6b35;color:#ff6b35;">&#9888; Revisar</button>
     </div>
 
     <div class="mlist" id="mList"></div>
@@ -1632,7 +1633,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.207");
+console.log("QVH version: 11.208");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1816,25 +1817,27 @@ async function supaSaveTitles(){
       .filter(function(t){ return t.status !== "removed"; })
       .map(function(t){
         return {
-          user_id:        supaUser.id,
-          tmdb_id:        t._tmdbId || null,
-          name:           t.n,
-          year:           t.y || null,
-          type:           t.type || "movie",
-          status:         t.status || "active",
-          minutes:        t.m || 0,
-          director:       t.director || null,
-          genres:         t.genres || [],
-          poster:         t.poster || null,
-          backdrop:       t.backdrop || null,
-          country:        t.country || null,
-          origin_country: t.origin_country || null,
-          rating:         t.rating || null,
-          letterboxd_url: t.u || null,
-          pinned:         t.pinned || false,
-          lists:          t.lists || [],
-          logline:        t.logline || null,
-          media_type:     t._mediaType || null,
+          user_id:              supaUser.id,
+          tmdb_id:              t._tmdbId || null,
+          name:                 t.n,
+          year:                 t.y || null,
+          type:                 t.type || "movie",
+          status:               t.status || "active",
+          minutes:              t.m || 0,
+          director:             t.director || null,
+          genres:               t.genres || [],
+          poster:               t.poster || null,
+          backdrop:             t.backdrop || null,
+          country:              t.country || null,
+          origin_country:       t.origin_country || null,
+          rating:               t.rating || null,
+          letterboxd_url:       t.u || null,
+          pinned:               t.pinned || false,
+          lists:                t.lists || [],
+          logline:              t.logline || null,
+          media_type:           t._mediaType || null,
+          is_manually_locked:   t._manuallyLocked || false,
+          sync_status:          t._manuallyLocked ? "locked" : (t._matchConfidence === "low" ? "needs_review" : "ok"),
         };
       });
 
@@ -2020,6 +2023,8 @@ async function supaLoadAll(){
             poster:r.poster||null, country:r.country||"",
             _tmdbId:r.tmdb_id||null, u:r.letterboxd_url||"",
             pinned:r.pinned||false, lists:r.lists||[], isNew:true,
+            _manuallyLocked: r.is_manually_locked || false,
+            _syncStatus: r.sync_status || "ok",
           });
         }
       });
@@ -3010,14 +3015,13 @@ async function startEnrich(){
 
   var toE=titles.filter(function(t){
     if(t.status==="removed")return false;
+    // Nunca re-enriquecer títulos bloqueados manualmente
+    if(t._manuallyLocked)return false;
     // Si tiene URL de Letterboxd, siempre verificar aunque tenga caché
-    // para asegurar que los metadatos son correctos
     if(t.u&&(t.u.includes("letterboxd.com")||t.u.includes("boxd.it"))){
-      // Solo saltarse si ya tiene director confirmado (enriquecimiento previo completo)
       if(t._tmdbId&&t.genres&&t.genres.length&&t.poster&&t.director)return false;
       return true;
     }
-    // Sin URL de Letterboxd — saltarse si ya tiene metadatos completos del caché
     if(t._tmdbId&&t.genres&&t.genres.length&&t.poster)return false;
     return true;
   });
@@ -7690,6 +7694,7 @@ function renderManage(){
     if(mFilter==="removed")return t.status==="removed";
     if(mFilter==="new")return t.isNew;
     if(mFilter==="nodata")return !t.m||t.m===0;
+    if(mFilter==="review")return t._matchConfidence==="low"||t._syncStatus==="needs_review";
     return true;
   });
   var a=titles.filter(function(t){return t.status==="active";}).length;
@@ -7704,8 +7709,8 @@ function renderManage(){
     var div=document.createElement("div");div.className="mitem";
     var h=Math.floor((t.m||0)/60),m2=(t.m||0)%60;
     var dur=t.m>0?(h>0?h+"h"+m2+"m":m2+"m"):'<span style="color:var(--red)">?</span>';
-    var badges=(t.isNew?'<span class="badge badge-n">nuevo</span>':'')+(t.status==="watched"?'<span class="badge badge-w">visto</span>':'')+(t.status==="removed"?'<span class="badge badge-rm">eliminado</span>':'')+(t._tmdbId&&t._matchConfidence==="low"?'<span class="badge" title="Match de TMDB sin confirmar" style="background:rgba(255,107,53,0.12);color:#ff6b35;border:1px solid rgba(255,107,53,0.3);cursor:help;">?</span>':'');
-    var btns='<div class="mitem-btns"><button class="ib ib-e" onclick="openEdit('+t.idx+')" title="Editar">&#9998;</button>';
+    var badges=(t.isNew?'<span class="badge badge-n">nuevo</span>':'')+(t.status==="watched"?'<span class="badge badge-w">visto</span>':'')+(t.status==="removed"?'<span class="badge badge-rm">eliminado</span>':'')+(t._tmdbId&&t._matchConfidence==="low"?'<span class="badge" title="Match de TMDB sin confirmar" style="background:rgba(255,107,53,0.12);color:#ff6b35;border:1px solid rgba(255,107,53,0.3);cursor:help;">&#9888;</span>':'')+(t._manuallyLocked?'<span class="badge" title="Bloqueado manualmente — no se re-enriquece" style="background:rgba(91,141,238,0.12);color:#5b8dee;border:1px solid rgba(91,141,238,0.3);cursor:help;">&#128274;</span>':'');
+    var lockBtn=t._manuallyLocked?'<button class="ib" onclick="toggleLock('+t.idx+')" title="Desbloquear — permitir re-enriquecimiento" style="color:#5b8dee;">&#128275;</button>':'<button class="ib" onclick="toggleLock('+t.idx+')" title="Bloquear metadatos — no re-enriquecer" style="color:#7a7696;">&#128274;</button>';    var btns='<div class="mitem-btns"><button class="ib ib-e" onclick="openEdit('+t.idx+')" title="Editar">&#9998;</button>'+lockBtn;
     if(t.status==="active")btns+='<button class="ib ib-w" onclick="markW('+t.idx+')" title="Vista">&#10003;</button><button class="ib ib-r" onclick="removeT('+t.idx+')" title="Quitar">&#215;</button>';
     else btns+='<button class="ib ib-rs" onclick="restoreT('+t.idx+')" title="Restaurar">&#8635;</button>';
     btns+='</div>';
@@ -7728,6 +7733,22 @@ function removeT(idx){
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();
   showToast("Eliminada");
 }
+function toggleLock(idx){
+  var t=titles.find(function(t){return t.idx===idx;});
+  if(!t)return;
+  t._manuallyLocked = !t._manuallyLocked;
+  if(t._manuallyLocked){
+    t._syncStatus = "locked";
+    showToast("🔒 Metadatos bloqueados — no se re-enriquecerán");
+  } else {
+    t._syncStatus = "ok";
+    showToast("🔓 Desbloqueado");
+  }
+  saveState();
+  scheduleSupaSync();
+  renderManage();
+}
+
 function restoreT(idx){var t=titles.find(function(t){return t.idx===idx;});if(!t)return;t.status="active";saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();}
 function toggleListsPanel(){
   var p=document.getElementById("listsPanel");
