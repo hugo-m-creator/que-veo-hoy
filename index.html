@@ -1425,6 +1425,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
           <div class="bd-item" data-val="duration_asc" onclick="setBDFilter('browseSort','duration_asc',this,'bdSort')">Duraci&#243;n (corta)</div>
           <div class="bd-item" data-val="duration_desc" onclick="setBDFilter('browseSort','duration_desc',this,'bdSort')">Duraci&#243;n (larga)</div>
           <div class="bd-item active" data-val="random" onclick="setBDFilter('browseSort','random',this,'bdSort')">&#127922; Aleatorio</div>
+          <div class="bd-item" data-val="idx_asc" onclick="setBDFilter('browseSort','idx_asc',this,'bdSort')">&#8593; Recientemente agregado</div>
+          <div class="bd-item" data-val="idx_desc" onclick="setBDFilter('browseSort','idx_desc',this,'bdSort')">&#8595; Primeros agregados</div>
         </div>
       </div>
       <div class="bd-wrap" id="bdList" style="display:none;">
@@ -1622,6 +1624,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mfbtn" onclick="setMF('new',this)">Agregados</button>
       <button class="mfbtn" onclick="setMF('nodata',this)">Sin duraci&#243;n</button>
     </div>
+
     <div class="mlist" id="mList"></div>
   </div>
 
@@ -1629,7 +1632,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.205");
+console.log("QVH version: 11.206");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -8639,6 +8642,8 @@ function getBrowseTitles(){
     if(browseSort==='year_asc')return (a.y||0)-(b.y||0);
     if(browseSort==='duration_asc')return (a.m||0)-(b.m||0);
     if(browseSort==='duration_desc')return (b.m||0)-(a.m||0);
+    if(browseSort==='idx_asc')return (b.idx||0)-(a.idx||0);
+    if(browseSort==='idx_desc')return (a.idx||0)-(b.idx||0);
     if(browseSort==='random')return a._randKey-b._randKey;
     return a.n.localeCompare(b.n);
   });
