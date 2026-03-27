@@ -1315,6 +1315,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
           <div id="rLogline" style="color:rgba(255,255,255,0.9);font-size:12px;line-height:1.8;"></div>
         </div>
         <button id="rLoglineBtn" onclick="generateLogline()" class="r-logline-btn">&#10024; Ver descripci&#243;n</button>
+        <!-- Sección fuente CSV — visible solo cuando hay discrepancia -->
+        <div id="rCsvSource" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(255,107,53,0.06);border:1px solid rgba(255,107,53,0.25);font-size:10px;"></div>
+        <!-- Corrección manual de TMDB ID -->
+        <div id="rManualFix" style="display:none;margin-top:8px;">
+          <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;">CORREGIR TMDB ID MANUALMENTE</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="rManualTmdbId" type="number" placeholder="TMDB ID..." style="flex:1;font-family:'DM Mono',monospace;font-size:11px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);">
+            <select id="rManualMediaType" style="font-family:'DM Mono',monospace;font-size:10px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);">
+              <option value="movie">movie</option>
+              <option value="tv">tv</option>
+            </select>
+            <button class="r-btn" onclick="applyManualTMDBId(lastPick&&lastPick.idx,document.getElementById('rManualTmdbId').value,document.getElementById('rManualMediaType').value)" style="white-space:nowrap;border-color:#5b8dee;color:#5b8dee;">&#128274; Aplicar</button>
+          </div>
+        </div>
         <div class="r-actions" style="align-items:center;flex-wrap:wrap;">
           <a id="rLink" href="#" target="_blank" class="r-link">Letterboxd</a>
           <a id="rStremio" href="#" target="_blank" class="r-link" style="border-color:#8458e8;color:#8458e8;">&#9654; Stremio</a>
@@ -1633,7 +1647,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.208");
+console.log("QVH version: 11.209");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -3328,6 +3342,23 @@ async function startEnrich(){
   finishEnrich(false);
 }
 
+
+// Generar sección de fuente CSV para el modal de la card
+function buildCSVSourceSection(t){
+  if(!t._csvOrigName) return "";
+  var nameMatch = t.n === t._csvOrigName;
+  var yearMatch = t.y === t._csvOrigYear;
+  if(nameMatch && yearMatch) return "";
+  return '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">'
+    +'<div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;">FUENTE: LETTERBOXD CSV</div>'
+    +'<div style="font-size:11px;color:#ff6b35;">'
+    +(nameMatch?'':('<span style="color:var(--muted)">Nombre original: </span>"'+t._csvOrigName+'"'))
+    +(!nameMatch&&!yearMatch?' &nbsp;&middot;&nbsp; ':'')
+    +(yearMatch?'':('<span style="color:var(--muted)">Año original: </span>'+t._csvOrigYear))
+    +'</div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-top:4px;">Los metadatos actuales de TMDB pueden no corresponder al título del CSV.</div>'
+    +'</div>';
+}
 
 // ── STATS & BUILD ─────────────────────────────────────────────────────────────
 function updateStats(){
@@ -5398,6 +5429,27 @@ function showResult(t){
   if(watchedBtn){watchedBtn.style.display="flex";if(t.status==="watched"){watchedBtn.classList.add("watched");watchedBtn.title="Desmarcar como vista";}else{watchedBtn.classList.remove("watched");watchedBtn.title="Marcar como vista";}}
   var rLink=document.getElementById("rLink");
   if(t.u){rLink.href=t.u;rLink.style.display="";}else{rLink.href="#";rLink.style.display="none";}
+
+  // Sección fuente CSV — mostrar si hay discrepancia
+  var csvSrc = document.getElementById("rCsvSource");
+  var manualFix = document.getElementById("rManualFix");
+  if(csvSrc){
+    var csvHtml = buildCSVSourceSection(t);
+    if(csvHtml){
+      csvSrc.innerHTML = csvHtml;
+      csvSrc.style.display = "block";
+    } else {
+      csvSrc.style.display = "none";
+    }
+  }
+  // Mostrar corrección manual si el match es dudoso o no está bloqueado
+  if(manualFix){
+    manualFix.style.display = (t._matchConfidence === "low" || !t._manuallyLocked) ? "block" : "none";
+    var tmdbInput = document.getElementById("rManualTmdbId");
+    if(tmdbInput) tmdbInput.value = t._tmdbId || "";
+    var mediaSelect = document.getElementById("rManualMediaType");
+    if(mediaSelect) mediaSelect.value = t._mediaType || "movie";
+  }
   var stremioQ=encodeURIComponent(t.n+(t.y?" "+t.y:""));
   var stremioEl=document.getElementById("rStremio");
   // Stremio: copiar ID primero, luego abrir app
@@ -6635,6 +6687,26 @@ function previewProfileHandle(){
     handleEl.textContent="";
     handleEl.style.display="none";
   }
+}
+
+// Lock automático cuando el usuario corrige manualmente el TMDB ID
+function applyManualTMDBId(idx, newId, mediaType){
+  var t = titles.find(function(t){ return t.idx === idx; });
+  if(!t) return;
+  newId = parseInt(newId);
+  if(!newId){ showToast("ID inválido"); return; }
+  t._tmdbId = newId;
+  t._mediaType = mediaType || "movie";
+  t._manuallyLocked = true;
+  t._syncStatus = "locked";
+  // Resetear metadatos para re-enriquecer con el nuevo ID
+  t.genres = []; t.director = ""; t.poster = null;
+  t.backdrop = null; t.m = 0; t.overview = "";
+  t.isNew = true;
+  saveState();
+  scheduleSupaSync();
+  showToast("🔒 TMDB ID actualizado y bloqueado. Re-enriqueciendo...");
+  setTimeout(function(){ startEnrich(); }, 500);
 }
 
 function saveProfileIdentity(){
@@ -8186,22 +8258,63 @@ async function processZip(file, isGuest){
       if(nm&&yr)wdByKey[nm+"|"+yr]=true;
     });
 
-    // 1. Agregar nuevas del watchlist como pendientes
+    // 1. Procesar watchlist con lógica de 3 escenarios
     var ourURIs=new Set(titles.map(function(t){return t.u;}));
+    stats.corrected = 0;
     wlRows.forEach(function(r){
       var uri=(r["Letterboxd URI"]||r["URI"]||"").trim();
       var name=(r["Name"]||r["name"]||"").trim();
       var year=parseInt(r["Year"]||r["year"])||null;
-      if(!uri||!name||ourURIs.has(uri))return;
-      var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
-      // Extraer slug de la URL de Letterboxd si es URL completa
+      if(!uri||!name)return;
+
       var lbSlug=null;
       var slugMatch=uri.match(/letterboxd\.com\/film\/([^\/]+)/);
       if(slugMatch)lbSlug=slugMatch[1];
-      titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
-        overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false,
-        _lbSlug:lbSlug});
-      ourURIs.add(uri);stats.addedWatchlist++;
+
+      // Buscar por URI exacta
+      var existingByURI = titles.find(function(t){ return t.u === uri; });
+
+      if(existingByURI){
+        // Escenario A o B — URI ya existe
+        var nameMatch = existingByURI.n.toLowerCase() === name.toLowerCase();
+        var yearMatch = !year || !existingByURI.y || existingByURI.y === year;
+        if(nameMatch && yearMatch){
+          // Escenario A — todo coincide, nada que hacer
+          return;
+        } else {
+          // Escenario B — URI coincide pero nombre o año difieren → corregir
+          // Guardar datos originales del CSV antes de corregir
+          existingByURI._csvOrigName = existingByURI._csvOrigName || existingByURI.n;
+          existingByURI._csvOrigYear = existingByURI._csvOrigYear || existingByURI.y;
+          existingByURI.n = name;
+          existingByURI.y = year;
+          existingByURI._lbSlug = lbSlug;
+          // Resetear metadatos para re-enriquecimiento
+          if(!existingByURI._manuallyLocked){
+            existingByURI._tmdbId = null;
+            existingByURI._mediaType = null;
+            existingByURI.genres = [];
+            existingByURI.director = "";
+            existingByURI.poster = null;
+            existingByURI.backdrop = null;
+            existingByURI.m = 0;
+            existingByURI.overview = "";
+            existingByURI._syncStatus = "needs_review";
+            existingByURI.isNew = true;
+          }
+          stats.corrected++;
+        }
+      } else if(!ourURIs.has(uri)){
+        // Escenario C — URI nueva, agregar
+        if(titles.find(function(t){
+          return t.n&&t.n.toLowerCase()===name.toLowerCase()&&(!year||!t.y||t.y===year);
+        })) return; // ya existe por nombre+año
+        var ni=titles.length?Math.max.apply(null,titles.map(function(t){return t.idx;}))+1:0;
+        titles.push({idx:ni,n:name,y:year,m:0,u:uri,is_series:false,genres:[],type:null,
+          overview:"",poster:null,director:"",country:"",status:"active",isNew:true,lists:[],pinned:false,
+          _lbSlug:lbSlug,_csvOrigName:name,_csvOrigYear:year});
+        ourURIs.add(uri);stats.addedWatchlist++;
+      }
     });
 
     // 2. Marcar como vistas (URI o nombre+año)
@@ -8228,7 +8341,7 @@ async function processZip(file, isGuest){
       if(slugMatchW)lbSlugW=slugMatchW[1];
       titles.push({idx:ni,n:name,y:year,m:0,u:uri||"",is_series:false,genres:[],type:null,
         overview:"",poster:null,director:"",country:"",status:"watched",isNew:true,lists:[],pinned:false,
-        _lbSlug:lbSlugW});
+        _lbSlug:lbSlugW,_csvOrigName:name,_csvOrigYear:year});
       if(uri)ourURIs.add(uri);stats.addedWatched++;
     });
 
@@ -8309,6 +8422,7 @@ async function processZip(file, isGuest){
         '<div class="sync-stat"><div class="sync-stat-lbl">Nuevas pendientes</div><div class="sync-stat-val" style="color:var(--accent)">'+stats.addedWatchlist+'</div></div>'+
         '<div class="sync-stat"><div class="sync-stat-lbl">Marcadas vistas</div><div class="sync-stat-val" style="color:var(--green)">'+stats.markedWatched+'</div></div>'+
         '<div class="sync-stat"><div class="sync-stat-lbl">Vistas agregadas</div><div class="sync-stat-val" style="color:var(--muted)">'+stats.addedWatched+'</div></div>'+
+        (stats.corrected?'<div class="sync-stat"><div class="sync-stat-lbl">Corregidas</div><div class="sync-stat-val" style="color:#ff6b35">'+stats.corrected+'</div></div>':'')+
         '<div class="sync-stat"><div class="sync-stat-lbl">D&iacute;as diary</div><div class="sync-stat-val" style="color:var(--muted)">'+diaryDates.length+'</div></div>'+
       '</div>'+
       (needsEnrich.length?'<div style="color:var(--muted);font-size:10px;margin-top:10px;">Cargando metadatos en background...</div>':'');
