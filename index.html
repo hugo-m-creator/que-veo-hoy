@@ -1650,7 +1650,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.212");
+console.log("QVH version: 11.213");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1829,6 +1829,8 @@ async function supaSignOut(){
 // ── Guardar títulos ───────────────────────────────────────────
 async function supaSaveTitles(){
   if(!supa || !supaUser) return;
+  // Punto 2: garantizar array 100% único antes de subir
+  deduplicateTitles();
   try {
     var allRows = titles
       .filter(function(t){ return t.status !== "removed"; })
@@ -1961,6 +1963,46 @@ async function supaSaveSignals(){
 }
 
 // ── Cargar todo desde Supabase ────────────────────────────────
+// Deduplicar array de títulos — silencioso salvo si hay >10 duplicados
+function deduplicateTitles(){
+  var before = titles.length;
+  var seenUri = {}, seenKey = {};
+  var clean = [];
+  titles.forEach(function(t){
+    var uriKey = t.u || null;
+    var nameKey = (t.n||"").toLowerCase()+"_"+(t.y||"");
+    if(uriKey){
+      if(seenUri[uriKey]){
+        // Duplicado — transferir watched si aplica
+        var ex = clean.find(function(x){ return x.u === uriKey; });
+        if(ex && t.status === "watched") ex.status = "watched";
+        return;
+      }
+      seenUri[uriKey] = true;
+    } else {
+      if(seenKey[nameKey]){
+        var ex2 = clean.find(function(x){
+          return (x.n||"").toLowerCase()+"_"+(x.y||"") === nameKey;
+        });
+        if(ex2 && t.status === "watched") ex2.status = "watched";
+        return;
+      }
+      seenKey[nameKey] = true;
+    }
+    clean.push(t);
+  });
+  titles = clean;
+  var removed = before - titles.length;
+  // Solo notificar si son muchos (>10)
+  if(removed > 10){
+    showToast("✓ " + removed + " duplicados eliminados automáticamente");
+  }
+  if(removed > 0){
+    console.log("[DEDUP] eliminados " + removed + " duplicados de " + before + " títulos");
+  }
+  return removed;
+}
+
 async function supaLoadAll(){
   if(!supa || !supaUser) return;
   console.log("[SUPA] cargando datos de la nube...");
@@ -2110,6 +2152,9 @@ async function supaLoadAll(){
       if(typeof renderBrowse === "function") renderBrowse();
       console.log("[SUPA] títulos cargados:", ti.data.length);
     }
+    // Punto 1: auto-purga de duplicados antes de habilitar escrituras
+    deduplicateTitles();
+
     // Carga inicial completa — habilitar escritura a Supabase
     _isInitialLoadComplete = true;
     setSyncStatus("synced");
@@ -2190,7 +2235,7 @@ async function supaUploadProfile(){
   await supaSaveProfile();
   await supaSaveTitles();
   await supaSaveSignals();
-  showToast("☁ Todo sincronizado correctamente");
+  showToast("☁ Cuenta sincronizada");
   if(btn){ btn.style.display="none"; btn.disabled=false; btn.textContent="☁ Sincronizar"; }
 }
 
@@ -7974,7 +8019,13 @@ async function cleanLocalDuplicates(){
   updateStats(); updateCandidates();
   if(typeof renderBrowse === "function") renderBrowse();
   renderManage();
-  showToast("✓ " + removed + " duplicados eliminados. " + titles.length + " títulos en total.");
+  if(removed > 10){
+    showToast("✓ " + removed + " duplicados eliminados. " + titles.length + " títulos en total.");
+  } else if(removed > 0){
+    showToast("✓ Lista limpia — " + titles.length + " títulos");
+  } else {
+    showToast("✓ Sin duplicados");
+  }
 }
 
 function toggleLock(idx){
