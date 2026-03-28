@@ -1203,6 +1203,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 <div id="app">
   <div class="site-title">&#191;Qu&#233;<br>veo hoy?</div>
   <div class="site-sub" id="siteSub">cargando...</div>
+  <div id="syncStatus" style="font-size:9px;color:var(--muted);letter-spacing:1px;min-height:14px;transition:opacity 0.3s;"></div>
   <div id="enrichStatus" style="display:flex;align-items:center;gap:12px;">
   <span class="edot spin" id="eDot"></span>
   <span id="eTxt2">Cargando...</span>
@@ -1605,6 +1606,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
       <button class="mbtn" style="border-color:#ff8000;color:#ff8000;font-size:9px;" onclick="runProviderDiag()" title="Ver IDs reales de TMDB para tu región">&#9316; Providers</button>
       <button class="mbtn" style="border-color:#ff6b35;color:#ff6b35;font-size:9px;" onclick="resetFullUser()" title="Borrar todo incluyendo perfil, encuesta y caché — para pruebas">&#9762; Reset total</button>
       <button class="mbtn" style="border-color:#f5c842;color:#f5c842;font-size:9px;" onclick="cleanLocalDuplicates()" title="Eliminar duplicados locales y sincronizar con Supabase">&#9873; Limpiar duplicados</button>
+      <button class="mbtn" style="border-color:#5b8dee;color:#5b8dee;font-size:9px;" onclick="forceDownloadFromCloud()" title="Borrar localStorage y descargar todo desde Supabase — no sube nada">&#9660; Forzar descarga total</button>
       <span id="reEnrichProgress" style="display:none;font-size:10px;color:var(--muted);letter-spacing:1px;"></span>
     </div>
     <div class="add-box" style="margin-bottom:16px;">
@@ -1648,7 +1650,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 </div>
 <script>
 
-console.log("QVH version: 11.211");
+console.log("QVH version: 11.212");
 // Paso B — loggear estado inicial después de cargar
 setTimeout(function(){
   if(typeof getStateFromDOM === "function"){
@@ -1962,6 +1964,7 @@ async function supaSaveSignals(){
 async function supaLoadAll(){
   if(!supa || !supaUser) return;
   console.log("[SUPA] cargando datos de la nube...");
+  setSyncStatus("loading");
   try {
     // ── Perfil ────────────────────────────────────────────────────
     var pr = await supa.from("profiles").select("*").eq("id",supaUser.id).maybeSingle();
@@ -2054,11 +2057,17 @@ async function supaLoadAll(){
           ex = titles.find(function(t){ return t.n === r.name && t.y === r.year; });
         }
         if(ex){
-          // Título del CSV — actualizar estado desde la nube
-          ex.status = r.status || "active";
-          ex.pinned = r.pinned || false;
-          ex.lists  = r.lists || [];
-          ex.logline = r.logline || ex.logline;
+          // Punto 4: usar updated_at para desempatar — gana el más reciente
+          var cloudUpdated = r.updated_at ? new Date(r.updated_at).getTime() : 0;
+          var localUpdated = ex._updatedAt || 0;
+          // La nube manda si es más reciente o si no hay timestamp local
+          if(cloudUpdated >= localUpdated){
+            ex.status  = r.status || "active";
+            ex.pinned  = r.pinned || false;
+            ex.lists   = r.lists || [];
+            ex.logline = r.logline || ex.logline;
+            ex._updatedAt = cloudUpdated;
+          }
         } else if(r.name && r.status !== "removed"){
           // Título agregado manualmente — importar desde la nube
           var ni = titles.length ? Math.max.apply(null, titles.map(function(t){ return typeof t.idx === 'number' ? t.idx : 0; })) + 1 : 0;
@@ -2101,11 +2110,40 @@ async function supaLoadAll(){
       if(typeof renderBrowse === "function") renderBrowse();
       console.log("[SUPA] títulos cargados:", ti.data.length);
     }
-  } catch(e){ console.error("[SUPA] loadAll error:", e); }
+    // Carga inicial completa — habilitar escritura a Supabase
+    _isInitialLoadComplete = true;
+    setSyncStatus("synced");
+    console.log("[SUPA] carga inicial completa — escrituras habilitadas");
+  } catch(e){
+    console.error("[SUPA] loadAll error:", e);
+    _isInitialLoadComplete = true; // habilitar escritura aunque haya error
+    setSyncStatus("synced");
+  }
+}
+
+// ── Indicador visual de sincronización ──────────────────────────
+function setSyncStatus(state){
+  var el = document.getElementById("syncStatus");
+  if(!el) return;
+  var map = {
+    "loading":  {text:"&#9889; Descargando nube...", color:"var(--accent)"},
+    "saving":   {text:"&#9650; Guardando cambios...", color:"var(--blue)"},
+    "synced":   {text:"&#10003; Sincronizado",        color:"var(--green)"},
+    "error":    {text:"&#9888; Error de sync",        color:"var(--red)"},
+    "blocked":  {text:"&#9917; Carga inicial...",      color:"var(--muted)"},
+  };
+  var s = map[state] || {text:"", color:"var(--muted)"};
+  el.innerHTML = s.text;
+  el.style.color = s.color;
+  // Ocultar "Sincronizado" después de 4 segundos
+  if(state === "synced"){
+    setTimeout(function(){
+      if(el) el.innerHTML = "";
+    }, 4000);
+  }
 }
 
 // ── Dual write: al guardar localmente, también guardar en nube ─
-// (se llama desde saveState, saveProfile, saveSignals)
 function supaAutoSync(){
   if(!supaUser) return;
   supaSaveTitles();
@@ -2696,10 +2734,17 @@ function saveState(){
 // Debounce para sync con Supabase — espera 2s antes de guardar
 // Evita race conditions cuando el usuario hace refresh justo después
 var _supaSyncTimer = null;
+var _isInitialLoadComplete = false;
+
 function scheduleSupaSync(){
+  if(!_isInitialLoadComplete){
+    console.log("[SUPA] sync bloqueado — carga inicial en progreso");
+    return;
+  }
   if(_supaSyncTimer) clearTimeout(_supaSyncTimer);
   _supaSyncTimer = setTimeout(async function(){
     _supaSyncTimer = null;
+    setSyncStatus("saving");
     try {
       var results = await Promise.allSettled([
         supaSaveTitles(),
@@ -2710,8 +2755,10 @@ function scheduleSupaSync(){
       if(failed.length){
         console.error("[SUPA] sync parcial — " + failed.length + " fallo(s):", failed);
         showToast("⚠ Error al sincronizar. Datos guardados localmente.");
+      setSyncStatus("error");
       } else {
         console.log("[SUPA] sync completo — títulos, perfil y señales guardados");
+        setSyncStatus("synced");
       }
     } catch(e){
       console.error("[SUPA] sync error:", e);
@@ -2770,6 +2817,10 @@ window.addEventListener("load",function(){
   initSupabase();
   loadAccountMode();
   loadState();
+  // Si no hay usuario logueado, habilitar escritura inmediatamente
+  setTimeout(function(){
+    if(!supaUser) { _isInitialLoadComplete = true; setSyncStatus("synced"); }
+  }, 2000);
   loadProfile();
   loadGuestProfiles();
   initGuestSurveyInterceptor();
@@ -7874,6 +7925,23 @@ function removeT(idx){
   saveState();updateStats();updateCandidates();buildGenres();buildDecades();buildCountries();buildLists();renderManage();
   showToast("Eliminada");
 }
+async function forceDownloadFromCloud(){
+  if(!supaUser){ showToast("Inicia sesión primero"); return; }
+  if(!confirm("¿Descargar todo desde la nube?\n\nEsto borrará los datos locales y descargará la lista completa de Supabase. No se subirá nada.")) return;
+  setSyncStatus("loading");
+  showToast("⬇ Descargando desde la nube...");
+  // 1. Bloquear escrituras durante la descarga
+  _isInitialLoadComplete = false;
+  // 2. Limpiar localStorage de títulos
+  var keysToDelete = ["wq_s7","wq_diary","qvh_emergency_backup"];
+  keysToDelete.forEach(function(k){ try{localStorage.removeItem(k);}catch(e){} });
+  // 3. Limpiar array local de títulos (solo resetear status)
+  titles.forEach(function(t){ t.status="active"; t.pinned=false; t.lists=[]; });
+  // 4. Descargar todo desde Supabase
+  await supaLoadAll(); // _isInitialLoadComplete se pone a true al terminar
+  showToast("✓ Descarga completa — " + titles.filter(function(t){return t.status!=="removed";}).length + " títulos");
+}
+
 async function cleanLocalDuplicates(){
   if(!confirm("¿Eliminar duplicados locales y sincronizar con Supabase?")) return;
   showToast("Limpiando duplicados...");
